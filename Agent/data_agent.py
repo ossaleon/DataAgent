@@ -31,6 +31,7 @@ from typing_extensions import NotRequired, TypedDict
 
 from langgraph.graph import END, StateGraph
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 
 try:
     from Agent.utils import text_to_csv, save_csv, get_evaluation_functions
@@ -468,25 +469,45 @@ class SalesDataAgent:
         phoenix_api_key: Optional[str] = None,
         phoenix_endpoint: Optional[str] = None,
         project_name: str = "evaluating-agent",
+        provider: str = "ollama",
+        openai_api_key: Optional[str] = None,
     ) -> None:
         """Initialize the agent and compile the graph.
 
         Args:
-            model: Ollama model name.
+            model: Model name (Ollama model like "llama3.2:3b" or OpenAI model like "gpt-4o-mini").
             temperature: Sampling temperature for the LLM.
             max_tokens: Generation token limit.
             streaming: Whether to stream tokens from the LLM.
             data_path: Optional override for the parquet dataset path.
             ollama_url: Optional override for Ollama base URL; defaults to OLLAMA_HOST or http://localhost:11434.
+            provider: LLM provider to use ("ollama" or "openai"). Default is "ollama".
+            openai_api_key: Optional OpenAI API key; defaults to OPENAI_API_KEY env var.
         """
-        self.ollama_url = ollama_url or os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        self.llm = ChatOllama(
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            streaming=streaming,
-            base_url=self.ollama_url,
-        )
+        self.provider = provider.lower()
+
+        if self.provider == "openai":
+            api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("OpenAI API key must be provided via openai_api_key parameter or OPENAI_API_KEY environment variable")
+            self.llm = ChatOpenAI(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                streaming=streaming,
+                api_key=api_key,
+            )
+            self.ollama_url = None
+        else:  # ollama
+            self.ollama_url = ollama_url or os.getenv("OLLAMA_HOST", "http://localhost:11434")
+            self.llm = ChatOllama(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                streaming=streaming,
+                base_url=self.ollama_url,
+            )
+
         self.data_path = data_path or DEFAULT_DATA_PATH
 
         # Optional Phoenix/OpenInference tracing integration
@@ -525,15 +546,24 @@ class SalesDataAgent:
             return False
 
     def check_model(self):
-        """Check if the model is running locally"""
-        try:
-            base = self.ollama_url.rstrip("/")
-            requests.get(f"{base}/api/version", timeout=3).json()
-            print("Server is running locally")
-            return self.check_ollama()
-        except Exception as e:
-            print(e)
-            return False
+        """Check if the model is running locally (Ollama) or accessible (OpenAI)"""
+        if self.provider == "openai":
+            try:
+                self.llm.invoke("Hello")
+                print("OpenAI API is accessible")
+                return True
+            except Exception as e:
+                print(f"OpenAI API error: {e}")
+                return False
+        else:
+            try:
+                base = self.ollama_url.rstrip("/")
+                requests.get(f"{base}/api/version", timeout=3).json()
+                print("Server is running locally")
+                return self.check_ollama()
+            except Exception as e:
+                print(e)
+                return False
 
 
     def _build_graph(self):
@@ -601,8 +631,12 @@ class SalesDataAgent:
             self.run_checked = self.check_model()
         
         if not self.run_checked:
-            print("Model is not running locally, remember to run ollama serve")
-            return {**state, "error": "Model is not running locally, remember to run ollama serve"}
+            error_msg = "Model is not accessible. " + (
+                "Remember to run 'ollama serve' for Ollama models." if self.provider == "ollama"
+                else "Check your OpenAI API key and internet connection."
+            )
+            print(error_msg)
+            return {**state, "error": error_msg}
     
         if lookup_only:
             print("[Agent] Running only lookup_sales_data")
@@ -668,7 +702,7 @@ class SalesDataAgent:
             print("[LangGraph] LangGraph execution completed")
             return result
     
-    def run_with_evaluation(
+    def _run_with_evaluation(
         self,
         *,
         prompt: str,
@@ -681,7 +715,6 @@ class SalesDataAgent:
         csv_eval_fn: Optional[callable] = None,
         text_eval_fn: Optional[callable] = None,
         save_dir: Optional[str] = None,
-        llm_text_eval: bool = False,
     ) -> Dict:
         """Core evaluation logic extracted from run() for CodeCarbon wrapping."""
         
@@ -728,13 +761,9 @@ class SalesDataAgent:
                     result["csv_score"] = csv_score
                 
                 if text_eval_fn:
-                    if llm_text_eval:
-                        text_score = text_eval_fn(generated_text=analysis_text, prompt=result.get("prompt", ""), sql_query=result.get("sql_query", ""), data=result.get("data",""))
-                    else:
-                        text_score = text_eval_fn(analysis_text)
+                    text_score = text_eval_fn(analysis_text)
                     score += text_score
                     result["text_score"] = text_score
-                
                 result["temperature"]= temps[i]
 
                 all_results.append(result)
@@ -744,6 +773,7 @@ class SalesDataAgent:
                 print(f"Error: {str(e)}")
                 
         self.llm.temperature = original_temp
+        print(all_scores)
         if not all_scores:
             return {}, 0.0
         
@@ -771,7 +801,6 @@ class SalesDataAgent:
         text_eval_fn: Optional[callable] = None,
         save_dir: Optional[str] = None,
         enable_codecarbon: bool = False,
-        llm_text_eval: bool = False,
     ) -> Dict:
         
         if save_dir is None:
@@ -790,7 +819,7 @@ class SalesDataAgent:
                     measure_power_secs=1,
                     log_level="error",
                 ):
-                    return self.run_with_evaluation(
+                    return self._run_with_evaluation(
                         prompt=prompt,
                         visualization_goal=visualization_goal,
                         lookup_only=lookup_only,
@@ -801,13 +830,12 @@ class SalesDataAgent:
                         csv_eval_fn=csv_eval_fn,
                         text_eval_fn=text_eval_fn,
                         save_dir=save_dir,
-                        llm_text_eval=llm_text_eval,
                     )
             except Exception as e:
                 print(f"CodeCarbon tracking failed: {e}, continuing without it")
                 # Fall through to run without CodeCarbon
         
-        return self.run_with_evaluation(
+        return self._run_with_evaluation(
             prompt=prompt,
             visualization_goal=visualization_goal,
             lookup_only=lookup_only,
@@ -818,7 +846,6 @@ class SalesDataAgent:
             csv_eval_fn=csv_eval_fn,
             text_eval_fn=text_eval_fn,
             save_dir=save_dir,
-            llm_text_eval=llm_text_eval,
         )
 
 __all__ = ["SalesDataAgent", "State"]
@@ -834,7 +861,6 @@ if __name__ == "__main__":
     parser.add_argument("--data", dest="data_path", type=str, default=DEFAULT_DATA_PATH, help="Path to parquet file")
     parser.add_argument("--goal", dest="visualization_goal", type=str, default=None, help="Optional visualization goal")
     parser.add_argument("--model", type=str, default="llama3.2:3b", help="Ollama model name")
-    parser.add_argument("--ollama_url", type=str, default="http://localhost:11434", help="Ollama url")
        
     # Agent type options
     agent_group = parser.add_mutually_exclusive_group()
@@ -862,7 +888,6 @@ if __name__ == "__main__":
     parser.add_argument("--bleu_nltk", action="store_true", help="Use nltk for BLEU implementation instead of simple BLEU")
     parser.add_argument("--spice_jar", type=str, default=None, help="Path to SPICE jar (e.g., spice-1.0.jar)")
     parser.add_argument("--spice_java_bin", type=str, default="java", help="Java executable for SPICE")
-    parser.add_argument("--llm_judge_model", type=str, help="Model for llm as a judge")
 
     # Phoenix tracking options
     parser.add_argument("--enable_tracing", action="store_true", help="Enable Phoenix tracing/tracking")
@@ -882,7 +907,6 @@ if __name__ == "__main__":
         enable_tracing=args.enable_tracing,
         phoenix_endpoint=args.phoenix_endpoint,
         project_name=args.project_name,
-        ollama_url=args.ollama_url
     )
 
     # Get evaluation functions based on arguments
@@ -897,12 +921,10 @@ if __name__ == "__main__":
         iou_type=args.iou_type,
         spice_text_eval=args.spice_text_eval,
         bleu_text_eval=args.bleu_text_eval,
+        llm_text_eval=args.llm_text_eval,
         bleu_nltk=args.bleu_nltk,
         spice_jar=args.spice_jar,
         spice_java_bin=args.spice_java_bin,
-        llm_text_eval=args.llm_text_eval,
-        llm_judge_model=args.llm_judge_model,
-        ollama_url=args.ollama_url,
     )
 
     # Run agent
@@ -918,5 +940,14 @@ if __name__ == "__main__":
         text_eval_fn=text_eval_fn,
         save_dir=args.save_dir,
         enable_codecarbon=args.enable_codecarbon,
-        llm_text_eval=args.llm_text_eval
     )
+    
+    # Print results
+    print("\n" + "="*60)
+    print("FINAL RESULTS")
+    print("="*60)
+    if args.best_of_n > 1:
+        print(f"Score variance: {score_variance:.4f}")
+    print(f"Answer: {output.get('answer', [])}")
+    if args.save_dir or args.best_of_n > 1:
+        print(f"Results saved to: {args.save_dir or 'temp directory'}")
