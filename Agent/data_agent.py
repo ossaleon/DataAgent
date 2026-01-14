@@ -372,13 +372,14 @@ def extract_chart_config(state: State, llm: ChatOllama) -> State:
 
 
 CREATE_CHART_PROMPT = (
-    "Write Python code to create a chart using matplotlib given the config.\n"
+    "Write Python code to create a chart using matplotlib given the config: {config}\n"
+    "'data' is the variable that contains the values to plot but do NOT include the assignement to 'data' in the code, use it as it is already valued."
+    "Also do NOT include 'data' element in the assignement of the variable config."
     "Only return code, no markdown fences or commentary. The code must:\n"
     "- import matplotlib.pyplot as plt\n"
     "- build a simple chart of type config['chart_type'] using axes config['x_axis'], config['y_axis'] if possible\n"
     "- set the title to config['title']\n"
     "- call plt.tight_layout() and plt.show() at the end\n"
-    "config: {config}"
 )
 
 
