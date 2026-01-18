@@ -5,6 +5,8 @@ evaluation/csv_queries
 **/.vscode
 **/__pycache__/
 
+tesi/
+.claude/
 shared.txt
 out/
 my_cpp/out/

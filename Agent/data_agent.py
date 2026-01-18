@@ -82,6 +82,7 @@ DEFAULT_DATA_PATH = os.path.join(
 class State(TypedDict):
     prompt: str
     data: Optional[str]
+    data_df: NotRequired[Optional[pd.DataFrame]]
     answer: List[str]
     visualization_goal: Optional[str]
     chart_config: Optional[dict]
@@ -94,20 +95,74 @@ class State(TypedDict):
 # LLM Helpers
 # -----------------------------
 
-SQL_GENERATION_PROMPT = """Generate an SQL query based on the prompt.
-Please just reply with the SQL query and NO MORE, just the query.
-The prompt is : {prompt}. The available columns are: {columns}. The table name is: {table_name}.
-If you need to use a DATE column with LIKE or pattern matching, first CAST it to VARCHAR like this: CAST(date_column AS VARCHAR) LIKE '%2021-11%'.
-Return only the SQL query, with no explanations or markdown formatting.
+SQL_GENERATION_PROMPT = """You are an expert SQL developer specializing in DuckDB queries for data analysis and visualization.
+
+## TASK
+Generate a DuckDB SQL query to answer the user's question and provide data optimized for visualization.
+
+## AVAILABLE DATA
+- Table name: {table_name}
+- Available columns: {columns}
+
+## USER QUESTION
+{prompt}
+
+## VISUALIZATION GOAL
+{visualization_goal}
+
+## INSTRUCTIONS
+1. Analyze the user's question to identify what data is needed
+2. Consider the visualization goal to structure the query output appropriately
+3. Select appropriate columns from the available columns
+4. Use proper SQL syntax for filtering, aggregation, and sorting
+5. For DATE columns with pattern matching, CAST to VARCHAR: CAST(date_column AS VARCHAR) LIKE '%2021-11%'
+6. Handle NULL values appropriately
+7. Use DuckDB-specific functions when beneficial
+
+## QUERY OPTIMIZATION FOR VISUALIZATION
+- **For time series plots**: Ensure dates are sorted chronologically, use DATE_TRUNC for proper granularity
+- **For bar charts**: Aggregate data by category, order by the metric being compared
+- **For scatter plots**: Select two numeric columns that show relationships
+- **For trend analysis**: Include time-based grouping (daily, monthly, yearly)
+- **General**: Limit result size if needed, ensure clean column names for axis labels
+
+## EXAMPLES
+
+Example 1 - Simple filtering for visualization:
+Question: "Show me sales from November 2021"
+Visualization: "Monthly sales trend"
+Columns: Date, Product_ID, Units_Sold, Revenue
+Query: SELECT Date, SUM(Revenue) as Total_Revenue FROM sales WHERE CAST(Date AS VARCHAR) LIKE '%2021-11%' GROUP BY Date ORDER BY Date
+
+Example 2 - Aggregation for bar chart:
+Question: "What are the top 5 products by total revenue?"
+Visualization: "Compare products by revenue"
+Columns: Product_ID, Product_Name, Revenue
+Query: SELECT Product_Name, SUM(Revenue) as Total_Revenue FROM sales GROUP BY Product_ID, Product_Name ORDER BY Total_Revenue DESC LIMIT 5
+
+Example 3 - Time series aggregation:
+Question: "Show monthly total sales for 2021"
+Visualization: "Revenue trends over time"
+Columns: Date, Units_Sold, Revenue
+Query: SELECT DATE_TRUNC('month', Date) as Month, SUM(Revenue) as Monthly_Sales FROM sales WHERE EXTRACT(YEAR FROM Date) = 2021 GROUP BY Month ORDER BY Month
+
+Example 4 - Scatter plot data:
+Question: "Analyze price vs demand relationship"
+Visualization: "Price vs demand correlation"
+Columns: Product_ID, Price, Units_Sold
+Query: SELECT Price, Units_Sold FROM sales WHERE Price IS NOT NULL AND Units_Sold IS NOT NULL
+
+## OUTPUT FORMAT
+Return ONLY the SQL query as plain text. No explanations. No markdown formatting. No code fences. Just the SQL query.
 """
 
 
 
 def generate_sql_query(state: State, columns: List[str], table_name: str, llm: ChatOllama) -> str:
-    """Generate a parameterized SQL query with the LLM based on the user prompt.
+    """Generate a parameterized SQL query with the LLM based on the user prompt and visualization goal.
 
     Args:
-        state: Conversation state containing the user prompt.
+        state: Conversation state containing the user prompt and optionally visualization_goal.
         columns: Available column names in the table.
         table_name: Name of the temporary DuckDB table to query.
         llm: ChatOllama instance used to generate the SQL.
@@ -115,8 +170,14 @@ def generate_sql_query(state: State, columns: List[str], table_name: str, llm: C
     Returns:
         A plain SQL string suitable for DuckDB. Any markdown fences are stripped.
     """
+    # Extract visualization goal from state, default to prompt if not specified
+    visualization_goal = state.get("visualization_goal") or state.get("prompt", "general data analysis")
+
     formatted_prompt = SQL_GENERATION_PROMPT.format(
-        prompt=state["prompt"], columns=columns, table_name=table_name
+        prompt=state["prompt"],
+        columns=columns,
+        table_name=table_name,
+        visualization_goal=visualization_goal
     )
     response = llm.invoke(formatted_prompt)
     sql_query = response.content if hasattr(response, "content") else str(response)
@@ -151,7 +212,7 @@ def lookup_sales_data(state: State, llm: ChatOllama, tracer=None) -> Dict:
     sql_query = generate_sql_query(state, df.columns.tolist(), table_name, llm)
     try:
         result_df = duckdb.sql(sql_query).df()
-        result_str = result_df.to_string()
+        result_str = result_df.to_string(index=False)
         if tracer is not None:
             try:
                 with tracer.start_as_current_span("sql_query_exec", openinference_span_kind="tool") as span:  # type: ignore[attr-defined]
@@ -161,15 +222,48 @@ def lookup_sales_data(state: State, llm: ChatOllama, tracer=None) -> Dict:
                         span.set_status(StatusCode.OK)  # type: ignore[attr-defined]
             except Exception:
                 pass
-        return {**state, "data": result_str, "sql_query": sql_query}
+        return {**state, "data": result_str, "data_df": result_df, "sql_query": sql_query}
     except Exception as e: # If the SQL fails, return empty results
         print(f"Error accessing data: {str(e)}")
         return {**state, "data": "", "sql_query": sql_query, "error": f"Error accessing data: {str(e)}"}
 
-DATA_ANALYSIS_PROMPT = """ Your goal is to give a clear answer to this question: {prompt}.
-Use the information available and return only a direct answer to the question.
-The only data available is the data extracted from another agent using this SQL code: {sql_query}
-The output of the SQL you can use to answer is this data: {data}
+DATA_ANALYSIS_PROMPT = """You are a professional data analyst providing insights from query results.
+
+## TASK
+Answer the user's question based ONLY on the provided data.
+
+## USER QUESTION
+{prompt}
+
+## AVAILABLE DATA
+This data was retrieved using the SQL query: {sql_query}
+
+Data:
+{data}
+
+## INSTRUCTIONS
+1. Examine the data carefully to understand what information is available
+2. Identify the key insights that directly answer the user's question
+3. Provide a concise, specific answer (2-3 sentences maximum)
+4. Use actual numbers and facts from the data
+5. Do NOT speculate or make assumptions beyond what the data shows
+6. If the data doesn't fully answer the question, state what you can determine from the available data
+
+## EXAMPLES
+
+Example 1 - Good answer:
+Question: "What were the total sales in November 2021?"
+Data: Shows 45 rows with Revenue column summing to $1,234,567
+Answer: "Based on the data, total sales in November 2021 were $1,234,567 across 45 transactions."
+
+Example 2 - Bad answer (do NOT do this):
+Question: "What were the total sales in November 2021?"
+Data: Shows 45 rows with Revenue column summing to $1,234,567
+Answer: "Sales were strong in November, likely due to holiday shopping. This trend probably continued into December and suggests the company is performing well."
+(This is bad because it speculates beyond the data)
+
+## OUTPUT FORMAT
+Provide a direct, concise answer in natural language (2-3 sentences). Focus only on facts from the data.
 """
 
 def analyzing_data(state: State, llm: ChatOllama, tracer=None) -> Dict:
@@ -223,29 +317,60 @@ def decide_tool(state: State, llm: ChatOllama, tracer=None) -> State:
     Returns:
         Updated state including 'tool_choice'.
     """
-    tools_description = """You have access to the following tools to help you with your task:
+    tools_description = """You are a workflow orchestrator managing a data analysis pipeline.
 
-    - lookup_sales_data: Look up sales data from a parquet file using SQL.
-    - analyzing_data: Analyze the sales data for trends and insights.
-    - create_visualization: Create visualizations based on the sales data.
-    - end: End the conversation if the task is complete.
+## AVAILABLE TOOLS
+- lookup_sales_data: Retrieves data from the database using SQL
+- analyzing_data: Analyzes retrieved data and provides insights
+- create_visualization: Generates chart code to visualize the data
+- end: Completes the workflow
 
-    Based on the actual state and the user prompt, decide which tool to use next.
+## DECISION RULES (CRITICAL - Follow in order)
+1. Data prerequisite: Must run lookup_sales_data BEFORE analyzing_data or create_visualization
+2. No repetition: NEVER select a tool that has already been used
+3. Completion criteria: Select 'end' when:
+   - 2 or more answers have been generated (analysis + visualization complete)
+   - All relevant tools for the user's request have been executed
+
+## DECISION FLOWCHART
+Start → Has data? No → lookup_sales_data
+              ↓ Yes
+          Already analyzed? No → analyzing_data
+              ↓ Yes
+          Need visualization? Yes → create_visualization
+              ↓ No/Done
+          end
     """
 
     decision_prompt = f"""
     {tools_description}
-    Current state:
-    - Prompt: {state.get('prompt')}
-    - Answer so far: {state.get('answer', [])}
-    - Visualization goal: {state.get('visualization_goal')}
-    - Tool used last: {state.get('tool_choice')}
-    Decide the next tool among: lookup_sales_data, analyzing_data, create_visualization.
-    Respond with only the tool name, or 'end'.
-    Keep in mind:
-    - Do NOT reuse a tool that was already used earlier in the conversation.
-    - If analysis and visualization are both completed, respond with "end".
-    - If all relevant tools for the prompt have been used, respond with "end".
+
+## CURRENT STATE
+- User's request: {state.get('prompt')}
+- Answers generated so far: {state.get('answer', [])}
+- Visualization goal: {state.get('visualization_goal')}
+- Last tool used: {state.get('tool_choice')}
+
+## EXAMPLES
+
+Example 1 - Initial state:
+State: prompt="Show sales data", answer=[], tool_choice=None
+Decision: lookup_sales_data (need data first)
+
+Example 2 - After data lookup:
+State: prompt="Show sales data", answer=[], tool_choice="lookup_sales_data", data exists
+Decision: analyzing_data (have data, now analyze)
+
+Example 3 - After analysis and visualization:
+State: prompt="Show sales trends", answer=["Analysis text", "Chart code"], tool_choice="create_visualization"
+Decision: end (2+ answers generated, workflow complete)
+
+## YOUR TASK
+Based on the current state above, select the next tool to execute.
+
+## OUTPUT FORMAT
+Respond with ONLY the tool name: lookup_sales_data, analyzing_data, create_visualization, or end
+No explanations. Just the tool name.
     """
 
     try:
@@ -296,13 +421,45 @@ def decide_tool(state: State, llm: ChatOllama, tracer=None) -> State:
         return {**state, "error": f"Error accessing data: {str(e)}"}
     
 
-CHART_CONFIGURATION_PROMPT = (
-    "Return a compact JSON object describing a chart configuration to visualize the data.\n"
-    "Keys: chart_type (bar|line|area|scatter), x_axis (string), y_axis (string), title (string).\n"
-    "Only return minified JSON, no markdown, no backticks.\n"
-    "Data to consider (plain text table excerpt): {data}\n"
-    "Visualization goal: {visualization_goal}"
-)
+CHART_CONFIGURATION_PROMPT = """You are a data visualization expert designing chart configurations.
+
+## TASK
+Create a JSON configuration object for visualizing the provided data.
+
+## VISUALIZATION GOAL
+{visualization_goal}
+
+## DATA TO VISUALIZE
+{data}
+
+## CHART TYPE SELECTION GUIDE
+Choose the appropriate chart type based on the data and goal:
+- bar: Comparing discrete categories or groups (e.g., sales by product, revenue by region)
+- line: Showing trends over time or continuous progression (e.g., monthly sales, daily visitors)
+- scatter: Showing correlations or relationships between two variables (e.g., price vs. demand)
+- area: Showing volume or cumulative values over time (e.g., cumulative revenue, market share)
+
+## REQUIRED JSON KEYS
+- chart_type: One of [bar, line, area, scatter]
+- x_axis: Column name for X-axis (string)
+- y_axis: Column name for Y-axis (string)
+- title: Descriptive chart title (string)
+
+## EXAMPLES
+
+Example 1 - Time series data:
+Data columns: Date, Revenue
+Goal: "Show revenue trends over time"
+Output: {{"chart_type": "line", "x_axis": "Date", "y_axis": "Revenue", "title": "Revenue Trends Over Time"}}
+
+Example 2 - Categorical comparison:
+Data columns: Product_Name, Units_Sold
+Goal: "Compare products by units sold"
+Output: {{"chart_type": "bar", "x_axis": "Product_Name", "y_axis": "Units_Sold", "title": "Units Sold by Product"}}
+
+## OUTPUT FORMAT
+Return ONLY a valid JSON object. No markdown. No code fences. No backticks. No explanations. Just the JSON.
+"""
 
 
 def _parse_chart_config(raw_text: str) -> Dict[str, str]:
@@ -346,7 +503,7 @@ def extract_chart_config(state: State, llm: ChatOllama) -> State:
     """Infer a compact chart configuration from the looked-up data.
 
     Prompts the LLM to return a minified JSON config and parses it into a
-    Python dict. The original text-formatted data is attached as config['data'].
+    Python dict. Data is NOT included in the config (it's passed separately as DataFrame).
 
     Args:
         state: Conversation state; should include 'data' and optionally 'visualization_goal'.
@@ -366,21 +523,115 @@ def extract_chart_config(state: State, llm: ChatOllama) -> State:
     response = llm.invoke(formatted_prompt)
     raw = response.content if hasattr(response, "content") else str(response)
     chart_config = _parse_chart_config(raw)
-    chart_config["data"] = data_text
-    print("This is the cart_config: "+str(chart_config))
+    # Do NOT include data in chart_config - it will be passed separately as DataFrame
+    print("This is the chart_config: "+str(chart_config))
     return {**state, "chart_config": chart_config}
 
 
-CREATE_CHART_PROMPT = (
-    "Write Python code to create a chart using matplotlib given the config: {config}\n"
-    "'data' is the variable that contains the values to plot but do NOT include the assignement to 'data' in the code, use it as it is already valued."
-    "Also do NOT include 'data' element in the assignement of the variable config."
-    "Only return code, no markdown fences or commentary. The code must:\n"
-    "- import matplotlib.pyplot as plt\n"
-    "- build a simple chart of type config['chart_type'] using axes config['x_axis'], config['y_axis'] if possible\n"
-    "- set the title to config['title']\n"
-    "- call plt.tight_layout() and plt.show() at the end\n"
-)
+CREATE_CHART_PROMPT = """You are a Python data visualization developer creating matplotlib charts.
+
+## TASK
+Generate Python code to create a chart based on the provided configuration.
+
+## AVAILABLE IN SCOPE
+- data_df: pandas DataFrame with the data (already loaded, do NOT create it)
+- config: Dictionary with chart configuration (already defined, do NOT create it)
+- pd: pandas module (already imported)
+- plt: matplotlib.pyplot module (already imported)
+
+## CHART CONFIGURATION
+{config}
+
+## REQUIREMENTS
+Your code must:
+1. Import matplotlib.pyplot as plt
+2. Import pandas as pd (if needed for data manipulation)
+3. Access data using: data_df[config['x_axis']] and data_df[config['y_axis']]
+4. Create the appropriate chart type using config['chart_type']
+5. Set the chart title using config['title']
+6. Add axis labels for clarity
+7. Call plt.tight_layout() before plt.show()
+8. Call plt.show() at the end
+
+## CHART TYPE IMPLEMENTATIONS
+
+### Bar Chart (chart_type='bar'):
+- Use plt.bar(x_data, y_data) for vertical bars
+- Good for categorical comparisons
+
+### Line Chart (chart_type='line'):
+- Use plt.plot(x_data, y_data) for lines
+- Good for time series and trends
+
+### Scatter Plot (chart_type='scatter'):
+- Use plt.scatter(x_data, y_data) for points
+- Good for correlations
+
+### Area Chart (chart_type='area'):
+- Use plt.fill_between(x_data, y_data) for filled areas
+- Good for cumulative values
+
+## EXAMPLES
+
+Example 1 - Bar chart:
+config = {{"chart_type": "bar", "x_axis": "Product", "y_axis": "Sales", "title": "Sales by Product"}}
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+x_data = data_df[config['x_axis']]
+y_data = data_df[config['y_axis']]
+
+plt.bar(x_data, y_data)
+plt.xlabel(config['x_axis'])
+plt.ylabel(config['y_axis'])
+plt.title(config['title'])
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.show()
+
+Example 2 - Line chart:
+config = {{"chart_type": "line", "x_axis": "Date", "y_axis": "Revenue", "title": "Revenue Over Time"}}
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+x_data = data_df[config['x_axis']]
+y_data = data_df[config['y_axis']]
+
+plt.plot(x_data, y_data, marker='o')
+plt.xlabel(config['x_axis'])
+plt.ylabel(config['y_axis'])
+plt.title(config['title'])
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+Example 3 - Scatter plot:
+config = {{"chart_type": "scatter", "x_axis": "Price", "y_axis": "Demand", "title": "Price vs Demand"}}
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+x_data = data_df[config['x_axis']]
+y_data = data_df[config['y_axis']]
+
+plt.scatter(x_data, y_data, alpha=0.6)
+plt.xlabel(config['x_axis'])
+plt.ylabel(config['y_axis'])
+plt.title(config['title'])
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+## ERROR HANDLING TIPS
+- If x_axis is a date column, you may need: pd.to_datetime(data_df[config['x_axis']])
+- For large categorical x-axis labels, use: plt.xticks(rotation=45, ha='right')
+- For better readability, consider adding: plt.grid(True, alpha=0.3)
+
+## OUTPUT FORMAT
+Return ONLY the Python code. No markdown formatting. No code fences. No explanations. Just the executable Python code.
+"""
 
 
 def create_chart(state: State, llm: ChatOllama) -> str:
@@ -404,16 +655,34 @@ def create_chart(state: State, llm: ChatOllama) -> str:
 def create_visualization(state: State, llm: ChatOllama, tracer=None) -> State:
     """Create a visualization by first extracting config and then generating code.
 
+    Uses the DataFrame directly from state (populated by lookup_sales_data).
+    The generated code will reference 'data_df' directly.
+
     Args:
-        state: Conversation state; should include 'data'.
+        state: Conversation state; should include 'data_df' (DataFrame).
         llm: ChatOllama instance used for config extraction and code generation.
 
     Returns:
-        Updated state with 'chart_config' and the generated code appended to 'answer'.
+        Updated state with 'chart_config', 'data_df' (DataFrame), and the generated code appended to 'answer'.
     """
     try:
+        # Get DataFrame directly from state (no parsing needed!)
+        data_df = state.get("data_df")
+
+        if data_df is not None:
+            print(f"Using DataFrame with shape: {data_df.shape}, columns: {list(data_df.columns)}")
+        else:
+            print("Warning: No DataFrame available in state")
+
+        # Extract chart configuration
         with_config = extract_chart_config(state, llm)
+
+        # Ensure DataFrame is in the updated state
+        with_config["data_df"] = data_df
+
+        # Generate chart code
         code = create_chart(with_config, llm)
+
         if tracer is not None:
             try:
                 with tracer.start_as_current_span("gen_visualization", openinference_span_kind="tool") as span:  # type: ignore[attr-defined]
@@ -423,6 +692,7 @@ def create_visualization(state: State, llm: ChatOllama, tracer=None) -> State:
                         span.set_status(StatusCode.OK)  # type: ignore[attr-defined]
             except Exception:
                 pass
+
         return {
             **with_config,
             "answer": with_config.get("answer", []) + [code],
