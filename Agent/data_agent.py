@@ -985,6 +985,7 @@ class SalesDataAgent:
         temp_max: Optional[float] = None,
         csv_eval_fn: Optional[callable] = None,
         text_eval_fn: Optional[callable] = None,
+        vis_eval_fn: Optional[callable] = None,
         save_dir: Optional[str] = None,
     ) -> Dict:
         """Core evaluation logic extracted from run() for CodeCarbon wrapping."""
@@ -1035,6 +1036,19 @@ class SalesDataAgent:
                     text_score = text_eval_fn(analysis_text)
                     score += text_score
                     result["text_score"] = text_score
+
+                # Visualization evaluation
+                if vis_eval_fn and not no_vis and not lookup_only:
+                    chart_config = result.get("chart_config")
+                    # Chart code is the last answer entry (after analysis text)
+                    answers = result.get("answer", [])
+                    chart_code = answers[-1] if len(answers) > 1 else None
+
+                    if chart_config and chart_code:
+                        vis_score = vis_eval_fn(chart_config, chart_code)
+                        score += vis_score
+                        result["vis_score"] = vis_score
+
                 result["temperature"]= temps[i]
 
                 all_results.append(result)
@@ -1070,14 +1084,15 @@ class SalesDataAgent:
         temp_max: Optional[float] = None,
         csv_eval_fn: Optional[callable] = None,
         text_eval_fn: Optional[callable] = None,
+        vis_eval_fn: Optional[callable] = None,
         save_dir: Optional[str] = None,
         enable_codecarbon: bool = False,
     ) -> Dict:
-        
+
         if save_dir is None:
             save_dir = tempfile.mkdtemp(prefix="agent_runs_")
         os.makedirs(save_dir, exist_ok=True)
-        
+
         # Wrap execution with CodeCarbon if requested and available
         if enable_codecarbon and _CODECARBON_AVAILABLE:
             codecarbon_dir = os.path.join(save_dir, "codecarbon")
@@ -1100,12 +1115,13 @@ class SalesDataAgent:
                         temp_max=temp_max,
                         csv_eval_fn=csv_eval_fn,
                         text_eval_fn=text_eval_fn,
+                        vis_eval_fn=vis_eval_fn,
                         save_dir=save_dir,
                     )
             except Exception as e:
                 print(f"CodeCarbon tracking failed: {e}, continuing without it")
                 # Fall through to run without CodeCarbon
-        
+
         return self._run_with_evaluation(
             prompt=prompt,
             visualization_goal=visualization_goal,
@@ -1116,6 +1132,7 @@ class SalesDataAgent:
             temp_max=temp_max,
             csv_eval_fn=csv_eval_fn,
             text_eval_fn=text_eval_fn,
+            vis_eval_fn=vis_eval_fn,
             save_dir=save_dir,
         )
 
@@ -1155,10 +1172,16 @@ if __name__ == "__main__":
     text_eval_group = parser.add_mutually_exclusive_group()
     text_eval_group.add_argument("--spice_text_eval", action="store_true")
     text_eval_group.add_argument("--bleu_text_eval", action="store_true")
-    text_eval_group.add_argument("--llm_text_eval", action="store_true") 
+    text_eval_group.add_argument("--llm_text_eval", action="store_true")
     parser.add_argument("--bleu_nltk", action="store_true", help="Use nltk for BLEU implementation instead of simple BLEU")
     parser.add_argument("--spice_jar", type=str, default=None, help="Path to SPICE jar (e.g., spice-1.0.jar)")
     parser.add_argument("--spice_java_bin", type=str, default="java", help="Java executable for SPICE")
+
+    # Visualization evaluation options
+    parser.add_argument("--vis_eval", action="store_true", help="Enable visualization evaluation using LLM-as-a-judge")
+    parser.add_argument("--gt_vis_path", type=str, default=None, help="Path to visualization ground truth JSON file")
+    parser.add_argument("--vis_judge_model", type=str, default="gpt-5.1", help="Model for visualization judge (default: gpt-5.1)")
+    parser.add_argument("--vis_provider", type=str, default="openai", choices=["openai", "ollama"], help="Provider for visualization judge")
 
     # Phoenix tracking options
     parser.add_argument("--enable_tracing", action="store_true", help="Enable Phoenix tracing/tracking")
@@ -1180,10 +1203,31 @@ if __name__ == "__main__":
         project_name=args.project_name,
     )
 
+    # Load visualization ground truth if provided
+    gt_vis_config = None
+    gt_vis_code = None
+    vis_goal = None
+    explicit_requirements = None
+    if args.gt_vis_path:
+        try:
+            with open(args.gt_vis_path, 'r', encoding='utf-8') as f:
+                vis_gt_data = json.load(f)
+                # If it's a list, use the first entry (for single-query evaluation)
+                if isinstance(vis_gt_data, list) and len(vis_gt_data) > 0:
+                    vis_gt_entry = vis_gt_data[0]
+                else:
+                    vis_gt_entry = vis_gt_data
+                gt_vis_config = vis_gt_entry.get("gt_chart_config")
+                gt_vis_code = vis_gt_entry.get("gt_chart_code")
+                vis_goal = vis_gt_entry.get("visualization_goal")
+                explicit_requirements = vis_gt_entry.get("explicit_requirements")
+        except Exception as e:
+            print(f"Failed to load visualization ground truth: {e}")
+
     # Get evaluation functions based on arguments
-    csv_eval_fn, text_eval_fn = get_evaluation_functions(
+    csv_eval_fn, text_eval_fn, vis_eval_fn = get_evaluation_functions(
         lookup_only=args.lookup_only,
-        gt_csv_path = args.gt_csv,
+        gt_csv_path=args.gt_csv,
         py_csv_eval=args.py_csv_eval,
         cpp_csv_eval=args.cpp_csv_eval,
         evaluator_exe=args.evaluator_exe,
@@ -1196,6 +1240,14 @@ if __name__ == "__main__":
         bleu_nltk=args.bleu_nltk,
         spice_jar=args.spice_jar,
         spice_java_bin=args.spice_java_bin,
+        # Visualization evaluation options
+        vis_eval=args.vis_eval,
+        gt_vis_config=gt_vis_config,
+        gt_vis_code=gt_vis_code,
+        vis_goal=vis_goal or args.visualization_goal,
+        explicit_requirements=explicit_requirements,
+        vis_judge_model=args.vis_judge_model,
+        vis_provider=args.vis_provider,
     )
 
     # Run agent
@@ -1209,6 +1261,7 @@ if __name__ == "__main__":
         temp_max=args.temp_max,
         csv_eval_fn=csv_eval_fn,
         text_eval_fn=text_eval_fn,
+        vis_eval_fn=vis_eval_fn,
         save_dir=args.save_dir,
         enable_codecarbon=args.enable_codecarbon,
     )

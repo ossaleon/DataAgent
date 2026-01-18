@@ -4,7 +4,7 @@ import os
 import json
 import numpy as np
 import csv
-from typing import Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional
 from collections import Counter
 import math
 import re
@@ -133,9 +133,18 @@ def get_evaluation_functions(
     llm_text_eval: bool = False,
     llm_judge_model: Optional[str] = None,
     ollama_url: Optional[str] = None,
-) -> tuple[Optional[callable], Optional[callable]]:
+    # Visualization evaluation options
+    vis_eval: bool = False,
+    gt_vis_config: Optional[Dict] = None,
+    gt_vis_code: Optional[str] = None,
+    vis_goal: Optional[str] = None,
+    explicit_requirements: Optional[Dict] = None,
+    vis_judge_model: str = "gpt-5.1",
+    vis_provider: str = "openai",
+    openai_api_key: Optional[str] = None,
+) -> Tuple[Optional[callable], Optional[callable], Optional[callable]]:
     """Get evaluation functions based on command-line arguments.
-    
+
     Args:
         lookup_only: If True, only CSV evaluation is relevant (no text analysis)
         py_csv_eval: Use Python CSV evaluator
@@ -148,13 +157,22 @@ def get_evaluation_functions(
         bleu_impl: BLEU implementation ("simple" or "nltk")
         spice_jar: Path to SPICE jar file
         spice_java_bin: Java executable for SPICE
-    
+        vis_eval: Enable visualization evaluation
+        gt_vis_config: Ground truth chart configuration dict
+        gt_vis_code: Ground truth matplotlib code string
+        vis_goal: Visualization goal string
+        explicit_requirements: Dict of explicit user requirements (color, formatting, etc.)
+        vis_judge_model: Model for visualization judge (default: gpt-5.1)
+        vis_provider: Provider for vis judge ("openai" or "ollama")
+        openai_api_key: OpenAI API key (uses env var if not provided)
+
     Returns:
-        Tuple of (csv_eval_fn, text_eval_fn), either can be None
+        Tuple of (csv_eval_fn, text_eval_fn, vis_eval_fn), any can be None
     """
     csv_eval_fn = None
     text_eval_fn = None
-    
+    vis_eval_fn = None
+
     # CSV Evaluation
     if gt_csv_path:
         if py_csv_eval:
@@ -164,14 +182,14 @@ def get_evaluation_functions(
         elif cpp_csv_eval:
             if evaluator_exe is None:
                 print("Cannot use --cpp_csv_eval because --evaluator-exe is not available") #TODO: make into warning
-            
+
             keys = [k.strip() for k in (eval_keys or "").split(",") if k.strip()] or None
             def cpp_wrapper(csv_path):
                 try:
                     output = run_cpp_comparator(
-                        actual_csv=csv_path, 
-                        evaluator_exe=evaluator_exe, 
-                        expected_csv=gt_csv_path, 
+                        actual_csv=csv_path,
+                        evaluator_exe=evaluator_exe,
+                        expected_csv=gt_csv_path,
                         keys=keys
                     )
                     iou_type_map = {"columns": "columns_iou", "rows": "rows_iou", "table": "iou"}
@@ -196,15 +214,15 @@ def get_evaluation_functions(
                 check_spice_jar_runnable(spice_jar=spice_jar, java_bin=spice_java_bin)
             except Exception as e:
                 print(json.dumps({"error": f"SPICE precheck failed: {str(e)}"}, indent=2)) #TODO make into warning
-            
+
             text_eval_fn = partial(spice_score_java, reference=gt_text, spice_jar=spice_jar, java_bin=spice_java_bin)
-            
+
         elif bleu_text_eval and gt_text_path and gt_text:
             if bleu_nltk:
                 text_eval_fn = partial(bleu_score_nltk,reference=gt_text, max_n=4, smooth=True)
             else:  # simple
                 text_eval_fn = partial(bleu_score,reference=gt_text, max_n=4, smooth=True)
-                
+
         elif llm_text_eval and llm_judge_model:
             def text_eval_llm(generated_text: str, prompt:str, sql_query:str, data:str) -> float:
                 score, _ = judge_analysis(
@@ -217,8 +235,26 @@ def get_evaluation_functions(
                     )
                 return score
             text_eval_fn = text_eval_llm
-    
-    return csv_eval_fn, text_eval_fn
+
+        # Visualization Evaluation
+        if vis_eval and gt_vis_config and gt_vis_code:
+            def vis_eval_wrapper(chart_config: Dict, chart_code: str) -> float:
+                score, _ = judge_visualization(
+                    visualization_goal=vis_goal or "",
+                    generated_config=chart_config,
+                    generated_code=chart_code,
+                    gt_config=gt_vis_config,
+                    gt_code=gt_vis_code,
+                    explicit_requirements=explicit_requirements,
+                    judge_model=vis_judge_model,
+                    provider=vis_provider,
+                    openai_api_key=openai_api_key,
+                    ollama_url=ollama_url or "http://localhost:11434"
+                )
+                return score
+            vis_eval_fn = vis_eval_wrapper
+
+    return csv_eval_fn, text_eval_fn, vis_eval_fn
 
 def compare_csv(csv1_path, csv2_path):
     """
@@ -682,3 +718,233 @@ def _parse_judge_json(raw_text: str) -> Dict:
         "completeness": {"score": 0, "reasoning": "Parse failed", "missing": []},
         "faithfulness": {"score": 0, "reasoning": "Parse failed", "hallucinations": []}
     }
+
+
+# -----------------------------
+# Visualization Evaluation (LLM-as-a-Judge)
+# -----------------------------
+
+VIS_JUDGE_PROMPT = """You are an expert data visualization evaluator. Your task is to assess whether a generated visualization achieves the same analytical purpose as a reference visualization.
+
+## VISUALIZATION GOAL
+{visualization_goal}
+
+## REFERENCE (GROUND TRUTH)
+Chart Configuration:
+{gt_config}
+
+Chart Code:
+```python
+{gt_code}
+```
+
+## GENERATED OUTPUT
+Chart Configuration:
+{gen_config}
+
+Chart Code:
+```python
+{gen_code}
+```
+
+## EXPLICIT USER REQUIREMENTS
+{explicit_requirements}
+
+## EVALUATION CRITERIA
+
+Rate each criterion on a scale of 1-5:
+
+### 1. AXIS CORRECTNESS (Critical - Weight: 40%)
+Do X and Y axes use the SAME data columns as the reference?
+- Column names must match exactly (case-insensitive)
+- Axes cannot be swapped (x must be x, y must be y)
+[1=Wrong columns, 3=Partial match, 5=Exact match]
+
+### 2. CHART TYPE CORRECTNESS (Critical - Weight: 30%)
+Is the chart type the same as the reference?
+- line, bar, scatter, area must match exactly
+- Variations within type are acceptable (e.g., grouped bar vs stacked bar)
+[1=Wrong type, 3=Similar type, 5=Exact match]
+
+### 3. FUNCTIONAL EQUIVALENCE (Important - Weight: 20%)
+Would the generated code produce a visually equivalent chart?
+- Ignore import statements and variable naming
+- Ignore code style/formatting differences
+- Focus on: Will plt.show() produce the same visual output?
+[1=Would fail/wrong output, 3=Minor visual differences, 5=Equivalent output]
+
+### 4. EXPLICIT REQUIREMENTS COMPLIANCE (Conditional - Weight: 10%)
+ONLY evaluate requirements that are non-null in EXPLICIT USER REQUIREMENTS.
+For each non-null requirement, check if the generated code complies.
+If all explicit requirements are null, give score of 5 (not applicable).
+[1=Major violations, 3=Partial compliance, 5=Full compliance or N/A]
+
+## OUTPUT FORMAT
+Return ONLY valid JSON:
+{{
+  "axis_correctness": {{"score": <1-5>, "reasoning": "<brief>", "x_match": <true/false>, "y_match": <true/false>}},
+  "chart_type": {{"score": <1-5>, "reasoning": "<brief>", "type_match": <true/false>}},
+  "functional_equivalence": {{"score": <1-5>, "reasoning": "<brief>", "would_render": <true/false>}},
+  "explicit_requirements": {{"score": <1-5>, "reasoning": "<brief>", "violations": []}}
+}}"""
+
+
+def _parse_vis_judge_json(raw_text: str) -> Dict:
+    """Parse visualization judge JSON response with robust error handling."""
+    try:
+        content = raw_text.strip().replace("```json", "").replace("```", "").strip()
+        if content.lower().startswith("json"):
+            content = content[4:].strip()
+
+        start = content.find("{")
+        end = content.rfind("}")
+
+        if start != -1 and end != -1:
+            parsed = json.loads(content[start:end+1])
+
+            # Ensure all criteria exist
+            for criterion in ["axis_correctness", "chart_type", "functional_equivalence", "explicit_requirements"]:
+                if criterion not in parsed:
+                    parsed[criterion] = {"score": 1, "reasoning": "Missing", "violations": []}
+
+            return parsed
+    except Exception as e:
+        print(f"Vis JSON parse error: {e}")
+
+    # Fallback
+    return {
+        "axis_correctness": {"score": 1, "reasoning": "Parse failed", "x_match": False, "y_match": False},
+        "chart_type": {"score": 1, "reasoning": "Parse failed", "type_match": False},
+        "functional_equivalence": {"score": 1, "reasoning": "Parse failed", "would_render": False},
+        "explicit_requirements": {"score": 5, "reasoning": "Parse failed - default N/A", "violations": []}
+    }
+
+
+def _compute_visualization_score(evaluation: Dict) -> float:
+    """Compute weighted normalized score from judge evaluation.
+
+    Weights:
+    - axis_correctness: 40% (critical)
+    - chart_type: 30% (critical)
+    - functional_equivalence: 20% (important)
+    - explicit_requirements: 10% (conditional)
+
+    Returns:
+        Score between 0.0 and 1.0
+    """
+    weights = {
+        "axis_correctness": 0.40,
+        "chart_type": 0.30,
+        "functional_equivalence": 0.20,
+        "explicit_requirements": 0.10
+    }
+
+    total_score = 0.0
+    for criterion, weight in weights.items():
+        raw_score = evaluation.get(criterion, {}).get("score", 1)
+        # Normalize from 1-5 scale to 0-1
+        normalized = (raw_score - 1) / 4.0
+        total_score += normalized * weight
+
+    return total_score
+
+
+def judge_visualization(
+    visualization_goal: str,
+    generated_config: Dict[str, str],
+    generated_code: str,
+    gt_config: Dict[str, str],
+    gt_code: str,
+    explicit_requirements: Optional[Dict[str, Any]] = None,
+    judge_model: str = "gpt-5.1",
+    provider: str = "openai",
+    openai_api_key: Optional[str] = None,
+    ollama_url: str = "http://localhost:11434",
+    temperature: float = 0.2,
+) -> Tuple[float, Dict]:
+    """Evaluate visualization quality using LLM-as-a-Judge.
+
+    Args:
+        visualization_goal: Original user request describing the desired visualization
+        generated_config: Agent's generated chart_config dictionary
+        generated_code: Agent's generated matplotlib code string
+        gt_config: Ground truth chart_config dictionary
+        gt_code: Ground truth matplotlib code string
+        explicit_requirements: Dict of user-specified requirements that must be checked
+            Keys: "color", "title_format", "label_format", "grid", "markers"
+            Values: specific requirement string or None (not required)
+        judge_model: Model name for the judge LLM (default: "gpt-5.1")
+        provider: LLM provider ("openai" or "ollama")
+        openai_api_key: API key for OpenAI (uses env var OPENAI_API_KEY if not provided)
+        ollama_url: Ollama server URL (only used if provider="ollama")
+        temperature: Sampling temperature for judge (default: 0.2)
+
+    Returns:
+        Tuple of (score: float, evaluation_details: Dict)
+        - score: Normalized score between 0.0 and 1.0
+        - evaluation_details: Dict with per-criterion scores and reasoning
+    """
+    import os
+
+    try:
+        # Create judge LLM based on provider
+        if provider == "openai":
+            from langchain_openai import ChatOpenAI
+            api_key = openai_api_key or os.environ.get("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("OpenAI API key not provided and OPENAI_API_KEY env var not set")
+            judge_llm = ChatOpenAI(
+                model=judge_model,
+                temperature=temperature,
+                api_key=api_key,
+                max_tokens=1000
+            )
+        else:  # ollama
+            from langchain_ollama import ChatOllama
+            judge_llm = ChatOllama(
+                model=judge_model,
+                temperature=temperature,
+                base_url=ollama_url,
+                max_tokens=1000
+            )
+
+        # Format explicit requirements for display
+        if explicit_requirements:
+            req_display = "\n".join([
+                f"- {k}: {v}" if v is not None else f"- {k}: (not specified - ignore)"
+                for k, v in explicit_requirements.items()
+            ])
+        else:
+            req_display = "None specified - ignore all styling requirements"
+
+        # Truncate code if too long
+        max_code_len = 2000
+        gen_code_truncated = generated_code[:max_code_len] if len(generated_code) > max_code_len else generated_code
+        gt_code_truncated = gt_code[:max_code_len] if len(gt_code) > max_code_len else gt_code
+
+        # Format the judge prompt
+        formatted_prompt = VIS_JUDGE_PROMPT.format(
+            visualization_goal=visualization_goal,
+            gt_config=json.dumps(gt_config, indent=2),
+            gt_code=gt_code_truncated,
+            gen_config=json.dumps(generated_config, indent=2),
+            gen_code=gen_code_truncated,
+            explicit_requirements=req_display
+        )
+
+        # Get judgment
+        response = judge_llm.invoke(formatted_prompt)
+        raw_content = response.content if hasattr(response, "content") else str(response)
+
+        # Parse JSON response
+        evaluation = _parse_vis_judge_json(raw_content)
+
+        # Compute overall score
+        overall_score = _compute_visualization_score(evaluation)
+        evaluation["overall_score"] = overall_score
+
+        return overall_score, evaluation
+
+    except Exception as e:
+        print(f"Visualization judge error: {e}")
+        return (0.0, {"error": str(e)})
