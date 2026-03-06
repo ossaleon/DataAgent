@@ -39,10 +39,13 @@ def _schema_from_dict(schema_dict: dict) -> DatabaseSchema:
             )
             for c in t.get("columns", [])
         ]
+        file_path = t.get("file_path")
+        if not file_path:
+            raise ValueError(f"Table {t.get('name', '?')!r} is missing required field 'file_path'.")
         tables.append(TableSchema(
             name=t["name"],
             description=t.get("description", t["name"]),
-            file_path=t["file_path"],
+            file_path=file_path,
             columns=columns,
         ))
     return DatabaseSchema(

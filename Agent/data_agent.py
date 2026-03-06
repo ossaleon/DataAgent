@@ -175,12 +175,12 @@ def select_relevant_tables(state: "State", schema: "DatabaseSchema", llm) -> Lis
     raw = response.content if hasattr(response, "content") else str(response)
     raw = raw.strip()
 
-    all_names = {t.name for t in schema.tables}
+    name_map = {t.name.lower(): t.name for t in schema.tables}
     selected = []
     for token in raw.split(","):
-        name = token.strip()
-        if name in all_names:
-            selected.append(name)
+        normalized = token.strip().lower()
+        if normalized in name_map:
+            selected.append(name_map[normalized])
 
     if not selected:
         print("[select_relevant_tables] Warning: could not parse table selection, using all tables")
@@ -383,38 +383,54 @@ def lookup_sales_data_core(state: State, llm, *, schema: Optional["DatabaseSchem
         Updated state containing 'data', 'data_df', 'sql_query' or 'error'.
     """
     # --- Build schema if not provided (backward compat) ---
+    _legacy_df = None
     if schema is None:
-        df = pd.read_parquet(DEFAULT_DATA_PATH)
+        _legacy_df = pd.read_parquet(DEFAULT_DATA_PATH)
         schema = DatabaseSchema(tables=[TableSchema(
             name="sales",
             description="Sales data",
             file_path=DEFAULT_DATA_PATH,
-            columns=[ColumnSchema(name=c, description=c) for c in df.columns.tolist()],
+            columns=[ColumnSchema(name=c, description=c) for c in _legacy_df.columns.tolist()],
         )])
 
-    # --- Register all tables in a fresh per-call DuckDB connection ---
-    con = duckdb.connect()
-    for table in schema.tables:
-        df_t = pd.read_parquet(table.file_path)
-        con.register(f"_df_{table.name}", df_t)
-        con.execute(f"CREATE TABLE {table.name} AS SELECT * FROM _df_{table.name}")
-
-    # --- Build schema context (two-step when many tables) ---
+    # --- Build schema context first (select tables before loading parquets) ---
     if schema.should_use_table_selection():
         selected_names = select_relevant_tables(state, schema, llm)
         schema_context = schema.get_full_schema_str(table_names=selected_names)
+        if not schema_context:
+            print("[lookup_sales_data_core] Warning: schema_context empty after table selection, using full schema")
+            selected_names = [t.name for t in schema.tables]
+            schema_context = schema.get_full_schema_str()
     else:
+        selected_names = [t.name for t in schema.tables]
         schema_context = schema.get_full_schema_str()
 
-    # --- Generate and execute SQL ---
-    sql_query = generate_sql_query(state, schema_context, llm)
+    # --- Register only selected tables in a fresh per-call DuckDB connection ---
+    selected_set = set(selected_names)
+    con = duckdb.connect()
     try:
-        result_df = con.execute(sql_query).df()
-        result_str = result_df.to_string(index=False)
-        return {**state, "data": result_str, "data_df": result_df, "sql_query": sql_query}
-    except Exception as e:
-        print(f"Error accessing data: {str(e)}")
-        return {**state, "data": "", "sql_query": sql_query, "error": f"Error accessing data: {str(e)}"}
+        for table in schema.tables:
+            if table.name not in selected_set:
+                continue
+            df_t = (
+                _legacy_df
+                if (_legacy_df is not None and table.file_path == DEFAULT_DATA_PATH)
+                else pd.read_parquet(table.file_path)
+            )
+            con.register(f"_df_{table.name}", df_t)
+            con.execute(f"CREATE TABLE {table.name} AS SELECT * FROM _df_{table.name}")
+
+        # --- Generate and execute SQL ---
+        sql_query = generate_sql_query(state, schema_context, llm)
+        try:
+            result_df = con.execute(sql_query).df()
+            result_str = result_df.to_string(index=False)
+            return {**state, "data": result_str, "data_df": result_df, "sql_query": sql_query}
+        except Exception as e:
+            print(f"Error accessing data: {str(e)}")
+            return {**state, "data": "", "sql_query": sql_query, "error": f"Error accessing data: {str(e)}"}
+    finally:
+        con.close()
 
 
 def analyzing_data_core(state: State, llm) -> Dict:
