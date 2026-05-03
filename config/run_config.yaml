@@ -8,9 +8,9 @@
 # LLM & PROVIDER
 # =============================================================================
 agent:
-  model: "gpt-4o-mini"
-  provider: "openai"                     # "openai" or "ollama"
-  ollama_url: "http://localhost:11434"    # ignored when provider=openai
+  model: "gemma4:31b"
+  provider: "ollama"                     # "openai" or "ollama"
+  ollama_url: "http://localhost:11434"   # ignored when provider=openai
   openai_api_key: null                   # null = read from OPENAI_API_KEY env var
 
 # =============================================================================
@@ -18,24 +18,36 @@ agent:
 # =============================================================================
 steps:
   decide_tool:
+    provider: null             # null = inherit agent.provider
+    model: null                # null = inherit agent.model
+    ollama_url: null           # null = inherit agent.ollama_url
     n: 1
-    temp_min: 0.1
-    temp_max: 0.1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
     max_tokens: 2000
-    top_p_min: 1.0
-    top_k_min: null            # null = provider default; skipped for openai
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64              # null = provider default; skipped for openai
+    top_k_max: 64
     cot_n: 1
     use_cache: false
     cache_mode: "skip"
     enabled: true
 
   lookup_sales_data:
-    n: 2
-    temp_min: 0.1
-    temp_max: 0.3
+    provider: null
+    model: null
+    ollama_url: null
+    n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
     max_tokens: 2000
-    top_p_min: 1.0
-    top_k_min: null
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
     cot_n: 1
     use_cache: true
     cache_mode: "skip"
@@ -43,12 +55,18 @@ steps:
     eval: "default"          # "default" = consensus CSV evaluator, "none" = no eval
 
   analyzing_data:
+    provider: null
+    model: null
+    ollama_url: null
     n: 1
-    temp_min: 0.1
-    temp_max: 0.7
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
     max_tokens: 3000
-    top_p_min: 1.0
-    top_k_min: null
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
     cot_n: 1
     use_cache: true
     cache_mode: "skip"
@@ -56,12 +74,18 @@ steps:
     eval: "default"          # "default" = LLM judge (no GT), "none" = no eval
 
   create_visualization:
+    provider: null
+    model: null
+    ollama_url: null
     n: 1
-    temp_min: 0.1
-    temp_max: 0.5
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
     max_tokens: 2000
-    top_p_min: 1.0
-    top_k_min: null
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
     cot_n: 1
     use_cache: true
     cache_mode: "skip"
@@ -87,6 +111,7 @@ run:
   run_id: "test run"                 # null = auto-generate; set for reproducible caching
   save_dir: "./output"
   save_results: false
+  save_execution_artifacts: true
   reuse_from: null             # run ID to reuse cached results from
   enable_codecarbon: false
   interactive_config: false   # true = prompt for step params at runtime

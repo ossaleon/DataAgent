@@ -12,6 +12,9 @@ import subprocess
 import tempfile
 from functools import partial
 
+# Must match _OLLAMA_REQUEST_TIMEOUT in data_agent.py
+_OLLAMA_REQUEST_TIMEOUT: int = 600
+
 def text_to_csv(text: str) -> List[List[str]]:
     """Convert text table to CSV rows.
 
@@ -119,9 +122,6 @@ def get_evaluation_functions(
     # CSV evaluation options
     gt_csv_path: Optional[str] = None,
     py_csv_eval: bool = False,
-    cpp_csv_eval: bool = False,
-    evaluator_exe: Optional[str] = None,
-    eval_keys: Optional[str] = None,
     iou_type: str = "rows",
     # Text evaluation options
     gt_text_path: Optional[str] = None,
@@ -148,9 +148,6 @@ def get_evaluation_functions(
     Args:
         lookup_only: If True, only CSV evaluation is relevant (no text analysis)
         py_csv_eval: Use Python CSV evaluator
-        cpp_csv_eval: Use C++ CSV evaluator
-        evaluator_exe: Path to C++ evaluator executable
-        eval_keys: Comma-separated key columns for comparison
         spice_text_eval: Use SPICE for text evaluation
         bleu_text_eval: Use BLEU for text evaluation
         llm_text_eval: Use LLM for text evaluation
@@ -179,25 +176,6 @@ def get_evaluation_functions(
             iou_type_map = {"columns": 0, "rows": 1, "table": 2}
             iou_index = iou_type_map.get(iou_type, 1)  # Default to rows (1)
             csv_eval_fn = lambda csv_path: compare_csv(csv_path, gt_csv_path)[iou_index]
-        elif cpp_csv_eval:
-            if evaluator_exe is None:
-                print("Cannot use --cpp_csv_eval because --evaluator-exe is not available") #TODO: make into warning
-
-            keys = [k.strip() for k in (eval_keys or "").split(",") if k.strip()] or None
-            def cpp_wrapper(csv_path):
-                try:
-                    output = run_cpp_comparator(
-                        actual_csv=csv_path,
-                        evaluator_exe=evaluator_exe,
-                        expected_csv=gt_csv_path,
-                        keys=keys
-                    )
-                    iou_type_map = {"columns": "columns_iou", "rows": "rows_iou", "table": "iou"}
-                    return output.get(iou_type_map.get(iou_type,"rows_iou"),0.0)
-                except Exception as e:
-                    print(f"[CSV Eval] C++ comparator failed: {e}")
-                    return 0.0
-            csv_eval_fn = cpp_wrapper
 
     # Load ground truth if provided
     if gt_text_path:
@@ -305,38 +283,6 @@ def compare_csv(csv1_path, csv2_path):
         final_rows_iou = 0.0
     
     return columns_names_iou, final_rows_iou, data_iou
-
-def run_cpp_comparator(
-    *,
-    evaluator_exe: str,
-    actual_csv: str,
-    expected_csv: str,
-    keys: Optional[List[str]] = None,
-    case_insensitive: bool = False,
-    stream_debug: bool = False,
-) -> Dict:
-    args = [evaluator_exe, "--actual", actual_csv, "--expected", expected_csv]
-    if keys:
-        args += ["--key", ",".join(keys)]
-    if case_insensitive:
-        args += ["--case-insensitive"]
-
-    # If stream_debug is True, inherit stderr so C++ debug (sent to stderr) prints to terminal.
-    # Keep stdout captured to parse JSON report.
-    if stream_debug:
-        proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=None, text=True)
-    else:
-        proc = subprocess.run(args, capture_output=True, text=True)
-    stdout = proc.stdout.strip()
-    try:
-        report = json.loads(stdout) if stdout else {}
-    except json.JSONDecodeError:
-        report = {"equal": False, "error": "Invalid JSON from comparator", "raw": stdout}
-    report["exit_code"] = proc.returncode
-    if proc.returncode not in (0, 1):
-        # Non-comparison error, include stderr
-        report.setdefault("error", proc.stderr.strip())
-    return report
 
 def _tokenize_for_bleu(text: str) -> List[str]:
     """Simple, dependency-free tokenization (words + numbers) for BLEU."""
@@ -672,9 +618,10 @@ Return ONLY valid JSON:
                 model=judge_model,
                 temperature=0.2,
                 base_url=ollama_url,
-                max_tokens=1000
+                max_tokens=1000,
+                client_kwargs={"timeout": _OLLAMA_REQUEST_TIMEOUT},
             )
-        
+
         # Truncate data if too long
         truncated_data = data[:2000] if len(data) > 2000 else data
         
@@ -778,6 +725,7 @@ Rate each criterion on a scale of 1-5:
 Do X and Y axes use the SAME data columns as the reference?
 - Column names must match exactly (case-insensitive)
 - Axes cannot be swapped (x must be x, y must be y)
+- Configs may use 'y_axis' (single column), 'y_axes' (list of columns for wide-format multi-series), or 'y_axis'+'group_by' (long-format multi-series). These are all valid multi-series approaches. If the reference uses 'group_by' and the generated uses 'y_axes' (or vice versa), focus on whether the SAME columns are ultimately visualized — not on the exact key name.
 [1=Wrong columns, 3=Partial match, 5=Exact match]
 
 ### 2. CHART TYPE CORRECTNESS
@@ -919,7 +867,8 @@ def judge_visualization(
                 model=judge_model,
                 temperature=temperature,
                 base_url=ollama_url,
-                max_tokens=1000
+                max_tokens=1000,
+                client_kwargs={"timeout": _OLLAMA_REQUEST_TIMEOUT},
             )
 
         # Format explicit requirements for display
@@ -997,6 +946,8 @@ def make_csv_evaluator_gt(
     else:
         raise ValueError("Provide either ground_truth_csv_path or ground_truth_csv_text")
 
+    _store: Dict = {}
+
     def eval_fn(result: Dict, state: Dict) -> float:
         data_df = result.get("data_df")
         if data_df is None:
@@ -1005,16 +956,53 @@ def make_csv_evaluator_gt(
                 data_df = text_to_dataframe(data_text)
 
         if data_df is None:
+            _store["reasoning"] = "Model returned no data (SQL error or empty result)."
             return 0.0
 
         result_df = data_df.copy()
+        result_df.columns = [c.lower() for c in result_df.columns]
+
+        gt_df_cmp = gt_df.copy()
+        gt_df_cmp.columns = [c.lower() for c in gt_df_cmp.columns]
 
         try:
-            return compare_dataframes_iou(result_df, gt_df)
+            score = compare_dataframes_iou(result_df, gt_df_cmp)
+            if score < 1.0:
+                n_gt = len(gt_df_cmp)
+                n_model = len(result_df)
+                gt_cols = set(gt_df_cmp.columns.tolist())
+                model_cols = set(result_df.columns.tolist())
+                if n_model == 0:
+                    _store["reasoning"] = "Model returned empty result."
+                elif gt_cols != model_cols:
+                    missing = sorted(gt_cols - model_cols)
+                    extra = sorted(model_cols - gt_cols)
+                    parts = [f"GT {n_gt} rows, model {n_model} rows, IOU={score:.3f}."]
+                    if missing:
+                        parts.append(f"Missing cols: {missing}.")
+                    if extra:
+                        parts.append(f"Extra cols: {extra}.")
+                    _store["reasoning"] = " ".join(parts)
+                else:
+                    try:
+                        gt_r0 = dict(zip(gt_df_cmp.columns, gt_df_cmp.iloc[0].tolist()))
+                        mod_r0 = dict(zip(result_df.columns, result_df.iloc[0].tolist())) if n_model > 0 else {}
+                        _store["reasoning"] = (
+                            f"GT {n_gt} rows, model {n_model} rows, IOU={score:.3f}. "
+                            f"GT row[0]={gt_r0} | Model row[0]={mod_r0}"
+                        )
+                    except Exception:
+                        _store["reasoning"] = (
+                            f"GT {n_gt} rows, model {n_model} rows, IOU={score:.3f}. "
+                            "Same columns but values differ."
+                        )
+            return score
         except Exception as e:
+            _store["reasoning"] = f"Evaluation error: {e}"
             print(f"CSV evaluation error: {e}")
             return 0.0
 
+    eval_fn._store = _store
     return eval_fn
 
 
@@ -1076,7 +1064,10 @@ Respond ONLY with valid JSON in this exact format:
             judge_llm = ChatOpenAI(model=judge_model, temperature=0.0, api_key=api_key)
         else:
             from langchain_ollama import ChatOllama
-            judge_llm = ChatOllama(model=judge_model, temperature=0.0, base_url=ollama_url)
+            judge_llm = ChatOllama(
+                model=judge_model, temperature=0.0, base_url=ollama_url,
+                client_kwargs={"timeout": _OLLAMA_REQUEST_TIMEOUT},
+            )
 
         formatted_prompt = JUDGE_GT_PROMPT.format(
             gt_analysis=gt_analysis,
@@ -1128,6 +1119,8 @@ def make_text_evaluator_gt(
     Returns:
         Function with signature (result: Dict, state: Dict) -> float
     """
+    _store: Dict = {}
+
     def eval_fn(result: Dict, state: Dict) -> float:
         answers = result.get("answer", [])
         if not answers:
@@ -1142,7 +1135,7 @@ def make_text_evaluator_gt(
             elif metric == "spice":
                 return spice_score_java(analysis_text, ground_truth_text)
             elif metric == "judge_gt":
-                score, _ = judge_analysis_gt(
+                score, evaluation = judge_analysis_gt(
                     generated_analysis=analysis_text,
                     gt_analysis=ground_truth_text,
                     judge_model=judge_model,
@@ -1150,14 +1143,23 @@ def make_text_evaluator_gt(
                     ollama_url=ollama_url,
                     openai_api_key=openai_api_key,
                 )
+                print(f"[analyzing_data GT judge] factual_accuracy={evaluation.get('factual_accuracy')} | coverage={evaluation.get('coverage')} | reasoning: {evaluation.get('reasoning', 'N/A')}")
+                if score < 1.0:
+                    _store["reasoning"] = (
+                        f"factual_accuracy={evaluation.get('factual_accuracy')}, "
+                        f"coverage={evaluation.get('coverage')}. "
+                        f"{evaluation.get('reasoning', '')}"
+                    )
                 return score
             else:
                 return bleu_score(analysis_text, ground_truth_text)
 
         except Exception as e:
+            _store["reasoning"] = f"Evaluation error: {e}"
             print(f"Text GT evaluation error: {e}")
             return 0.0
 
+    eval_fn._store = _store
     return eval_fn
 
 
@@ -1185,22 +1187,26 @@ def make_vis_evaluator_gt(
         Function with signature (result: Dict, state: Dict) -> float
         that extracts chart_config and code from result and evaluates.
     """
+    _store: Dict = {}
+
     def eval_fn(result: Dict, state: Dict) -> float:
         chart_config = result.get("chart_config")
         answers = result.get("answer", [])
 
         if not chart_config:
+            _store["reasoning"] = "Model produced no chart_config."
             return 0.0
 
         # Chart code is the last answer entry
         chart_code = answers[-1] if answers else None
         if not chart_code:
+            _store["reasoning"] = "Model produced no chart code."
             return 0.0
 
         visualization_goal = state.get("visualization_goal", state.get("prompt", ""))
 
         try:
-            score, _ = judge_visualization(
+            score, evaluation = judge_visualization(
                 visualization_goal=visualization_goal,
                 generated_config=chart_config,
                 generated_code=chart_code,
@@ -1212,12 +1218,20 @@ def make_vis_evaluator_gt(
                 openai_api_key=openai_api_key,
                 ollama_url=ollama_url,
             )
+            if score < 1.0:
+                reasoning_parts = []
+                for key, val in evaluation.items():
+                    if key not in ("overall_score", "error") and val is not None:
+                        reasoning_parts.append(f"{key}={val}")
+                _store["reasoning"] = "; ".join(reasoning_parts) if reasoning_parts else str(evaluation)
             return score
 
         except Exception as e:
+            _store["reasoning"] = f"Evaluation error: {e}"
             print(f"Visualization evaluation error: {e}")
             return 0.0
 
+    eval_fn._store = _store
     return eval_fn
 
 
@@ -1273,8 +1287,15 @@ def compare_dataframes_iou(df1: pd.DataFrame, df2: pd.DataFrame, atol: float = 1
             # Normalize: strip trailing midnight time from date strings
             sa = str(a).replace(" 00:00:00", "")
             sb = str(b).replace(" 00:00:00", "")
-            if sa != sb:
-                return False
+            if sa == sb:
+                continue
+            # Handle YYYY-MM vs YYYY-MM-DD: treat first-of-month as equivalent
+            if sa[:7] == sb[:7] and (
+                (len(sa) == 7 and len(sb) == 10 and sb.endswith("-01")) or
+                (len(sb) == 7 and len(sa) == 10 and sa.endswith("-01"))
+            ):
+                continue
+            return False
         return True
 
     # Greedy matching: for each row in v1, find an unmatched row in v2
@@ -1307,7 +1328,12 @@ def normalize_dataframe_values(df: pd.DataFrame) -> pd.DataFrame:
     for col in df.columns:
         series = df[col]
 
-        # Try numeric first
+        # Handle datetime dtype first (before numeric, since datetime64 is numeric-castable)
+        if pd.api.types.is_datetime64_any_dtype(series):
+            df[col] = series.dt.strftime("%Y-%m-%d")
+            continue
+
+        # Try numeric
         numeric = pd.to_numeric(series, errors="coerce")
         if numeric.notna().all() and not series.isna().all():
             # Check if all values are whole numbers → cast to int
@@ -1317,7 +1343,7 @@ def normalize_dataframe_values(df: pd.DataFrame) -> pd.DataFrame:
                 df[col] = numeric.round(2)
             continue
 
-        # Try datetime
+        # Try datetime (for string columns like "2023-01-01")
         try:
             dt = pd.to_datetime(series, errors="coerce", format="mixed")
             if dt.notna().all() and not series.isna().all():
@@ -1359,6 +1385,7 @@ def standardize_candidate_columns(
     results: List[Dict],
     schema,
     llm,
+    gt_columns: Optional[List[str]] = None,
 ) -> List[Dict]:
     """Use an LLM to standardize column names across best-of-n candidates.
 
@@ -1389,12 +1416,56 @@ def standardize_candidate_columns(
 
     # Skip if fewer than 2 candidates have DataFrames
     valid = [c for c in candidates_info if c["df"] is not None and len(c["cols"]) > 0]
+
+    def _apply_gt_alignment(df: pd.DataFrame, canonical_cols: list) -> pd.DataFrame:
+        """Rename and reorder df columns to match canonical_cols without LLM."""
+        df = df.copy()
+        current_cols = list(df.columns)
+        if len(current_cols) == len(canonical_cols):
+            # Case-insensitive rename
+            ci_map = {c.lower(): c for c in current_cols}
+            fixed = {ci_map[canon.lower()]: canon
+                     for canon in canonical_cols
+                     if ci_map.get(canon.lower()) and ci_map[canon.lower()] != canon}
+            if fixed:
+                df = df.rename(columns=fixed)
+            # Positional rename as last resort
+            if list(df.columns) != canonical_cols and len(df.columns) == len(canonical_cols):
+                df.columns = canonical_cols
+        # Reorder to canonical order if all columns present
+        if set(canonical_cols).issubset(set(df.columns)):
+            df = df[canonical_cols]
+        return normalize_dataframe_values(df)
+
     if len(valid) < 2:
+        # Special case: single candidate + gt_columns → apply GT column alignment without LLM
+        if len(valid) == 1 and gt_columns:
+            ci = valid[0]
+            idx = ci["idx"]
+            df = _apply_gt_alignment(results[idx]["data_df"], list(gt_columns))
+            results[idx]["data_df"] = df
+            results[idx]["data"] = df.to_csv(index=False)
+            print(f"[standardize] Single-candidate GT alignment → columns: {list(df.columns)}")
         return results
 
-    # Skip the LLM only when candidates already have the exact same columns and order.
+    # When all candidates share the same columns AND gt_columns is provided but
+    # column names don't already match GT → apply GT alignment directly to all
+    # candidates without calling the LLM (no inter-candidate disagreement to resolve).
     col_lists = [tuple(ci["cols"]) for ci in valid]
     if len(set(col_lists)) == 1:
+        if gt_columns is None:
+            return results
+        current_lower = [c.lower() for c in valid[0]["cols"]]
+        if current_lower == [c.lower() for c in gt_columns]:
+            return results
+        # All candidates agree but names don't match GT → rename all without LLM
+        canonical_cols = list(gt_columns)
+        for ci in valid:
+            idx = ci["idx"]
+            df = _apply_gt_alignment(results[idx]["data_df"], canonical_cols)
+            results[idx]["data_df"] = df
+            results[idx]["data"] = df.to_csv(index=False)
+        print(f"[standardize] Multi-candidate GT alignment (same cols) → columns: {canonical_cols}")
         return results
 
     # Build prompt
@@ -1406,10 +1477,22 @@ def standardize_candidate_columns(
         )
     candidates_section = "\n".join(candidates_lines)
 
-    prompt = COLUMN_STANDARDIZATION_PROMPT.format(
-        schema_context=schema_context,
-        candidates_section=candidates_section,
-    )
+    if gt_columns:
+        gt_hint = (
+            f"\n## Required Output Column Names (Ground Truth)\n"
+            f"The canonical_columns in your output MUST be exactly: {gt_columns} (in this order).\n"
+            f"Rename each candidate column to its semantically matching entry in this list.\n"
+            f"Do NOT use schema column names or candidate names — use only these GT names."
+        )
+        prompt = COLUMN_STANDARDIZATION_PROMPT.format(
+            schema_context=schema_context,
+            candidates_section=candidates_section,
+        ) + gt_hint
+    else:
+        prompt = COLUMN_STANDARDIZATION_PROMPT.format(
+            schema_context=schema_context,
+            candidates_section=candidates_section,
+        )
 
     # Call LLM
     response = llm.invoke(prompt)
@@ -1438,7 +1521,6 @@ def standardize_candidate_columns(
         if df is None:
             continue
 
-        # Rename columns
         rename_map = {old: new for old, new in col_map.items() if old in df.columns}
         df = df.rename(columns=rename_map)
 
@@ -1576,9 +1658,11 @@ Is the chart type appropriate for the data structure?
 
 ### 2. AXIS MAPPING
 Are the X and Y axes using appropriate columns from the data?
-- Do the column names in the config actually exist in the data?
+- The config may have 'y_axis' (single column), 'y_axes' (list of columns for wide-format multi-series), or 'y_axis'+'group_by' (long-format multi-series where series are filtered by a discriminator column). All are valid.
+- Do the column names in the config actually exist in the data? For 'y_axes', each listed column must exist. For 'y_axis'+'group_by', both y_axis and group_by must exist as actual data columns.
 - Are the axes semantically correct (e.g., time on X, measure on Y)?
-[1=Wrong/missing columns, 3=Acceptable mapping, 5=Perfect mapping]
+- For comparison goals (A vs B for different years/categories): a single y_axis with group_by pointing to the discriminator column is correct; y_axes with columns that DON'T exist in data should score low.
+[1=Wrong/missing columns, 3=Acceptable mapping or missing one series, 5=Perfect mapping with all required series]
 
 ### 3. CODE QUALITY
 Will the matplotlib code execute correctly and produce a readable chart?
@@ -1689,7 +1773,8 @@ def judge_visualization_no_gt(
             from langchain_ollama import ChatOllama
             judge_llm = ChatOllama(
                 model=judge_model, temperature=temperature,
-                base_url=ollama_url, max_tokens=1000
+                base_url=ollama_url, max_tokens=1000,
+                client_kwargs={"timeout": _OLLAMA_REQUEST_TIMEOUT},
             )
 
         max_code_len = 2000

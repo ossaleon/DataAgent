@@ -1,20 +1,29 @@
 **/.DS_Store
 
+# LaTeX build artifacts
+tesi/*.aux
+tesi/*.bbl
+tesi/*.blg
+tesi/*.log
+tesi/*.out
+tesi/*.synctex.gz
+tesi/*.pdf
+tesi/Images/*.pdf
+
 evaluation/csv_queries
+
+runs/bulk_results/prompt_validation*/
+runs/bulk_results/*detail_combined_*.xlsx
 
 **/.vscode
 **/__pycache__/
 
-tesi/
 venv/
 .claude/
 shared.txt
 out/
-my_cpp/out/
 build/
 cplusplus/
-
-my_cpp/build/
 apache-jmeter-5.6.3/
 spice_cache/
 SPICE-1.0/

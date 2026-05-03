@@ -46,6 +46,11 @@ class StepConfig:
     num_beams: int = 1  # Beam search width (1 = greedy/disabled); skipped for OpenAI provider
     no_repeat_ngram_size: Optional[int] = None  # Prevent repeating n-grams of this size; skipped for OpenAI provider
 
+    # Optional per-step LLM overrides
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    ollama_url: Optional[str] = None
+
     # Evaluation and selection (not serialized)
     eval_fn: Optional[Callable] = None
     batch_eval_fn: Optional[Callable] = None
@@ -53,6 +58,7 @@ class StepConfig:
 
     # Ground-truth evaluation for tracking/logging only (never used for selection)
     gt_eval_fn: Optional[Callable] = None
+    gt_columns: Optional[List] = None  # GT column names for standardization alignment
 
     # Caching control
     use_cache: bool = True
@@ -111,6 +117,7 @@ class StepConfig:
             'n', 'bon_param', 'temp_min', 'temp_max', 'max_tokens',
             'top_p_min', 'top_p_max', 'top_k_min', 'top_k_max',
             'num_beams', 'no_repeat_ngram_size',
+            'provider', 'model', 'ollama_url',
             'use_cache', 'cache_mode', 'enabled', 'step_name', 'cot_n'
         }
         filtered = {k: v for k, v in data.items() if k in valid_keys}
@@ -340,6 +347,7 @@ class AgentConfig:
             'save_dir': run_section.get('save_dir'),
             'enable_codecarbon': run_section.get('enable_codecarbon', False),
             'save_results': run_section.get('save_results', False),
+            'save_execution_artifacts': run_section.get('save_execution_artifacts', True),
             'reuse_from': run_section.get('reuse_from'),
             'step_overrides': run_section.get('step_overrides'),
             'interactive_config': run_section.get('interactive_config', False),
@@ -383,20 +391,48 @@ class AgentConfig:
                 make_vis_evaluator_no_gt,
             )
 
+            # Support loading GT from benchmark_dataset.json
+            benchmark_path = gt_section.get('benchmark_path')
+            if benchmark_path:
+                import json as _json
+                if not os.path.isabs(benchmark_path):
+                    benchmark_path = os.path.join(config_dir, benchmark_path)
+                with open(benchmark_path, encoding='utf-8') as _f:
+                    benchmark = _json.load(_f)
+                idx = gt_section.get('index', 0)
+                entry = benchmark[idx]
+                # Merge benchmark fields into gt_section (explicit yaml keys take priority)
+                if entry.get('gt_data') and not gt_section.get('csv_path'):
+                    gt_section = dict(gt_section)
+                    gt_section.setdefault('gt_data', entry['gt_data'])
+                if entry.get('gt_analysis') and not gt_section.get('analysis_text'):
+                    gt_section.setdefault('analysis_text', entry['gt_analysis'])
+                if entry.get('gt_chart_config') and entry.get('gt_chart_code'):
+                    gt_section.setdefault('vis_config', entry['gt_chart_config'])
+                    gt_section.setdefault('vis_code', entry['gt_chart_code'])
+
             gt_csv_path = gt_section.get('csv_path')
+            gt_csv_text = gt_section.get('gt_data')
             if gt_csv_path:
                 if not os.path.isabs(gt_csv_path):
                     gt_csv_path = os.path.join(config_dir, gt_csv_path)
-                config.lookup_sales_data.gt_eval_fn = make_csv_evaluator_gt(gt_csv_path)
-                # Use consensus-based evaluator for actual selection
+                import pandas as _pd
+                _gt_df = _pd.read_csv(gt_csv_path)
+                config.lookup_sales_data.gt_eval_fn = make_csv_evaluator_gt(ground_truth_csv_path=gt_csv_path)
                 config.lookup_sales_data.batch_eval_fn = make_csv_evaluator_no_gt()
+                config.lookup_sales_data.gt_columns = [c.lower() for c in _gt_df.columns]
+            elif gt_csv_text:
+                import pandas as _pd, io as _io
+                _gt_df = _pd.read_csv(_io.StringIO(gt_csv_text))
+                config.lookup_sales_data.gt_eval_fn = make_csv_evaluator_gt(ground_truth_csv_text=gt_csv_text)
+                config.lookup_sales_data.batch_eval_fn = make_csv_evaluator_no_gt()
+                config.lookup_sales_data.gt_columns = [c.lower() for c in _gt_df.columns]
 
             gt_analysis = gt_section.get('analysis_text')
             if gt_analysis:
                 config.analyzing_data.gt_eval_fn = make_text_evaluator_gt(
                     ground_truth_text=gt_analysis,
                 )
-                # Use no-GT judge for actual selection
                 config.analyzing_data.eval_fn = make_text_evaluator_no_gt()
 
             gt_vis_config = gt_section.get('vis_config')
@@ -406,7 +442,6 @@ class AgentConfig:
                     ground_truth_config=gt_vis_config,
                     ground_truth_code=gt_vis_code,
                 )
-                # Use no-GT judge for actual selection
                 config.create_visualization.eval_fn = make_vis_evaluator_no_gt()
 
         # --- Tracing config (passed separately to SalesDataAgent.__init__) ---
