@@ -1,0 +1,156 @@
+# Deterministic step-ablation DOE for Gemma 4 31B.
+#
+# Each config varies one agent step while the other two stay fixed at the
+# defaults below. This keeps the useful bulk-run ablation logic but removes
+# random parameter sampling.
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: lookup_baseline
+    vary_step: lookup_sales_data
+    axis: baseline
+    description: Strong Gemma default baseline for lookup-step comparisons.
+    steps: {}
+
+  - name: lookup_temp_low
+    vary_step: lookup_sales_data
+    axis: temperature
+    description: Lower SQL-generation temperature while keeping analysis and visualization fixed.
+    steps:
+      lookup_sales_data:
+        temp_min: 0.6
+        temp_max: 0.6
+
+  - name: lookup_top_p_low
+    vary_step: lookup_sales_data
+    axis: top_p
+    description: Lower SQL-generation nucleus sampling while keeping analysis and visualization fixed.
+    steps:
+      lookup_sales_data:
+        top_p_min: 0.80
+        top_p_max: 0.80
+
+  - name: lookup_bon_n3_temperature
+    vary_step: lookup_sales_data
+    axis: best_of_n
+    description: Best-of-3 SQL generation over a moderate temperature range.
+    steps:
+      lookup_sales_data:
+        n: 3
+        bon_param: "temperature"
+        temp_min: 0.6
+        temp_max: 1.1
+
+  - name: analysis_baseline
+    vary_step: analyzing_data
+    axis: baseline
+    description: Strong Gemma default baseline for analysis-step comparisons.
+    steps: {}
+
+  - name: analysis_temp_high
+    vary_step: analyzing_data
+    axis: temperature
+    description: Higher analysis temperature while keeping lookup and visualization fixed.
+    steps:
+      analyzing_data:
+        temp_min: 1.25
+        temp_max: 1.25
+
+  - name: analysis_bon_n2_temperature
+    vary_step: analyzing_data
+    axis: best_of_n
+    description: Best-of-2 analysis generation over a moderate temperature range.
+    steps:
+      analyzing_data:
+        n: 2
+        bon_param: "temperature"
+        temp_min: 0.8
+        temp_max: 1.2
+
+  - name: analysis_cot_n2
+    vary_step: analyzing_data
+    axis: cot
+    description: Two-step analysis refinement while lookup and visualization remain fixed.
+    steps:
+      analyzing_data:
+        cot_n: 2
+
+  - name: visualization_baseline
+    vary_step: create_visualization
+    axis: baseline
+    description: Strong Gemma default baseline for visualization-step comparisons.
+    steps: {}
+
+  - name: visualization_temp_low
+    vary_step: create_visualization
+    axis: temperature
+    description: Lower visualization temperature while keeping lookup and analysis fixed.
+    steps:
+      create_visualization:
+        temp_min: 0.6
+        temp_max: 0.6
+
+  - name: visualization_top_k_high
+    vary_step: create_visualization
+    axis: top_k
+    description: Higher visualization top-k while keeping lookup and analysis fixed.
+    steps:
+      create_visualization:
+        top_k_min: 128
+        top_k_max: 128
+
+  - name: visualization_bon_n2_top_k
+    vary_step: create_visualization
+    axis: best_of_n
+    description: Best-of-2 visualization generation over a top-k range.
+    steps:
+      create_visualization:
+        n: 2
+        bon_param: "top_k"
+        top_k_min: 64
+        top_k_max: 128
