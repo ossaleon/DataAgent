@@ -925,9 +925,9 @@ def make_csv_evaluator_gt(
 ) -> callable:
     """Factory to create CSV evaluation function for per-step execution.
 
-    Compares the agent's result DataFrame against a ground-truth CSV using
-    compare_dataframes_iou, which handles:
-    - Float tolerance (atol=1e-2) to absorb precision differences from SQL casts
+    Compares the agent's result DataFrame against a ground-truth CSV using a
+    graded GT-only table similarity score. The exact row-IoU scorer remains
+    available for no-GT consensus selection.
 
     Args:
         ground_truth_csv_path: Path to the ground truth CSV file.
@@ -966,7 +966,7 @@ def make_csv_evaluator_gt(
         gt_df_cmp.columns = [c.lower() for c in gt_df_cmp.columns]
 
         try:
-            score = compare_dataframes_iou(result_df, gt_df_cmp)
+            score = compare_dataframes_similarity_gt(result_df, gt_df_cmp)
             if score < 1.0:
                 n_gt = len(gt_df_cmp)
                 n_model = len(result_df)
@@ -1310,6 +1310,292 @@ def compare_dataframes_iou(df1: pd.DataFrame, df2: pd.DataFrame, atol: float = 1
 
     total = len(v1) + len(v2) - matched  # union count
     return matched / total if total > 0 else 0.0
+
+
+def compare_dataframes_similarity_gt(df_model: pd.DataFrame, df_gt: pd.DataFrame, atol: float = 1e-2) -> float:
+    """Compute a graded GT table similarity score.
+
+    This scorer is intentionally more semantic than ``compare_dataframes_iou``:
+    it aligns columns by name/type/value similarity, ignores row order, handles
+    boolean/category equivalents such as True/False vs Organic/Non-Organic,
+    and recognizes common long-vs-wide binary grouped tables.
+
+    It is meant for benchmark GT tracking only. The exact IoU scorer remains
+    available for no-GT consensus selection.
+    """
+    if df_model is None or df_gt is None or df_model.empty or df_gt.empty:
+        return 0.0
+
+    direct = _compare_tables_direct_similarity(df_model, df_gt, atol=atol)
+    long_wide = _best_long_wide_similarity(df_model, df_gt, atol=atol)
+    return float(max(direct, long_wide))
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
+
+
+def _norm_col_name(name: Any) -> str:
+    text = str(name).strip().lower()
+    text = re.sub(r"[^a-z0-9]+", "_", text)
+    text = re.sub(r"_+", "_", text).strip("_")
+    # Keep useful words, drop common low-signal aliases.
+    parts = [p for p in text.split("_") if p not in {"total", "sum", "monthly", "sale", "sales"}]
+    return "_".join(parts) or text
+
+
+def _name_similarity(a: Any, b: Any) -> float:
+    a_norm = _norm_col_name(a)
+    b_norm = _norm_col_name(b)
+    if a_norm == b_norm:
+        return 1.0
+    a_parts = set(a_norm.split("_")) if a_norm else set()
+    b_parts = set(b_norm.split("_")) if b_norm else set()
+    jaccard = len(a_parts & b_parts) / len(a_parts | b_parts) if a_parts | b_parts else 0.0
+    # Small, dependency-free character similarity for aliases like month/month_start.
+    from difflib import SequenceMatcher
+    char_sim = SequenceMatcher(None, a_norm, b_norm).ratio()
+    return max(jaccard, char_sim * 0.8)
+
+
+def _is_missing(value: Any) -> bool:
+    try:
+        return bool(pd.isna(value))
+    except Exception:
+        return False
+
+
+def _as_float(value: Any) -> Optional[float]:
+    if _is_missing(value):
+        return None
+    if isinstance(value, (bool, np.bool_)):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _canonical_text(value: Any) -> str:
+    if _is_missing(value):
+        return ""
+    text = str(value).strip().lower()
+    text = text.replace(" 00:00:00", "").replace("t00:00:00", "")
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def _category_polarity(value: Any) -> Optional[int]:
+    """Map common binary/category representations to +/-1."""
+    if _is_missing(value):
+        return None
+    if isinstance(value, (bool, np.bool_)):
+        return 1 if bool(value) else -1
+
+    text = _canonical_text(value)
+    compact = re.sub(r"[^a-z0-9]+", "", text)
+    if compact in {"false", "f", "no", "n", "0", "nonpromo", "nonpromotional", "nonorganic", "notpromo", "norganic"}:
+        return -1
+    if compact in {"true", "t", "yes", "y", "1", "promo", "promotional", "organic"}:
+        return 1
+    if compact.startswith("non") and ("promo" in compact or "organic" in compact):
+        return -1
+    return None
+
+
+def _cell_similarity(a: Any, b: Any, atol: float = 1e-2) -> float:
+    if _is_missing(a) and _is_missing(b):
+        return 1.0
+    if _is_missing(a) or _is_missing(b):
+        return 0.0
+
+    polarity_a = _category_polarity(a)
+    polarity_b = _category_polarity(b)
+    if polarity_a is not None and polarity_b is not None:
+        return 1.0 if polarity_a == polarity_b else 0.0
+
+    fa = _as_float(a)
+    fb = _as_float(b)
+    if fa is not None and fb is not None:
+        diff = abs(fa - fb)
+        if diff <= atol:
+            return 1.0
+        scale = max(abs(fa), abs(fb), 1.0)
+        # Smooth partial credit for near numeric misses, zero for large errors.
+        return _clamp01(1.0 - (diff / (0.25 * scale)))
+
+    sa = _canonical_text(a)
+    sb = _canonical_text(b)
+    if sa == sb:
+        return 1.0
+    # YYYY-MM and YYYY-MM-DD first-of-month equivalence.
+    if sa[:7] == sb[:7] and (
+        (len(sa) == 7 and len(sb) == 10 and sb.endswith("-01")) or
+        (len(sb) == 7 and len(sa) == 10 and sa.endswith("-01"))
+    ):
+        return 1.0
+    return 0.0
+
+
+def _column_value_similarity(s1: pd.Series, s2: pd.Series, atol: float = 1e-2, max_values: int = 80) -> float:
+    vals1 = list(s1.dropna())[:max_values]
+    vals2 = list(s2.dropna())[:max_values]
+    if not vals1 or not vals2:
+        return 0.0
+
+    candidates = []
+    for i, a in enumerate(vals1):
+        for j, b in enumerate(vals2):
+            sim = _cell_similarity(a, b, atol=atol)
+            if sim > 0:
+                candidates.append((sim, i, j))
+    candidates.sort(reverse=True)
+
+    used_i = set()
+    used_j = set()
+    total = 0.0
+    for sim, i, j in candidates:
+        if i in used_i or j in used_j:
+            continue
+        used_i.add(i)
+        used_j.add(j)
+        total += sim
+
+    return _clamp01((2.0 * total) / (len(vals1) + len(vals2)))
+
+
+def _column_pair_similarity(df1: pd.DataFrame, c1: Any, df2: pd.DataFrame, c2: Any, atol: float = 1e-2) -> float:
+    name_score = _name_similarity(c1, c2)
+    value_score = _column_value_similarity(df1[c1], df2[c2], atol=atol)
+    return _clamp01(0.35 * name_score + 0.65 * value_score)
+
+
+def _align_columns(df1: pd.DataFrame, df2: pd.DataFrame, atol: float = 1e-2) -> Tuple[List[Tuple[Any, Any, float]], float]:
+    pairs = []
+    for c1 in df1.columns:
+        for c2 in df2.columns:
+            pairs.append((_column_pair_similarity(df1, c1, df2, c2, atol=atol), c1, c2))
+    pairs.sort(reverse=True, key=lambda item: item[0])
+
+    used_1 = set()
+    used_2 = set()
+    aligned: List[Tuple[Any, Any, float]] = []
+    for score, c1, c2 in pairs:
+        if c1 in used_1 or c2 in used_2:
+            continue
+        # Very weak matches mostly add noise; leave them as missing-column penalty.
+        if score < 0.20:
+            continue
+        used_1.add(c1)
+        used_2.add(c2)
+        aligned.append((c1, c2, score))
+
+    denom = len(df1.columns) + len(df2.columns)
+    column_score = (2.0 * sum(s for _, _, s in aligned) / denom) if denom else 0.0
+    return aligned, _clamp01(column_score)
+
+
+def _soft_row_value_score(df1: pd.DataFrame, df2: pd.DataFrame, aligned: List[Tuple[Any, Any, float]], atol: float = 1e-2) -> float:
+    if not aligned:
+        return 0.0
+
+    denom_cols = max(len(df1.columns), len(df2.columns), 1)
+    candidates = []
+    for i, row1 in df1.iterrows():
+        for j, row2 in df2.iterrows():
+            sim_sum = 0.0
+            for c1, c2, _ in aligned:
+                sim_sum += _cell_similarity(row1[c1], row2[c2], atol=atol)
+            row_sim = sim_sum / denom_cols
+            if row_sim > 0:
+                candidates.append((row_sim, i, j))
+
+    candidates.sort(reverse=True)
+    used_i = set()
+    used_j = set()
+    soft_intersection = 0.0
+    for row_sim, i, j in candidates:
+        if i in used_i or j in used_j:
+            continue
+        used_i.add(i)
+        used_j.add(j)
+        soft_intersection += row_sim
+
+    return _clamp01((2.0 * soft_intersection) / (len(df1) + len(df2)))
+
+
+def _compare_tables_direct_similarity(df1: pd.DataFrame, df2: pd.DataFrame, atol: float = 1e-2) -> float:
+    df1 = normalize_dataframe_values(df1)
+    df2 = normalize_dataframe_values(df2)
+    if df1 is None or df2 is None or df1.empty or df2.empty:
+        return 0.0
+
+    aligned, column_score = _align_columns(df1, df2, atol=atol)
+    row_count_score = min(len(df1), len(df2)) / max(len(df1), len(df2))
+    structure_score = _clamp01(0.75 * column_score + 0.25 * row_count_score)
+    row_value_score = _soft_row_value_score(df1, df2, aligned, atol=atol)
+    return _clamp01(0.20 * structure_score + 0.80 * row_value_score)
+
+
+def _is_numeric_series(series: pd.Series) -> bool:
+    if pd.api.types.is_bool_dtype(series):
+        return False
+    numeric = pd.to_numeric(series, errors="coerce")
+    return bool(numeric.notna().mean() >= 0.9) if len(series) else False
+
+
+def _is_binary_category_series(series: pd.Series) -> bool:
+    vals = [v for v in series.dropna().unique().tolist()]
+    if not vals or len(vals) > 4:
+        return False
+    mapped = [_category_polarity(v) for v in vals]
+    return all(v is not None for v in mapped) and len(set(mapped)) >= 2
+
+
+def _pivot_binary_long_table(df: pd.DataFrame) -> List[pd.DataFrame]:
+    """Return possible wide-form variants for binary long-format tables."""
+    if df is None or df.empty or len(df.columns) < 3:
+        return []
+
+    variants = []
+    norm_df = normalize_dataframe_values(df)
+    if norm_df is None or norm_df.empty:
+        return []
+
+    category_cols = [c for c in norm_df.columns if _is_binary_category_series(norm_df[c])]
+    metric_cols = [c for c in norm_df.columns if _is_numeric_series(norm_df[c])]
+
+    for category_col in category_cols:
+        for metric_col in metric_cols:
+            key_cols = [c for c in norm_df.columns if c not in {category_col, metric_col}]
+            if not key_cols:
+                continue
+            try:
+                work = norm_df.copy()
+                work[category_col] = work[category_col].apply(
+                    lambda v: "positive" if _category_polarity(v) == 1 else "negative"
+                )
+                pivot = work.pivot_table(
+                    index=key_cols,
+                    columns=category_col,
+                    values=metric_col,
+                    aggfunc="sum",
+                    fill_value=0,
+                ).reset_index()
+                pivot.columns = [str(c) for c in pivot.columns]
+                variants.append(pivot)
+            except Exception:
+                continue
+    return variants
+
+
+def _best_long_wide_similarity(df1: pd.DataFrame, df2: pd.DataFrame, atol: float = 1e-2) -> float:
+    best = 0.0
+    for wide in _pivot_binary_long_table(df1):
+        best = max(best, _compare_tables_direct_similarity(wide, df2, atol=atol))
+    for wide in _pivot_binary_long_table(df2):
+        best = max(best, _compare_tables_direct_similarity(df1, wide, atol=atol))
+    return best
 
 
 def normalize_dataframe_values(df: pd.DataFrame) -> pd.DataFrame:
