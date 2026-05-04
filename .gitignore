@@ -1,5 +1,8 @@
 **/.DS_Store
 
+# PowerPoint outputs
+presentation-powerpoint/
+
 # LaTeX build artifacts
 tesi/*.aux
 tesi/*.bbl
@@ -11,6 +14,9 @@ tesi/*.pdf
 tesi/Images/*.pdf
 
 evaluation/csv_queries
+
+runs/bulk_results/prompt_validation*/
+runs/bulk_results/*detail_combined_*.xlsx
 
 **/.vscode
 **/__pycache__/
@@ -39,3 +45,6 @@ jmeter.log
 
 codecarbon
 .cache
+# Local benchmark outputs
+runs/
+output/

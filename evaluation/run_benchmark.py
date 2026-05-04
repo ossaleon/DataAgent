@@ -98,6 +98,7 @@ def run_benchmark(
     save_execution_artifacts: bool = False,
     enable_codecarbon: bool = False,
     max_prompts: Optional[int] = None,
+    config_label: Optional[str] = None,
 ) -> pd.DataFrame:
     """Run benchmark against a unified GT dataset.
 
@@ -131,9 +132,11 @@ def run_benchmark(
     if schema:
         print(f"Loaded schema: {[t.name for t in schema.tables]}")
 
-    # Determine base config and judge identity
-    _external_config = agent_config is not None
-    if _external_config:
+    # Determine base config and judge identity.
+    # A caller-provided AgentConfig or YAML config path is treated as authoritative:
+    # benchmark mode may attach evaluators, but it must not override step params.
+    _preserve_config = agent_config is not None or config_path is not None
+    if agent_config is not None:
         config = agent_config
         judge_model = config.model
         judge_provider = config.provider
@@ -163,9 +166,9 @@ def run_benchmark(
         # Configure step-level eval functions for this entry.
         # GT eval functions are used for tracking/logging only (gt_eval_fn).
         # Non-GT eval functions are used for best-of-n selection (eval_fn / batch_eval_fn).
-        # When _external_config=True, sampling params (n, temp, top_p) are NOT overridden.
+        # When a config object or config file is provided, sampling params are preserved.
         if has_data:
-            if not _external_config:
+            if not _preserve_config:
                 config.lookup_sales_data.n = n
                 config.lookup_sales_data.temp_min = 0.1
                 config.lookup_sales_data.temp_max = 0.5
@@ -180,7 +183,7 @@ def run_benchmark(
             config.lookup_sales_data.gt_columns = [c.lower() for c in _gt_df.columns]
 
         if has_data and entry.get("gt_analysis"):
-            if not _external_config:
+            if not _preserve_config:
                 config.analyzing_data.n = n
                 config.analyzing_data.temp_min = 0.1
                 config.analyzing_data.temp_max = 0.7
@@ -197,7 +200,7 @@ def run_benchmark(
             )
 
         if has_vis:
-            if not _external_config:
+            if not _preserve_config:
                 config.create_visualization.n = n
                 config.create_visualization.temp_min = 0.1
                 config.create_visualization.temp_max = 0.5
@@ -238,27 +241,90 @@ def run_benchmark(
         step_timings = result.get("_step_timings_sec", {})
         total_time = result.get("_total_run_time_sec")
 
+        # --- Per-step LLM call timings and energy ---
+        llm_timings = result.get("_step_llm_timings_sec") or {}
+        llm_energy = result.get("_step_llm_energy") or {}
+
         # --- Energy (populated only when enable_codecarbon=True) ---
         energy = result.get("_energy") or {}
+
+        # Extract GT reasoning from evaluator closures (populated only when score < 1.0)
+        csv_iou_val    = gt_scores.get("lookup_sales_data", {}).get("gt_score") if has_data else None
+        text_score_val = gt_scores.get("analyzing_data", {}).get("gt_score") if entry.get("gt_analysis") else None
+        vis_score_val  = gt_scores.get("create_visualization", {}).get("gt_score") if has_vis else None
+
+        def _get_reasoning(eval_fn, score):
+            if score is None or score >= 1.0:
+                return None
+            return getattr(eval_fn, "_store", {}).get("reasoning")
+
+        csv_reasoning  = _get_reasoning(config.lookup_sales_data.gt_eval_fn, csv_iou_val)
+        text_reasoning = _get_reasoning(config.analyzing_data.gt_eval_fn, text_score_val)
+        vis_reasoning  = _get_reasoning(config.create_visualization.gt_eval_fn, vis_score_val)
+
+        # Override reasoning with timeout messages when a step or its judge timed out
+        _step_errors = result.get("_step_errors") or {}
+        _step_to_reasoning = {
+            "lookup_sales_data":        "csv_reasoning",
+            "lookup_sales_data_judge":  "csv_reasoning",
+            "analyzing_data":           "text_reasoning",
+            "analyzing_data_judge":     "text_reasoning",
+            "create_visualization":     "vis_reasoning",
+            "create_visualization_judge": "vis_reasoning",
+        }
+        for _err_key, _err_msg in _step_errors.items():
+            if "TIMEOUT" in _err_msg and _err_key in _step_to_reasoning:
+                _target = _step_to_reasoning[_err_key]
+                if _target == "csv_reasoning":
+                    csv_reasoning = _err_msg
+                elif _target == "text_reasoning":
+                    text_reasoning = _err_msg
+                elif _target == "vis_reasoning":
+                    vis_reasoning = _err_msg
 
         row = {
             "test_case_id": idx,
             "prompt": prompt,
+            "difficulty": entry.get("difficulty"),
             "gen_sql": " ".join((result.get("sql_query", "") or "").split()),
             # GT scores — same source as run_metadata.json accuracy.ground_truth_scores
-            "csv_iou":    gt_scores.get("lookup_sales_data", {}).get("gt_score") if has_data else None,
-            "text_score": gt_scores.get("analyzing_data", {}).get("gt_score") if entry.get("gt_analysis") else None,
-            "vis_score":  gt_scores.get("create_visualization", {}).get("gt_score") if has_vis else None,
+            "csv_iou":    csv_iou_val,
+            "text_score": text_score_val,
+            "vis_score":  vis_score_val,
+            # GT reasoning — populated only when the corresponding score < 1.0
+            "csv_iou_reasoning":    csv_reasoning,
+            "text_score_reasoning": text_reasoning,
+            "vis_score_reasoning":  vis_reasoning,
             # No-GT quality scores (BoN selector) — same source as run_metadata.json accuracy.step_eval_scores
             "csv_eval_score":  eval_scores.get("lookup_sales_data", {}).get("best_score") if has_data else None,
             "text_eval_score": eval_scores.get("analyzing_data", {}).get("best_score") if entry.get("gt_analysis") else None,
             "vis_eval_score":  eval_scores.get("create_visualization", {}).get("best_score") if has_vis else None,
-            # Per-prompt timing
+            # Per-step total wall-clock timings
             "elapsed_sec":        round(total_time, 2) if total_time is not None else None,
             "lookup_time_sec":    round(step_timings.get("lookup_sales_data", 0), 2),
             "analyzing_time_sec": round(step_timings.get("analyzing_data", 0), 2),
             "vis_time_sec":       round(step_timings.get("create_visualization", 0), 2),
-            # Energy (None when CodeCarbon disabled or unavailable)
+            # Per-step LLM call timings (sum of all LLM invocations incl. BoN, CoT, eval judges)
+            "lookup_llm_time_sec":    round(llm_timings.get("lookup_sales_data", 0), 3),
+            "analyzing_llm_time_sec": round(llm_timings.get("analyzing_data", 0), 3),
+            "vis_llm_time_sec":       round(llm_timings.get("create_visualization", 0), 3),
+            # Per-step LLM call energy — all 5 CodeCarbon fields (None when CodeCarbon disabled)
+            "lookup_llm_energy_kwh":       (llm_energy.get("lookup_sales_data") or {}).get("energy_consumed_kwh"),
+            "lookup_llm_cpu_energy_kwh":   (llm_energy.get("lookup_sales_data") or {}).get("cpu_energy_kwh"),
+            "lookup_llm_gpu_energy_kwh":   (llm_energy.get("lookup_sales_data") or {}).get("gpu_energy_kwh"),
+            "lookup_llm_ram_energy_kwh":   (llm_energy.get("lookup_sales_data") or {}).get("ram_energy_kwh"),
+            "lookup_llm_emissions_co2":    (llm_energy.get("lookup_sales_data") or {}).get("emissions_kg_co2"),
+            "analyzing_llm_energy_kwh":       (llm_energy.get("analyzing_data") or {}).get("energy_consumed_kwh"),
+            "analyzing_llm_cpu_energy_kwh":   (llm_energy.get("analyzing_data") or {}).get("cpu_energy_kwh"),
+            "analyzing_llm_gpu_energy_kwh":   (llm_energy.get("analyzing_data") or {}).get("gpu_energy_kwh"),
+            "analyzing_llm_ram_energy_kwh":   (llm_energy.get("analyzing_data") or {}).get("ram_energy_kwh"),
+            "analyzing_llm_emissions_co2":    (llm_energy.get("analyzing_data") or {}).get("emissions_kg_co2"),
+            "vis_llm_energy_kwh":       (llm_energy.get("create_visualization") or {}).get("energy_consumed_kwh"),
+            "vis_llm_cpu_energy_kwh":   (llm_energy.get("create_visualization") or {}).get("cpu_energy_kwh"),
+            "vis_llm_gpu_energy_kwh":   (llm_energy.get("create_visualization") or {}).get("gpu_energy_kwh"),
+            "vis_llm_ram_energy_kwh":   (llm_energy.get("create_visualization") or {}).get("ram_energy_kwh"),
+            "vis_llm_emissions_co2":    (llm_energy.get("create_visualization") or {}).get("emissions_kg_co2"),
+            # Run-level energy (None when CodeCarbon disabled or unavailable)
             "energy_consumed_kwh": energy.get("energy_consumed_kwh"),
             "cpu_energy_kwh":      energy.get("cpu_energy_kwh"),
             "gpu_energy_kwh":      energy.get("gpu_energy_kwh"),
