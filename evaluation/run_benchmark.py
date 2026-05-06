@@ -91,8 +91,8 @@ def run_benchmark(
     agent_config: Optional[AgentConfig] = None,
     config_path: Optional[str] = None,
     n: int = 1,
-    judge_model: str = "gpt-4o-mini",
-    judge_provider: str = "openai",
+    judge_model: Optional[str] = None,
+    judge_provider: Optional[str] = None,
     save_dir: str = "./evaluation/results",
     data_dir: Optional[str] = None,
     save_execution_artifacts: bool = False,
@@ -112,9 +112,11 @@ def run_benchmark(
             Ignored when agent_config is provided.
         n: Best-of-N per step. Ignored when agent_config is provided.
         judge_model: Model for LLM-as-judge evaluations.
-            Defaults to agent_config.model when agent_config is provided.
+            Defaults to agent_config.model when agent_config is provided, otherwise
+            gpt-4o-mini.
         judge_provider: Provider for judge model.
-            Defaults to agent_config.provider when agent_config is provided.
+            Defaults to agent_config.provider when agent_config is provided, otherwise
+            openai.
         save_dir: Directory to save results CSV.
 
     Returns:
@@ -138,11 +140,15 @@ def run_benchmark(
     _preserve_config = agent_config is not None or config_path is not None
     if agent_config is not None:
         config = agent_config
-        judge_model = config.model
-        judge_provider = config.provider
+        judge_model = judge_model or config.model
+        judge_provider = judge_provider or config.provider
     elif config_path:
         config, _run_params, _schema = AgentConfig.from_yaml(config_path)
+        judge_model = judge_model or config.model
+        judge_provider = judge_provider or config.provider
     else:
+        judge_model = judge_model or "gpt-4o-mini"
+        judge_provider = judge_provider or "openai"
         config = AgentConfig(
             model=judge_model,
             provider=judge_provider,

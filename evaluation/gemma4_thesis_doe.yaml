@@ -1,4 +1,4 @@
-# Deterministic step-ablation DOE for Gemma 4 31B.
+# Deterministic step-ablation DOE for gemma4:e4b.
 #
 # Each config varies one agent step while the other two stay fixed at the
 # defaults below. This keeps the useful bulk-run ablation logic but removes

@@ -191,6 +191,11 @@ def _write_plots(summary: pd.DataFrame, plots_dir: Path) -> None:
 
     plot_df = summary.copy()
     plot_df["quality_mean"] = plot_df.apply(_quality_score, axis=1)
+    model_label = "Manifest DOE"
+    if "model" in plot_df and plot_df["model"].notna().any():
+        models = sorted({str(m) for m in plot_df["model"].dropna().unique()})
+        if len(models) == 1:
+            model_label = models[0]
     labels = plot_df["config_name"].tolist()
     x = range(len(plot_df))
 
@@ -202,7 +207,7 @@ def _write_plots(summary: pd.DataFrame, plots_dir: Path) -> None:
     ax.set_xticklabels(labels, rotation=45, ha="right")
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("Mean score")
-    ax.set_title("Gemma 4 31B DOE: Quality by Config")
+    ax.set_title(f"{model_label}: Quality by Config")
     ax.legend()
     ax.grid(alpha=0.25)
     fig.tight_layout()
@@ -218,7 +223,7 @@ def _write_plots(summary: pd.DataFrame, plots_dir: Path) -> None:
     if "energy_consumed_kwh_mean" in plot_df:
         ax2.plot(x, plot_df["energy_consumed_kwh_mean"], color="#f58518", marker="o", label="energy_consumed_kwh_mean")
     ax2.set_ylabel("Mean energy kWh")
-    ax1.set_title("Gemma 4 31B DOE: Latency and Energy by Config")
+    ax1.set_title(f"{model_label}: Latency and Energy by Config")
     ax1.grid(axis="y", alpha=0.25)
     fig.tight_layout()
     fig.savefig(plots_dir / "latency_energy_by_config.png", dpi=160)
@@ -233,7 +238,7 @@ def _write_plots(summary: pd.DataFrame, plots_dir: Path) -> None:
                 ax.annotate(row["config_name"], (row[energy_col], row["quality_mean"]), fontsize=7)
     ax.set_xlabel("Mean energy kWh")
     ax.set_ylabel("Mean quality score")
-    ax.set_title("Gemma 4 31B DOE: Quality vs Energy")
+    ax.set_title(f"{model_label}: Quality vs Energy")
     ax.grid(alpha=0.25)
     fig.tight_layout()
     fig.savefig(plots_dir / "quality_vs_energy.png", dpi=160)
@@ -268,11 +273,8 @@ def run_manifest_benchmark(
     manifest = _load_manifest(manifest_path)
     save_path = Path(save_dir)
     save_path.mkdir(parents=True, exist_ok=True)
-
-    if judge_provider and judge_provider != provider:
-        print("[warn] run_benchmark currently uses agent_config.provider for judges; judge_provider is recorded but not applied.")
-    if judge_model and judge_model != model:
-        print("[warn] run_benchmark currently uses agent_config.model for judges; judge_model is recorded but not applied.")
+    effective_judge_provider = judge_provider or provider
+    effective_judge_model = judge_model or model
 
     records: List[Dict[str, Any]] = []
     for config_id, spec in _iter_configs(manifest, max_configs):
@@ -285,8 +287,8 @@ def run_manifest_benchmark(
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
         )
         record = _config_record(config_id, cfg, spec)
-        record["judge_provider"] = judge_provider or provider
-        record["judge_model"] = judge_model or model
+        record["judge_provider"] = effective_judge_provider
+        record["judge_model"] = effective_judge_model
         records.append(record)
 
     with open(save_path / "configs_sampled.json", "w", encoding="utf-8") as f:
@@ -320,6 +322,8 @@ def run_manifest_benchmark(
         df = run_benchmark(
             dataset_path,
             agent_config=cfg,
+            judge_provider=effective_judge_provider,
+            judge_model=effective_judge_model,
             save_dir=str(config_dir),
             save_execution_artifacts=True,
             enable_codecarbon=enable_codecarbon,
