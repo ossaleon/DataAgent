@@ -229,88 +229,28 @@ Generate a DuckDB SQL query to answer the user's question and provide data optim
 - **For trend analysis**: Include time-based grouping (daily, monthly, yearly)
 - **General**: Limit result size if needed, ensure clean column names for axis labels
 
-## CHAIN OF THOUGHT REASONING
-Before generating the SQL query, think step by step:
-
-**Step 1: Understanding the Request**
-- What is the user really asking for?
-- What is the main entity or metric of interest?
-- What time period or filters are implied?
-
-**Step 2: Identifying Required Data**
-- Which columns from the schema above are relevant to answer this question?
-- Do I need data from multiple tables? If yes, what JOIN keys connect them?
-- Do I need to filter the data? If yes, on which column(s)?
-- Do I need aggregations (SUM, COUNT, AVG)? If yes, on which column(s)?
-- Do I need grouping? If yes, by which column(s)?
-
-**Step 3: Considering Visualization Needs**
-- Based on the visualization goal "{visualization_goal}", what chart type is likely?
-- For time series: Need chronological ordering and proper date format
-- For comparisons: Need categorical grouping and clear labels
-- For correlations: Need two numeric columns without aggregation
-- What should be on X-axis vs Y-axis?
-
-**Step 4: Query Structure Planning**
-- SELECT: Which columns and aggregations?
-- FROM: Which table(s)? Use JOINs if data spans multiple tables
-- WHERE: What filters are needed?
-- GROUP BY: Which columns for aggregation?
-- ORDER BY: How should results be sorted?
-- LIMIT: Should I limit the result set?
-
-**Step 5: Handling Edge Cases**
-- Are there DATE columns that need CAST to VARCHAR for pattern matching?
-- Are there potential NULL values that need filtering?
-- Do column names need aliasing for better visualization labels?
-- Are table aliases needed for clarity in multi-table queries?
 
 
-
-## EXAMPLES WITH REASONING
+## EXAMPLES
 
 Example 1:
 Question: "Show me sales from November 2021"
 Visualization: "Monthly sales trend"
-Reasoning:
-- Step 1: User wants sales data for a specific month
-- Step 2: Need Date and Revenue columns from sales table, filter by date pattern
-- Step 3: Time series chart → need dates sorted, aggregate by date
-- Step 4: SELECT Date, SUM(Revenue), WHERE date matches, GROUP BY Date, ORDER BY Date
-- Step 5: Must CAST Date to VARCHAR for LIKE pattern matching
 Query: SELECT Date, SUM(Revenue) as Total_Revenue FROM sales WHERE CAST(Date AS VARCHAR) LIKE '%2021-11%' GROUP BY Date ORDER BY Date
 
 Example 2:
 Question: "What are the top 5 products by total revenue?"
 Visualization: "Compare products by revenue"
-Reasoning:
-- Step 1: User wants product ranking by revenue
-- Step 2: Need Product_Name and Revenue, aggregate revenue per product
-- Step 3: Bar chart → categorical comparison, needs ordering, limit to top 5
-- Step 4: SELECT Product_Name, SUM(Revenue), GROUP BY product, ORDER BY revenue DESC, LIMIT 5
-- Step 5: No special edge cases
 Query: SELECT Product_Name, SUM(Revenue) as Total_Revenue FROM sales GROUP BY Product_ID, Product_Name ORDER BY Total_Revenue DESC LIMIT 5
 
 Example 3:
 Question: "Show monthly total sales for 2021"
 Visualization: "Revenue trends over time"
-Reasoning:
-- Step 1: User wants monthly aggregation for a specific year
-- Step 2: Need Date and Revenue, filter by year, group by month
-- Step 3: Time series → need DATE_TRUNC for monthly granularity, chronological order
-- Step 4: SELECT DATE_TRUNC('month', Date), SUM(Revenue), WHERE year=2021, GROUP BY month, ORDER BY month
-- Step 5: Use EXTRACT for year filtering
 Query: SELECT DATE_TRUNC('month', Date) as Month, SUM(Revenue) as Monthly_Sales FROM sales WHERE EXTRACT(YEAR FROM Date) = 2021 GROUP BY Month ORDER BY Month
 
 Example 4:
 Question: "Analyze price vs demand relationship"
 Visualization: "Price vs demand correlation"
-Reasoning:
-- Step 1: User wants to see correlation between two variables
-- Step 2: Need Price and Units_Sold columns from the same table, no aggregation (scatter plot)
-- Step 3: Scatter plot → need individual data points, both axes numeric
-- Step 4: SELECT Price, Units_Sold, no GROUP BY needed
-- Step 5: Filter out NULLs to avoid chart issues
 Query: SELECT Price, Units_Sold FROM sales WHERE Price IS NOT NULL AND Units_Sold IS NOT NULL
 
 Example 5 (multi-table):
@@ -319,13 +259,8 @@ Visualization: "Bar chart of revenue by category"
 Schema:
   Table: sales (columns: Sold_Date, SKU_Coded, Total_Sale_Value)
   Table: products (columns: SKU_Coded, Category, Product_Name)
-Reasoning:
-- Step 1: User wants revenue aggregated by product category
-- Step 2: Revenue is in sales; Category is in products — need JOIN on SKU_Coded
-- Step 3: Bar chart → group by category, aggregate revenue, order descending
-- Step 4: SELECT p.Category, SUM(s.Total_Sale_Value) FROM sales s JOIN products p ON s.SKU_Coded = p.SKU_Coded WHERE year=2023 GROUP BY p.Category ORDER BY revenue DESC
-- Step 5: Use EXTRACT for year filter; alias table names for clarity
 Query: SELECT p.Category, SUM(s.Total_Sale_Value) as Total_Revenue FROM sales s JOIN products p ON s.SKU_Coded = p.SKU_Coded WHERE EXTRACT(YEAR FROM s.Sold_Date) = 2023 GROUP BY p.Category ORDER BY Total_Revenue DESC
+
 
 ## IMPORTANT — "Average of aggregates" pattern
 When the question asks for "average monthly [metric]", "average daily [metric]", etc., you MUST:
@@ -339,12 +274,6 @@ Visualization: "Grouped bar chart comparing average monthly revenue per region b
 Schema:
   Table: sales (columns: Sold_Date, Store_Number, Total_Sale_Value)
   Table: stores (columns: Store_Number, region)
-Reasoning:
-- Step 1: "Average monthly revenue" = compute monthly totals per store first, then average those. NOT AVG(transaction value).
-- Step 2: Revenue is in sales; region is in stores — JOIN on Store_Number. Filter years 2022-2023.
-- Step 3: Grouped bar → one row per (region, year)
-- Step 4: Subquery computes SUM(Total_Sale_Value) per (Store_Number, year, month); outer query JOINs stores and computes AVG(monthly_rev) per (region, year).
-- Step 5: Use DATE_TRUNC for monthly grouping; qualify all column references with table aliases.
 Query: SELECT st.region, s.yr AS year, ROUND(AVG(s.monthly_rev), 2) AS avg_monthly_revenue FROM (SELECT Store_Number, YEAR(CAST(Sold_Date AS DATE)) AS yr, DATE_TRUNC('month', CAST(Sold_Date AS DATE)) AS month, SUM(Total_Sale_Value) AS monthly_rev FROM sales WHERE YEAR(CAST(Sold_Date AS DATE)) IN (2022, 2023) GROUP BY Store_Number, yr, month) s JOIN stores st ON s.Store_Number = st.Store_Number GROUP BY st.region, s.yr ORDER BY st.region, s.yr
 
 ## COMMON MISTAKES TO AVOID
