@@ -47,7 +47,7 @@ columns:
     nullable: false
 
   - name: "is_organic"
-    description: "Whether the product is certified organic (true/false)"
+    description: "Whether the product is certified organic. BOOLEAN (0/1). To get text labels use: CASE WHEN is_organic THEN 'Organic' ELSE 'Non-Organic' END"
     data_type: "BOOLEAN"
     example_values: ["true", "false"]
     nullable: false

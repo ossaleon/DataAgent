@@ -291,6 +291,9 @@ Query: SELECT st.region, s.yr AS year, ROUND(AVG(s.monthly_rev), 2) AS avg_month
   RIGHT: `YEAR(Sold_Date)` or `EXTRACT(YEAR FROM Sold_Date)`
 - **To extract year from a DATE column**: use `YEAR(date_col)` or `EXTRACT(YEAR FROM date_col)`
 - **To extract month from a DATE column**: use `MONTH(date_col)` or `EXTRACT(MONTH FROM date_col)`
+- **NEVER use GROUP BY on a binary flag to split a metric** — this produces multiple rows per period instead of one pivoted row.
+  WRONG: `SELECT category, is_discount, SUM(revenue) FROM orders GROUP BY category, is_discount`
+  RIGHT: `SELECT category, SUM(CASE WHEN is_discount = 1 THEN revenue ELSE 0 END) AS discount_revenue, SUM(CASE WHEN is_discount = 0 THEN revenue ELSE 0 END) AS regular_revenue FROM orders GROUP BY category`
 
 ## OUTPUT FORMAT
 Return ONLY the SQL query as plain text. No explanations. No markdown formatting. No code fences. Just the SQL query.
@@ -789,7 +792,7 @@ Data:
 ## INSTRUCTIONS
 1. Examine the data carefully to understand what information is available
 2. Identify the key insights that directly answer the user's question
-3. Provide a concise, specific answer (2-3 sentences maximum)
+3. Provide a specific answer: aim for 2-3 sentences, but use up to 6 if needed to cover all key facts
 4. Use actual numbers and facts from the data
 5. Do NOT speculate or make assumptions beyond what the data shows
 6. If the data doesn't fully answer the question, state what you can determine from the available data
