@@ -294,6 +294,12 @@ Query: SELECT st.region, s.yr AS year, ROUND(AVG(s.monthly_rev), 2) AS avg_month
 - **NEVER use GROUP BY on a binary flag to split a metric** — this produces multiple rows per period instead of one pivoted row.
   WRONG: `SELECT category, is_discount, SUM(revenue) FROM orders GROUP BY category, is_discount`
   RIGHT: `SELECT category, SUM(CASE WHEN is_discount = 1 THEN revenue ELSE 0 END) AS discount_revenue, SUM(CASE WHEN is_discount = 0 THEN revenue ELSE 0 END) AS regular_revenue FROM orders GROUP BY category`
+- **NEVER create a year/period label using CASE WHEN ... ELSE NULL** — this produces a column full of NULLs and broken aggregations. To compare across years, use GROUP BY YEAR(date_col).
+  WRONG: `SELECT city, CASE WHEN YEAR(order_date) = 2022 THEN '2022' ELSE NULL END AS yr, AVG(monthly_total) AS avg_rev FROM orders GROUP BY city`
+  RIGHT: `SELECT city, YEAR(order_date) AS year, AVG(monthly_total) AS avg_rev FROM orders GROUP BY city, YEAR(order_date)`
+- **NEVER group by a category dimension (e.g. department, region) inside the innermost subquery when computing averages per entity** — you lose per-entity granularity and the AVG becomes wrong. Always aggregate at the lowest entity level first, then join to the category.
+  WRONG: `WITH monthly AS (SELECT dept, YEAR(date) AS yr, DATE_TRUNC('month', date) AS mo, SUM(amount) AS total FROM orders JOIN employees ON ... JOIN departments ON ... GROUP BY dept, yr, mo) SELECT dept, yr, AVG(total) FROM monthly GROUP BY dept, yr`
+  RIGHT: `WITH monthly AS (SELECT emp_id, YEAR(date) AS yr, DATE_TRUNC('month', date) AS mo, SUM(amount) AS total FROM orders GROUP BY emp_id, yr, mo) SELECT d.dept, m.yr, AVG(m.total) FROM monthly m JOIN employees e ON m.emp_id = e.id JOIN departments d ON e.dept_id = d.id GROUP BY d.dept, m.yr`
 
 ## OUTPUT FORMAT
 Return ONLY the SQL query as plain text. No explanations. No markdown formatting. No code fences. Just the SQL query.

@@ -8,12 +8,12 @@ columns:
     nullable: false
 
   - name: "SKU_Coded"
-    description: "Encoded product SKU identifier"
+    description: "Encoded individual product SKU identifier. Use to filter or group by a specific single product. Do NOT use to filter by product category."
     data_type: "INTEGER"
     nullable: false
 
   - name: "Product_Class_Code"
-    description: "Product category classification code"
+    description: "Product category classification code. Use to filter or group by product category (e.g. WHERE Product_Class_Code = 22975). Many different SKUs share the same Product_Class_Code. Do NOT confuse with SKU_Coded."
     data_type: "INTEGER"
     nullable: false
 
