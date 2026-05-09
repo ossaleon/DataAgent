@@ -1,0 +1,59 @@
+# Thesis Test 04: Gemma E4B compute expansion with Best-of-N and CoT.
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - {name: lookup_baseline, vary_step: lookup_sales_data, axis: baseline, description: Lookup baseline, steps: {}}
+  - {name: lookup_bon_temperature_n2, vary_step: lookup_sales_data, axis: best_of_n, description: Best-of-2 lookup varying temperature low-to-baseline, steps: {lookup_sales_data: {n: 2, bon_param: temperature, temp_min: 0.6, temp_max: 1.0}}}
+  - {name: lookup_bon_temperature_n3, vary_step: lookup_sales_data, axis: best_of_n, description: Best-of-3 lookup varying temperature low-to-moderate-high, steps: {lookup_sales_data: {n: 3, bon_param: temperature, temp_min: 0.6, temp_max: 1.2}}}
+  - {name: lookup_cot_n2, vary_step: lookup_sales_data, axis: cot_n2, description: Two-pass lookup refinement, steps: {lookup_sales_data: {cot_n: 2}}}
+
+  - {name: analysis_baseline, vary_step: analyzing_data, axis: baseline, description: Analysis baseline, steps: {}}
+  - {name: analysis_bon_temperature_n2, vary_step: analyzing_data, axis: best_of_n, description: Best-of-2 analysis varying temperature low-to-moderate-high, steps: {analyzing_data: {n: 2, bon_param: temperature, temp_min: 0.6, temp_max: 1.2}}}
+
+  - {name: visualization_baseline, vary_step: create_visualization, axis: baseline, description: Visualization baseline, steps: {}}
+  - {name: visualization_bon_top_k_n2, vary_step: create_visualization, axis: best_of_n, description: Best-of-2 visualization varying top-k, steps: {create_visualization: {n: 2, bon_param: top_k, temp_min: 1.0, temp_max: 1.0, top_p_min: 0.95, top_p_max: 0.95, top_k_min: 20, top_k_max: 128}}}
+  - {name: visualization_bon_top_k_n3, vary_step: create_visualization, axis: best_of_n, description: Best-of-3 visualization varying top-k, steps: {create_visualization: {n: 3, bon_param: top_k, temp_min: 1.0, temp_max: 1.0, top_p_min: 0.95, top_p_max: 0.95, top_k_min: 20, top_k_max: 128}}}
+  - {name: visualization_cot_n2, vary_step: create_visualization, axis: cot_n2, description: Two-pass visualization refinement, steps: {create_visualization: {cot_n: 2}}}

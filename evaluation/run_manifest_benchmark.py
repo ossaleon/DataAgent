@@ -120,15 +120,23 @@ def _aggregate_results(save_dir: Path, records: List[Dict[str, Any]]) -> Tuple[p
         row: Dict[str, Any] = {"config_id": int(config_id), "n_test_cases": int(len(group))}
         for col in SCORE_COLS:
             if col in group:
+                valid = group[col].dropna()
                 row[f"{col}_mean"] = _mean_or_none(group[col])
-                row[f"{col}_std"] = float(group[col].std()) if group[col].dropna().size > 1 else None
+                row[f"{col}_median"] = float(valid.median()) if not valid.empty else None
+                row[f"{col}_std"] = float(valid.std()) if valid.size > 1 else None
         if "elapsed_sec" in group:
+            valid_elapsed = group["elapsed_sec"].dropna()
             row["elapsed_sec_mean"] = _mean_or_none(group["elapsed_sec"])
-            row["elapsed_sec_total"] = float(group["elapsed_sec"].dropna().sum())
+            row["elapsed_sec_median"] = float(valid_elapsed.median()) if not valid_elapsed.empty else None
+            row["elapsed_sec_total"] = float(valid_elapsed.sum())
+        if "timeout" in group:
+            row["timeout_rate"] = float(group["timeout"].fillna(False).astype(bool).mean())
         for col in ENERGY_COLS:
             if col in group:
+                valid = group[col].dropna()
                 row[f"{col}_mean"] = _mean_or_none(group[col])
-                row[f"{col}_total"] = float(group[col].dropna().sum()) if group[col].notna().any() else None
+                row[f"{col}_median"] = float(valid.median()) if not valid.empty else None
+                row[f"{col}_total"] = float(valid.sum()) if not valid.empty else None
         summary_rows.append(row)
 
     summary = pd.DataFrame(summary_rows).merge(configs_df, on="config_id", how="left")

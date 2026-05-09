@@ -268,6 +268,39 @@ def run_benchmark(
         text_reasoning = _get_reasoning(config.analyzing_data.gt_eval_fn, text_score_val)
         vis_reasoning  = _get_reasoning(config.create_visualization.gt_eval_fn, vis_score_val)
 
+        def _selection_metrics(step_name: str):
+            info = eval_scores.get(step_name, {}) or {}
+            raw_scores = info.get("scores") or []
+            try:
+                best_idx = int(info["best_idx"]) if info.get("best_idx") is not None else None
+            except (TypeError, ValueError):
+                best_idx = None
+
+            numeric_scores = []
+            for score in raw_scores:
+                try:
+                    numeric_scores.append(float(score))
+                except (TypeError, ValueError):
+                    pass
+
+            margin = None
+            if best_idx is not None and 0 <= best_idx < len(numeric_scores) and len(numeric_scores) > 1:
+                best_score = numeric_scores[best_idx]
+                other_scores = [s for i, s in enumerate(numeric_scores) if i != best_idx]
+                if other_scores:
+                    margin = best_score - max(other_scores)
+
+            return {
+                "candidate_count": len(raw_scores) if raw_scores else None,
+                "selected_candidate_index": best_idx,
+                "selection_score_margin": margin,
+                "candidate_scores": json.dumps(raw_scores) if raw_scores else None,
+            }
+
+        lookup_selection = _selection_metrics("lookup_sales_data")
+        analysis_selection = _selection_metrics("analyzing_data")
+        vis_selection = _selection_metrics("create_visualization")
+
         # Override reasoning with timeout messages when a step or its judge timed out
         _step_errors = result.get("_step_errors") or {}
         _step_to_reasoning = {
@@ -288,6 +321,8 @@ def run_benchmark(
                 elif _target == "vis_reasoning":
                     vis_reasoning = _err_msg
 
+        has_timeout = any("TIMEOUT" in str(msg) for msg in _step_errors.values())
+
         row = {
             "test_case_id": idx,
             "prompt": prompt,
@@ -301,10 +336,27 @@ def run_benchmark(
             "csv_iou_reasoning":    csv_reasoning,
             "text_score_reasoning": text_reasoning,
             "vis_score_reasoning":  vis_reasoning,
+            "timeout": has_timeout,
+            "step_errors": json.dumps(_step_errors) if _step_errors else None,
             # No-GT quality scores (BoN selector) — same source as run_metadata.json accuracy.step_eval_scores
             "csv_eval_score":  eval_scores.get("lookup_sales_data", {}).get("best_score") if has_data else None,
             "text_eval_score": eval_scores.get("analyzing_data", {}).get("best_score") if entry.get("gt_analysis") else None,
             "vis_eval_score":  eval_scores.get("create_visualization", {}).get("best_score") if has_vis else None,
+            # Best-of-N / CoT selection diagnostics. These are especially useful
+            # for thesis compute-expansion runs where extra calls must justify
+            # their extra energy and latency.
+            "lookup_candidate_count": lookup_selection["candidate_count"],
+            "lookup_selected_candidate_index": lookup_selection["selected_candidate_index"],
+            "lookup_selection_score_margin": lookup_selection["selection_score_margin"],
+            "lookup_candidate_scores": lookup_selection["candidate_scores"],
+            "analysis_candidate_count": analysis_selection["candidate_count"],
+            "analysis_selected_candidate_index": analysis_selection["selected_candidate_index"],
+            "analysis_selection_score_margin": analysis_selection["selection_score_margin"],
+            "analysis_candidate_scores": analysis_selection["candidate_scores"],
+            "vis_candidate_count": vis_selection["candidate_count"],
+            "vis_selected_candidate_index": vis_selection["selected_candidate_index"],
+            "vis_selection_score_margin": vis_selection["selection_score_margin"],
+            "vis_candidate_scores": vis_selection["candidate_scores"],
             # Per-step total wall-clock timings
             "elapsed_sec":        round(total_time, 2) if total_time is not None else None,
             "lookup_time_sec":    round(step_timings.get("lookup_sales_data", 0), 2),
