@@ -1,5 +1,8 @@
 **/.DS_Store
 
+# PowerPoint outputs
+presentation-powerpoint/
+
 # LaTeX build artifacts
 tesi/*.aux
 tesi/*.bbl
@@ -42,3 +45,6 @@ jmeter.log
 
 codecarbon
 .cache
+# Local benchmark outputs
+runs/
+output/
