@@ -291,9 +291,9 @@ Query: SELECT st.region, s.yr AS year, ROUND(AVG(s.monthly_rev), 2) AS avg_month
   RIGHT: `YEAR(Sold_Date)` or `EXTRACT(YEAR FROM Sold_Date)`
 - **To extract year from a DATE column**: use `YEAR(date_col)` or `EXTRACT(YEAR FROM date_col)`
 - **To extract month from a DATE column**: use `MONTH(date_col)` or `EXTRACT(MONTH FROM date_col)`
-- **NEVER use GROUP BY on a binary flag to split a metric** — this produces multiple rows per period instead of one pivoted row.
-  WRONG: `SELECT category, is_discount, SUM(revenue) FROM orders GROUP BY category, is_discount`
-  RIGHT: `SELECT category, SUM(CASE WHEN is_discount = 1 THEN revenue ELSE 0 END) AS discount_revenue, SUM(CASE WHEN is_discount = 0 THEN revenue ELSE 0 END) AS regular_revenue FROM orders GROUP BY category`
+- **NEVER use GROUP BY on a binary flag to split a metric** — this produces multiple rows per period instead of one pivoted row. This applies both to grouping on the raw flag column AND to grouping on a CASE WHEN label derived from it.
+  WRONG: `SELECT month, CASE WHEN is_active = 1 THEN 'Active' ELSE 'Inactive' END AS status_label, SUM(amount) AS total FROM transactions GROUP BY month, status_label`
+  RIGHT: `SELECT month, SUM(CASE WHEN is_active = 1 THEN amount ELSE 0 END) AS active_amount, SUM(CASE WHEN is_active = 0 THEN amount ELSE 0 END) AS inactive_amount FROM transactions GROUP BY month`
 - **NEVER put a CASE WHEN expression in SELECT unless it is either in GROUP BY or wrapped in an aggregate function** — any bare CASE WHEN in a grouped query that is not itself aggregated causes a DuckDB error ("not an aggregate function and does not appear in the GROUP BY clause"). This includes year/period label columns like `CASE WHEN YEAR(date)=2022 THEN '2022' ELSE NULL END AS yr_label`.
   WRONG: `SELECT dept_name, CASE WHEN YEAR(hire_date) = 2022 THEN '2022' ELSE NULL END AS yr_label, AVG(salary) AS avg_sal FROM employees GROUP BY dept_name`
   RIGHT: `SELECT dept_name, YEAR(hire_date) AS year, AVG(salary) AS avg_salary FROM employees GROUP BY dept_name, YEAR(hire_date)`
@@ -306,6 +306,9 @@ Query: SELECT st.region, s.yr AS year, ROUND(AVG(s.monthly_rev), 2) AS avg_month
 - **When the prompt requests a value "as a percentage", always multiply by 100** — dividing alone returns a fraction (e.g. 0.06), not a percentage (e.g. 6.0). Always write `ratio * 100` explicitly.
   WRONG: `SELECT dept, ROUND(SUM(CASE WHEN is_bonus = 1 THEN amount ELSE 0 END) / NULLIF(SUM(amount), 0), 4) AS bonus_share FROM payroll GROUP BY dept`
   RIGHT: `SELECT dept, ROUND(SUM(CASE WHEN is_bonus = 1 THEN amount ELSE 0 END) / NULLIF(SUM(amount), 0) * 100, 2) AS bonus_share_pct FROM payroll GROUP BY dept`
+- **The outer query of a subquery can ONLY access columns that the subquery explicitly lists in its SELECT clause** — never reference original table columns or inner aliases from outside the subquery.
+  WRONG: `SELECT sub.hire_date, YEAR(sub.hire_date) AS yr, AVG(sub.monthly_total) FROM (SELECT emp_id, YEAR(hire_date) AS yr, SUM(salary) AS monthly_total FROM employees GROUP BY emp_id, yr) sub GROUP BY sub.hire_date, yr` — `sub.hire_date` does not exist in the subquery SELECT
+  RIGHT: `SELECT sub.yr AS year, AVG(sub.monthly_total) FROM (SELECT emp_id, YEAR(hire_date) AS yr, SUM(salary) AS monthly_total FROM employees GROUP BY emp_id, yr) sub GROUP BY sub.yr`
 
 ## OUTPUT FORMAT
 Return ONLY the SQL query as plain text. No explanations. No markdown formatting. No code fences. Just the SQL query.
