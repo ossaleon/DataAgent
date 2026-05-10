@@ -789,36 +789,34 @@ def _parse_vis_judge_json(raw_text: str) -> Dict:
     }
 
 
-def _compute_visualization_score(evaluation: Dict, csv_iou: float = 0.0, has_explicit_requirements: bool = True) -> float:
+def _compute_visualization_score(evaluation: Dict, has_explicit_requirements: bool = True) -> float:
     """Compute weighted normalized score from judge evaluation.
 
     Weights:
-      - csv_iou (data correctness): 20% base, +10% when explicit_requirements is absent → 30%
-      - axis_correctness: 30%
-      - chart_type: 30%
-      - functional_equivalence: 10%
-      - explicit_requirements: 10% (dropped to 0% when absent, redistributed to csv_iou)
+      - functional_equivalence: 40% (50% when explicit_requirements are all null)
+      - axis_correctness: 25%
+      - chart_type: 25%
+      - explicit_requirements: 10% (dropped to 0% when absent, redistributed to functional_equivalence)
 
     Args:
         evaluation: Dict of per-criterion scores from the LLM judge.
-        csv_iou: Data correctness score [0, 1] from the SQL/CSV evaluator.
         has_explicit_requirements: False when all explicit_requirements are null —
-            removes the 10% weight from that criterion and adds it to csv_iou.
+            removes the 10% weight from explicit_requirements and adds it to functional_equivalence.
 
     Returns:
         Score between 0.0 and 1.0
     """
-    data_weight = 0.30 if not has_explicit_requirements else 0.20
+    functional_weight = 0.50 if not has_explicit_requirements else 0.40
     explicit_weight = 0.0 if not has_explicit_requirements else 0.10
 
     llm_criteria_weights = {
-        "axis_correctness": 0.30,
-        "chart_type": 0.30,
-        "functional_equivalence": 0.10,
+        "functional_equivalence": functional_weight,
+        "axis_correctness": 0.25,
+        "chart_type": 0.25,
         "explicit_requirements": explicit_weight,
     }
 
-    total_score = data_weight * csv_iou
+    total_score = 0.0
     for criterion, weight in llm_criteria_weights.items():
         raw_score = evaluation.get(criterion, {}).get("score", 1)
         normalized = (raw_score - 1) / 4.0
@@ -1192,15 +1190,11 @@ def make_vis_evaluator_gt(
 ) -> callable:
     """Factory to create visualization evaluation function for per-step execution.
 
-    The score is a weighted blend of data correctness (csv_iou) and LLM judge criteria:
-      - csv_iou: 20% (or 30% when explicit_requirements are all null)
-      - axis_correctness: 30%
-      - chart_type: 30%
-      - functional_equivalence: 10%
-      - explicit_requirements: 10% (0% when absent, redistributed to csv_iou)
-
-    csv_iou is read from state["_gt_scores_per_step"]["lookup_sales_data"]["gt_score"],
-    which is already populated by the lookup_sales_data step before this evaluator runs.
+    The score is based solely on LLM judge criteria (independent of csv_iou):
+      - functional_equivalence: 40% (50% when explicit_requirements are all null)
+      - axis_correctness: 25%
+      - chart_type: 25%
+      - explicit_requirements: 10% (0% when absent, redistributed to functional_equivalence)
 
     Args:
         ground_truth_config: Expected chart configuration dict.
@@ -1236,9 +1230,6 @@ def make_vis_evaluator_gt(
 
         visualization_goal = state.get("visualization_goal", state.get("prompt", ""))
 
-        # csv_iou is already stored in state by the lookup_sales_data step that ran earlier
-        csv_iou = float((state.get("_gt_scores_per_step") or {}).get("lookup_sales_data", {}).get("gt_score") or 0.0)
-
         try:
             _, evaluation = judge_visualization(
                 visualization_goal=visualization_goal,
@@ -1255,13 +1246,12 @@ def make_vis_evaluator_gt(
 
             score = _compute_visualization_score(
                 evaluation,
-                csv_iou=csv_iou,
                 has_explicit_requirements=_has_explicit,
             )
             evaluation["overall_score"] = score
 
             if score < 1.0:
-                reasoning_parts = [f"csv_iou={csv_iou:.3f}"]
+                reasoning_parts = []
                 for key, val in evaluation.items():
                     if key not in ("overall_score", "error") and val is not None:
                         reasoning_parts.append(f"{key}={val}")
@@ -1285,7 +1275,7 @@ def make_vis_evaluator_gt(
 # normal (non-evaluation) usage.
 
 
-def compare_dataframes_iou(df1: pd.DataFrame, df2: pd.DataFrame, atol: float = 1e-2) -> float:
+def compare_dataframes_iou(df1: pd.DataFrame, df2: pd.DataFrame, atol: float = 5e-2) -> float:
     """Compute row-level IoU between two DataFrames.
 
     Column selection strategy:

@@ -294,12 +294,18 @@ Query: SELECT st.region, s.yr AS year, ROUND(AVG(s.monthly_rev), 2) AS avg_month
 - **NEVER use GROUP BY on a binary flag to split a metric** — this produces multiple rows per period instead of one pivoted row.
   WRONG: `SELECT category, is_discount, SUM(revenue) FROM orders GROUP BY category, is_discount`
   RIGHT: `SELECT category, SUM(CASE WHEN is_discount = 1 THEN revenue ELSE 0 END) AS discount_revenue, SUM(CASE WHEN is_discount = 0 THEN revenue ELSE 0 END) AS regular_revenue FROM orders GROUP BY category`
-- **NEVER create a year/period label using CASE WHEN ... ELSE NULL** — this produces a column full of NULLs and broken aggregations. To compare across years, use GROUP BY YEAR(date_col).
-  WRONG: `SELECT city, CASE WHEN YEAR(order_date) = 2022 THEN '2022' ELSE NULL END AS yr, AVG(monthly_total) AS avg_rev FROM orders GROUP BY city`
-  RIGHT: `SELECT city, YEAR(order_date) AS year, AVG(monthly_total) AS avg_rev FROM orders GROUP BY city, YEAR(order_date)`
+- **NEVER put a CASE WHEN expression in SELECT unless it is either in GROUP BY or wrapped in an aggregate function** — any bare CASE WHEN in a grouped query that is not itself aggregated causes a DuckDB error ("not an aggregate function and does not appear in the GROUP BY clause"). This includes year/period label columns like `CASE WHEN YEAR(date)=2022 THEN '2022' ELSE NULL END AS yr_label`.
+  WRONG: `SELECT dept_name, CASE WHEN YEAR(hire_date) = 2022 THEN '2022' ELSE NULL END AS yr_label, AVG(salary) AS avg_sal FROM employees GROUP BY dept_name`
+  RIGHT: `SELECT dept_name, YEAR(hire_date) AS year, AVG(salary) AS avg_salary FROM employees GROUP BY dept_name, YEAR(hire_date)`
 - **NEVER group by a category dimension (e.g. department, region) inside the innermost subquery when computing averages per entity** — you lose per-entity granularity and the AVG becomes wrong. Always aggregate at the lowest entity level first, then join to the category.
   WRONG: `WITH monthly AS (SELECT dept, YEAR(date) AS yr, DATE_TRUNC('month', date) AS mo, SUM(amount) AS total FROM orders JOIN employees ON ... JOIN departments ON ... GROUP BY dept, yr, mo) SELECT dept, yr, AVG(total) FROM monthly GROUP BY dept, yr`
   RIGHT: `WITH monthly AS (SELECT emp_id, YEAR(date) AS yr, DATE_TRUNC('month', date) AS mo, SUM(amount) AS total FROM orders GROUP BY emp_id, yr, mo) SELECT d.dept, m.yr, AVG(m.total) FROM monthly m JOIN employees e ON m.emp_id = e.id JOIN departments d ON e.dept_id = d.id GROUP BY d.dept, m.yr`
+- **When comparing independent per-year metrics (averages, sums, counts per year), return results in LONG FORMAT** — one row per (entity, year), with year as a plain GROUP BY column. Do NOT pivot years into separate columns (avg_2022, avg_2023). Use pivot format ONLY when you need both years in the same row to compute a derived cross-year metric (e.g. year-over-year growth rate).
+  WRONG: `SELECT channel, AVG(CASE WHEN YEAR(order_date) = 2021 THEN monthly_rev END) AS avg_2021, AVG(CASE WHEN YEAR(order_date) = 2022 THEN monthly_rev END) AS avg_2022 FROM orders GROUP BY channel`
+  RIGHT: `SELECT channel, YEAR(order_date) AS year, AVG(monthly_rev) AS avg_monthly_revenue FROM orders GROUP BY channel, YEAR(order_date) ORDER BY channel, year`
+- **When the prompt requests a value "as a percentage", always multiply by 100** — dividing alone returns a fraction (e.g. 0.06), not a percentage (e.g. 6.0). Always write `ratio * 100` explicitly.
+  WRONG: `SELECT dept, ROUND(SUM(CASE WHEN is_bonus = 1 THEN amount ELSE 0 END) / NULLIF(SUM(amount), 0), 4) AS bonus_share FROM payroll GROUP BY dept`
+  RIGHT: `SELECT dept, ROUND(SUM(CASE WHEN is_bonus = 1 THEN amount ELSE 0 END) / NULLIF(SUM(amount), 0) * 100, 2) AS bonus_share_pct FROM payroll GROUP BY dept`
 
 ## OUTPUT FORMAT
 Return ONLY the SQL query as plain text. No explanations. No markdown formatting. No code fences. Just the SQL query.
