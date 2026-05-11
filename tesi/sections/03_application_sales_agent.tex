@@ -287,20 +287,41 @@ are completely agnostic to the underlying provider. Per-step provider and model
 overrides are also supported: it is possible, for example, to use a large cloud
 model for SQL generation and a smaller local model for routing.
 
+\subsubsection{Prompt Structure}
+
+All prompts in the Sales Agent share a common skeleton. Each prompt opens with a
+\textbf{role declaration} that assigns a persona to the model (e.g.\
+\textit{``You are an expert SQL developer specialising in DuckDB queries''}), followed
+by a \textbf{Markdown-sectioned body} that separates concerns into labeled blocks:
+\texttt{\#\# TASK} (what to produce), \texttt{\#\# AVAILABLE DATA} / \texttt{\#\# USER QUESTION}
+(dynamic context injected via template variables at runtime), \texttt{\#\# INSTRUCTIONS}
+(generation rules), and \texttt{\#\# OUTPUT FORMAT} (exact specification of what the
+model should return). Keeping the static scaffold and the dynamic content clearly
+separated simplifies both prompt maintenance and output parsing.
+
 \subsubsection{Chain-of-Thought Prompting}
 
-All four prompts used by the agent — tool routing, SQL generation, data analysis,
-and chart generation — follow a structured Chain-of-Thought (CoT)~\cite{wei2022chain}
-template. Each prompt defines a numbered sequence of reasoning steps that the LLM
-must complete before producing its output. For example, the SQL generation prompt
-guides the model through five explicit steps: understanding the user request,
-identifying the required columns and joins, considering the visualisation needs,
-planning the query structure (SELECT, FROM, WHERE, GROUP BY, ORDER BY), and handling
-edge cases such as date casting and NULL values.
+Three of the four agent prompts — tool routing, data analysis, and chart configuration
+— augment the shared structure above with a \texttt{\#\# CHAIN OF THOUGHT REASONING}
+section~\cite{wei2022chain}. This section defines a sequence of named steps (e.g.\
+\textit{Step 1: Understanding the Question}, \textit{Step 2: Examining the Data
+Structure}, \ldots) that the model must work through and expose in its output before
+producing the final answer. By externalising intermediate reasoning, the model is less
+likely to skip steps or make implicit assumptions, and the output is easier to inspect
+and validate.
 
-This approach improves both accuracy and consistency: by externalising intermediate
-reasoning into the prompt, the model is less likely to skip steps or make implicit
-assumptions, and the structured output is easier to parse and validate.
+\textcolor{red}{The SQL generation prompt deliberately omits the CoT reasoning section.
+During development, we observed that smaller open-weight models tended to lose track
+of critical constraints — DuckDB-specific syntax rules, column qualification in JOINs,
+and the required plain-text output format — when required to produce explicit
+step-by-step reasoning before the query. The additional text generation appeared to
+exhaust the model's effective attention on the earlier instruction blocks. The SQL
+prompt therefore replaces the CoT section with a \texttt{\#\# COMMON MISTAKES TO AVOID}
+block listing wrong/right DuckDB patterns, and a \texttt{\#\# EXAMPLES} block of
+few-shot query pairs, while the \texttt{\#\# OUTPUT FORMAT} section explicitly
+instructs the model to return only the plain SQL with no explanations or markdown.
+This change consistently reduced syntax errors and instruction-following failures
+across the small models tested.}
 
 \subsubsection{Best-of-\texorpdfstring{$N$}{N} Sampling}
 

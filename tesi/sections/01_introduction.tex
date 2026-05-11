@@ -3,21 +3,44 @@
 %-----------------------------------------------------------------------------
 \section{Introduction}
 \label{sec:introduction}
-The automated analysis of business data represents one of the most relevant challenges in the field of applied artificial intelligence.
-As large volumes of structured data become increasingly available, there is a growing need for tools capable of answering natural language questions,
-executing database queries, and producing meaningful visualizations autonomously.
+The growing adoption of Large Language Models (LLMs) in enterprise software has opened
+a concrete path toward natural language interfaces for structured data. Systems capable of
+translating a business question into a SQL query, executing it, and returning both a textual
+analysis and a chart represent a significant step forward in making data-driven decision making
+accessible to non-technical users. At the same time, deploying such systems in production
+raises practical questions that go beyond accuracy: how much time does each inference take,
+how does it scale with configuration changes, and what is the energy cost of running LLM-backed
+pipelines on real hardware?
 
-This thesis presents the development of a \textit{Data Agent} based on Large Language Models (LLMs),
-designed to query sales datasets in Parquet format through SQL queries automatically generated via DuckDB.
-The agent is orchestrated using the LangGraph framework and integrates an LLM --- either in a local configuration via Ollama or through the OpenAI API ---
-to drive the routing between the available tools: data retrieval, textual analysis, and visualization generation.
+This thesis addresses both aspects. On the application side, it presents the design and
+implementation of a \textit{Sales Agent} --- an LLM-powered conversational system that enables
+business analysts to query a synthetic retail dataset using plain English. Given a natural
+language question, the agent autonomously selects the appropriate processing steps, generates
+and executes a SQL query against Parquet files via DuckDB, produces a textual interpretation
+of the results, and optionally renders a Matplotlib chart. The agent is orchestrated through
+LangGraph~\cite{langgraph}, a framework for stateful graph-based LLM pipelines, and supports
+two interchangeable backends: locally-hosted open-weight models via Ollama and cloud-based
+models via the OpenAI API. A hierarchical YAML configuration system exposes all inference
+hyperparameters --- sampling temperature, top-$p$, top-$k$, best-of-$N$ candidates, and
+Chain-of-Thought refinement iterations --- making every run fully reproducible and configurable
+without code changes.
 
-The adopted architecture follows a modular approach, in which each phase of the process --- from understanding the user's question to producing the final output ---
-is handled by distinct and composable components. Particular attention has been devoted to evaluating the agent's performance,
-using quantitative metrics applied to textual responses, extracted data, and generated visualizations.
+On the experimental side, the primary focus of the thesis is the systematic profiling of the
+agent under varying configurations. A benchmark of 20 analytical questions is used to evaluate
+output quality across three complementary dimensions: a row-level Intersection-over-Union metric
+for data retrieval accuracy, an LLM-as-judge score for the natural language analysis, and a
+further LLM-based score for visualisation correctness. A structured ablation study is then
+conducted by varying the hyperparameters of each processing step independently across 150
+sampled configurations. For each configuration, execution time and energy consumption ---
+tracked per step using CodeCarbon~\cite{lottick2019codecarbon} --- are recorded alongside quality scores. This profiling
+perspective allows us to characterise the trade-offs between inference cost and output quality
+as a function of the chosen parameters, providing actionable guidance for deploying LLM agents
+under latency or sustainability constraints.
 
-The document is organized as follows: Section~\ref{sec:stateofart} provides an overview of the related work;
-Section~\ref{sec:application} describes the system architecture and the hardware infrastructure;
-Section~\ref{sec:experiments} presents the experimental evaluation;
-Section~\ref{sec:conclusions} draws the conclusions and outlines future developments.
+The document is organised as follows: Section~\ref{sec:stateofart} \textcolor{red}{reviews related work on
+Text-to-SQL systems, LLM-based agents, and energy-aware machine learning};
+Section~\ref{sec:application} describes the architecture of the Sales Agent and the hardware
+infrastructure used for the experiments; Section~\ref{sec:experiments} presents the
+experimental evaluation, with a focus on performance profiling across configurations;
+Section~\ref{sec:conclusions} summarises the findings and outlines directions for future work.
 
