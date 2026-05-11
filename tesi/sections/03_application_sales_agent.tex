@@ -114,7 +114,6 @@ latencies, and evaluation scores for post-hoc analysis.
     \item \textbf{CodeCarbon} — energy consumption tracking during agent execution;
     \item \textbf{NLTK} — natural language utilities used in text-based evaluation metrics;
     \item \textbf{PyYAML} — parsing of experiment configuration files;
-    \item \textbf{Flask} — lightweight HTTP server exposing the agent as a REST API.
 \end{itemize}
 
 \subsection{LangGraph Workflow}
@@ -386,13 +385,13 @@ also override the global LLM provider and model, enabling heterogeneous deployme
 where, for example, SQL generation uses a larger cloud model while routing uses a
 lightweight local model.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \begin{tabular}{|l|l|p{6cm}|}
-\hline
+\arrayrulecolor{black}\hline
 \rowcolor{bluePoli!30}
 \textbf{Parameter} & \textbf{Default} & \textbf{Description} \T\B \\
-\hline
+\arrayrulecolor{black}\hline
 \texttt{n} & 1 & Number of best-of-$n$ candidates \T\B \\
 \texttt{bon\_param} & \texttt{temperature} & Parameter varied across candidates \T\B \\
 \texttt{temp\_min / temp\_max} & 0.1 / 0.1 & Temperature range for sampling \T\B \\
@@ -431,9 +430,10 @@ simulate a realistic grocery retail scenario spanning multiple stores, product
 categories, and time periods. Table~\ref{tab:dataset} summarises the three tables
 and their key columns.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
-\begin{tabular}{|l|l|p{6.5cm}|}
+\arrayrulecolor{black}
+\begin{tabular}{|l|p{5.5cm}|p{5cm}|}
 \hline
 \rowcolor{bluePoli!30}
 \textbf{Table} & \textbf{Key columns} & \textbf{Description} \T\B \\
@@ -562,8 +562,9 @@ required, not the wording of the prompt. The four levels are:
 The 20 benchmark items are distributed across difficulty levels as shown in
 Table~\ref{tab:benchmark_dist}.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
+\arrayrulecolor{black}
 \begin{tabular}{|c|c|p{7cm}|}
 \hline
 \rowcolor{bluePoli!30}
@@ -607,12 +608,20 @@ processing step.
 \paragraph{CSV IoU (\texttt{csv\_iou}).}
 The quality of the data retrieval step is measured by comparing the agent's result
 \texttt{DataFrame} to the ground-truth CSV using a row-level Intersection over
-Union (IoU) metric. For each row in the agent's result, the algorithm searches for
-a matching row in the ground-truth table using element-wise comparison with an
-absolute numerical tolerance of $10^{-2}$ to absorb floating-point precision
-differences from SQL casts. Date strings are normalised before comparison to handle
-format variations (e.g.\ \texttt{YYYY-MM} vs \texttt{YYYY-MM-01}). The score is
-defined as:
+Union (IoU) metric. Before comparison, both DataFrames are passed through a
+normalisation step (\texttt{normalize\_dataframe\_values}) that: casts
+float-encoded integers to their integer representation (e.g.\ \texttt{33653.0}
+$\to$ \texttt{33653}), rounds floating-point values to two decimal places,
+formats date columns as \texttt{YYYY-MM-DD} strings, and strips leading and
+trailing whitespace from string cells. Column names are additionally lowercased
+on both sides to make the comparison case-insensitive.
+
+After normalisation, the algorithm performs greedy row matching: for each row in
+the agent's result it searches for the first unmatched row in the ground-truth
+table that agrees element-wise. Numeric values are compared with an absolute
+tolerance of $5 \times 10^{-2}$ to absorb residual precision differences from SQL
+casts; date strings are further normalised to treat \texttt{YYYY-MM} and
+\texttt{YYYY-MM-01} as equivalent. The score is defined as:
 
 \begin{equation}
     \text{csv\_iou} = \frac{|\text{matched rows}|}{|\text{agent rows}| + |\text{GT rows}| - |\text{matched rows}|}
@@ -621,19 +630,65 @@ defined as:
 
 \noindent and takes values in $[0, 1]$, where 1.0 indicates an exact match. When
 the result and ground-truth tables have different column sets, only the shared
-columns are compared.
+columns are compared; if no columns are shared the score is 0.
 
 \paragraph{Text Score (\texttt{text\_score}).}
 The quality of the natural language analysis is evaluated using an LLM-as-judge
-approach~\cite{zheng2023judging}. A separate LLM call receives both the generated
-analysis and the ground-truth reference text, and scores how well the agent's output
-captures the key numerical facts and conclusions of the reference, independently of
-phrasing. The score is in $[0, 1]$.
+approach~\cite{zheng2023judging}. A separate LLM call (temperature 0, \texttt{gpt-4o-mini}
+by default) receives the generated analysis alongside the ground-truth reference text
+and rates two criteria on a 1--5 scale:
+
+\begin{itemize}
+    \item \textbf{Factual Accuracy} — do the key numerical values and conclusions in
+          the generated text match those in the reference, regardless of phrasing or
+          sentence structure?
+    \item \textbf{Coverage} — does the generated text address all the main points
+          and conclusions present in the reference?
+\end{itemize}
+
+\noindent The two raw scores are averaged and the result is linearly normalised from
+$[1, 5]$ to $[0, 1]$:
+
+\begin{equation}
+    \text{text\_score} = \frac{\frac{s_{\text{accuracy}} + s_{\text{coverage}}}{2} - 1}{4}
+    \label{eq:textscore}
+\end{equation}
 
 \paragraph{Visualisation Score (\texttt{vis\_score}).}
-The quality of the generated chart is evaluated by an LLM judge that compares the
-agent's chart configuration and code against the ground-truth equivalents, assessing
-correctness of the chart type, axes, title, and data mapping. The score is in $[0, 1]$.
+The quality of the generated chart is evaluated by a second LLM judge that receives
+the agent's chart configuration dictionary, the corresponding Matplotlib code, the
+ground-truth equivalents, and any explicit styling requirements attached to the
+benchmark item. The judge rates four criteria on a 1--5 scale:
+
+\begin{itemize}
+    \item \textbf{Axis Correctness} — do the $x$ and $y$ axes reference the same data
+          columns as the ground truth (case-insensitive)? Handles the three valid
+          multi-series encodings (\texttt{y\_axis}, \texttt{y\_axes}, and
+          \texttt{y\_axis}+\texttt{group\_by}) as equivalent when the same columns
+          are ultimately visualised.
+    \item \textbf{Chart Type Correctness} — does the chart type (\texttt{bar},
+          \texttt{line}, \texttt{scatter}, \texttt{area}) match the reference?
+          Variations within a type (e.g.\ grouped vs.\ stacked bar) are acceptable.
+    \item \textbf{Functional Equivalence} — would the generated Matplotlib code
+          produce a visually equivalent chart? Code style, variable names, and import
+          statements are ignored; only the rendered visual output matters.
+    \item \textbf{Explicit Requirements Compliance} — applies only when the benchmark
+          item specifies styling constraints (colour scheme, title format, label format,
+          grid, markers); if all requirements are absent this criterion is marked N/A
+          and assigned the maximum score.
+\end{itemize}
+
+\noindent Each raw score $s_i \in [1,5]$ is normalised as $(s_i - 1)/4$ and the
+final score is a weighted sum:
+
+\begin{equation}
+    \text{vis\_score} = 0.25\,\hat{s}_{\text{axis}} + 0.25\,\hat{s}_{\text{type}}
+                      + w_f\,\hat{s}_{\text{func}} + w_e\,\hat{s}_{\text{expl}}
+    \label{eq:visscore}
+\end{equation}
+
+\noindent where $w_f = 0.40$, $w_e = 0.10$ when explicit requirements are present,
+and $w_f = 0.50$, $w_e = 0$ otherwise.
 
 \subsubsection{No-GT Evaluators for Best-of-\texorpdfstring{$N$}{N} Selection}
 
@@ -658,22 +713,33 @@ At the end of a benchmark run, all per-item results are aggregated into a single
 \texttt{detail\_combined} CSV file. Each row corresponds to one benchmark item and
 contains the columns summarised in Table~\ref{tab:output_cols}.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
-\begin{tabular}{|l|p{8cm}|}
+\arrayrulecolor{black}
+\begin{tabular}{|p{5cm}|p{7.5cm}|}
 \hline
 \rowcolor{bluePoli!30}
 \textbf{Column} & \textbf{Description} \T\B \\
 \hline
 \texttt{test\_case\_id}, \texttt{prompt}, \texttt{difficulty} & Item identifier, question text, difficulty level \T\B \\
+\hline
 \texttt{gen\_sql} & SQL query generated by the agent \T\B \\
+\hline
 \texttt{csv\_iou}, \texttt{text\_score}, \texttt{vis\_score} & GT-based scores for each step \T\B \\
-\texttt{*\_reasoning} & Diagnostic text when the corresponding GT score $< 1.0$ \T\B \\
+\hline
+\texttt{csv\_iou\_reasoning}, \texttt{text\_score\_reasoning}, \texttt{vis\_score\_reasoning} & Diagnostic text populated only when the corresponding GT score $< 1.0$ \T\B \\
+\hline
 \texttt{csv\_eval\_score}, \texttt{text\_eval\_score}, \texttt{vis\_eval\_score} & No-GT scores used by the BoN selector \T\B \\
+\hline
 \texttt{elapsed\_sec} & Total wall-clock time for the full run \T\B \\
-\texttt{lookup/analyzing/vis\_time\_sec} & Per-step wall-clock time \T\B \\
-\texttt{lookup/analyzing/vis\_llm\_time\_sec} & Time spent in LLM calls per step \T\B \\
-\texttt{*\_energy\_kwh}, \texttt{*\_emissions\_co2} & Per-step and run-level energy and CO$_2$ \T\B \\
+\hline
+\texttt{lookup/analyzing/} \texttt{vis\_time\_sec} & Per-step total wall-clock time \T\B \\
+\hline
+\texttt{lookup/analyzing/} \texttt{vis\_llm\_time\_sec} & Time spent in LLM calls per step (sum of BoN candidates, CoT iterations, and judge calls) \T\B \\
+\hline
+\texttt{\{step\}\_llm\_energy\_kwh}, \texttt{\{step\}\_llm\_{cpu|gpu|ram}\_} \texttt{energy\_kwh}, \texttt{\{step\}\_llm\_emissions\_co2} & Per-step LLM energy breakdown (5 fields $\times$ 3 steps); \texttt{None} when CodeCarbon is disabled \T\B \\
+\hline
+\texttt{energy\_consumed\_kwh}, \texttt{cpu/gpu/ram\_energy\_kwh}, \texttt{emissions\_kg\_co2} & Run-level total energy and CO$_2$ covering the full agent invocation; \texttt{None} when CodeCarbon is disabled \T\B \\
 \hline
 \end{tabular}
 \caption{Main columns of the \texttt{detail\_combined} output CSV.}
@@ -695,13 +761,32 @@ execution and converts it to an estimated CO$_2$ equivalent based on the carbon
 intensity of the local power grid.
 
 Tracking is enabled by setting \texttt{enable\_codecarbon: true} in the run
-configuration. When enabled, a fresh \texttt{EmissionsTracker} is started and
-stopped around each LLM call, recording energy consumption independently for the
-lookup, analysis, and visualisation steps. A second run-level tracker covers the
-entire agent invocation. All five CodeCarbon fields — total energy (kWh), CPU
-energy, GPU energy, RAM energy, and CO$_2$ emissions (kg) — are stored in the
-\texttt{State} and written to the \texttt{detail\_combined} CSV. When
-\texttt{enable\_codecarbon} is false, all energy columns are set to \texttt{None}.
+configuration. When enabled, the system operates two independent trackers:
+
+\begin{itemize}
+    \item \textbf{Step-level trackers} — a dedicated \texttt{EmissionsTracker} is
+          started and stopped around the entire LLM activity of each processing step
+          (\texttt{lookup\_sales\_data}, \texttt{analyzing\_data},
+          \texttt{create\_visualization}). Each tracker accumulates the energy of
+          \emph{all} LLM invocations within that step, including best-of-$N$
+          candidates, CoT refinement iterations, and evaluation judge calls.
+          The five CodeCarbon fields — total energy (kWh), CPU energy, GPU energy,
+          RAM energy, and CO$_2$ emissions (kg) — are recorded independently per
+          step, yielding 15 per-step energy columns in the output CSV, following
+          the naming pattern \texttt{\{step\}\_llm\_\{field\}} where \texttt{\{field\}}
+          is one of \texttt{energy\_kwh}, \texttt{cpu\_energy\_kwh},
+          \texttt{gpu\_energy\_kwh}, \texttt{ram\_energy\_kwh},
+          \texttt{emissions\_co2}.
+    \item \textbf{Run-level tracker} — a second \texttt{EmissionsTracker} wraps the
+          complete agent invocation, capturing the total footprint including
+          orchestration, data I/O, and all steps. Its output is written to five
+          run-level columns (\texttt{energy\_consumed\_kwh}, \texttt{cpu\_energy\_kwh},
+          \texttt{gpu\_energy\_kwh}, \texttt{ram\_energy\_kwh},
+          \texttt{emissions\_kg\_co2}).
+\end{itemize}
+
+\noindent When \texttt{enable\_codecarbon} is false, all 20 energy columns are set
+to \texttt{None}.
 
 \subsection{Deployment with Docker}
 \label{subsec:docker}
@@ -766,7 +851,7 @@ intervals. Provider-specific parameters (top-$k$, beam width,
 \texttt{no\_repeat\_ngram\_size}) are sampled only for Ollama-based runs and
 silently ignored for OpenAI, which does not expose these controls.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \begin{tabular}{|l|l|l|}
 \hline
