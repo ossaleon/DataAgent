@@ -161,7 +161,7 @@ Configs:
 | `efficient_static` | lookup max_tokens `3000`, analysis max_tokens `5000` or `7000`, visualization max_tokens `5000` or `7000` | Confirm lower token caps preserve quality. |
 | `best_step_static` | analysis `top_k_high` or lookup `top_k_high`, selected from Test 02 | Confirm the only small static gains observed. |
 | `max_tokens_adjusted` | lower safe token caps from Test 03 | Test whether efficiency improves without accuracy loss. |
-| `compute_expansion_candidate` | no-op or omit; use an additional efficient static variant instead | Compute expansion did not justify its cost for Mistral. |
+| `analysis_top_k_high_low_tokens` | analysis `top_k_high` with low safe token caps | Extra efficient static variant replacing compute expansion. |
 | `combined_best_candidate` | efficient token caps plus the best cheap static parameter | Confirm the final Mistral Pareto candidate. |
 
 Do not include Best-of-N or CoT unless there is a new result showing a large gain. Tests 02-03 suggest Mistral is already near its local optimum.
@@ -245,7 +245,18 @@ Expected rows:
 
 ## Code Readiness
 
-Not ready to execute yet by design. The runner is ready, but the final manifests must be written from the evidence-informed candidates above.
+Ready to execute after rebuilding the Docker image from this branch.
+
+The final manifests have been generated and contain exactly six configs each.
+The manifest runner also writes the final-report metrics needed by this test:
+
+```text
+prompt_quality_mean
+completion_rate
+full_completion_rate
+quality_per_kwh
+prompt_quality_per_kwh
+```
 
 Expected final manifests:
 
@@ -262,13 +273,13 @@ baseline
 efficient_static
 best_step_static
 max_tokens_adjusted
-compute_expansion_candidate
+compute_expansion_candidate or efficient_static_variant
 combined_best_candidate
 ```
 
 ## Remote Docker Commands
 
-Run these only after the final manifests above have been created from Tests 01-04.
+Run these from the repository root on the remote machine.
 
 Build the image once after pulling the final manifest changes:
 

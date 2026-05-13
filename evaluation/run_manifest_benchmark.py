@@ -30,6 +30,11 @@ from evaluation.search_space import SearchSpace  # noqa: E402
 STEPS = ("lookup_sales_data", "analyzing_data", "create_visualization")
 SCORE_COLS = ("csv_iou", "text_score", "vis_score")
 ENERGY_COLS = ("energy_consumed_kwh", "gpu_energy_kwh", "emissions_kg_co2")
+GT_FLAG_BY_SCORE = {
+    "csv_iou": "has_data_gt",
+    "text_score": "has_analysis_gt",
+    "vis_score": "has_vis_gt",
+}
 
 
 def _load_manifest(path: str) -> Dict[str, Any]:
@@ -93,6 +98,33 @@ def _mean_or_none(series: pd.Series) -> Optional[float]:
     return float(valid.mean())
 
 
+def _score_frame(group: pd.DataFrame) -> pd.DataFrame:
+    cols = [col for col in SCORE_COLS if col in group]
+    return group[cols].apply(pd.to_numeric, errors="coerce") if cols else pd.DataFrame(index=group.index)
+
+
+def _expected_score_mask(group: pd.DataFrame, score_frame: pd.DataFrame) -> pd.DataFrame:
+    expected = pd.DataFrame(False, index=group.index, columns=score_frame.columns)
+    for score_col in score_frame.columns:
+        flag_col = GT_FLAG_BY_SCORE.get(score_col)
+        if flag_col and flag_col in group:
+            expected[score_col] = group[flag_col].fillna(False).astype(bool)
+        else:
+            # Older result files do not record GT availability. Treat observed
+            # scores as expected so legacy summaries remain backward-compatible.
+            expected[score_col] = score_frame[score_col].notna()
+    return expected
+
+
+def _safe_ratio(numerator: Any, denominator: Any) -> Optional[float]:
+    if numerator is None or denominator is None or pd.isna(numerator) or pd.isna(denominator):
+        return None
+    denominator = float(denominator)
+    if denominator <= 0:
+        return None
+    return float(numerator) / denominator
+
+
 def _aggregate_results(save_dir: Path, records: List[Dict[str, Any]]) -> Tuple[pd.DataFrame, pd.DataFrame]:
     detail_frames: List[pd.DataFrame] = []
     configs_df = pd.DataFrame(records)
@@ -118,6 +150,28 @@ def _aggregate_results(save_dir: Path, records: List[Dict[str, Any]]) -> Tuple[p
     summary_rows: List[Dict[str, Any]] = []
     for config_id, group in detail.groupby("config_id", sort=True):
         row: Dict[str, Any] = {"config_id": int(config_id), "n_test_cases": int(len(group))}
+        scores = _score_frame(group)
+        if not scores.empty:
+            prompt_quality = scores.mean(axis=1, skipna=True).dropna()
+            row["prompt_quality_mean"] = float(prompt_quality.mean()) if not prompt_quality.empty else None
+            row["prompt_quality_median"] = float(prompt_quality.median()) if not prompt_quality.empty else None
+            row["prompt_quality_std"] = float(prompt_quality.std()) if prompt_quality.size > 1 else None
+
+            expected_scores = _expected_score_mask(group, scores)
+            expected_count = int(expected_scores.to_numpy().sum())
+            completed_scores = scores.notna() & expected_scores
+            completed_count = int(completed_scores.to_numpy().sum())
+            row["completion_rate"] = (
+                float(completed_count / expected_count) if expected_count else None
+            )
+
+            expected_by_prompt = expected_scores.sum(axis=1)
+            completed_by_prompt = completed_scores.sum(axis=1)
+            prompts_with_expected = expected_by_prompt > 0
+            if prompts_with_expected.any():
+                row["full_completion_rate"] = float(
+                    (completed_by_prompt[prompts_with_expected] == expected_by_prompt[prompts_with_expected]).mean()
+                )
         for col in SCORE_COLS:
             if col in group:
                 valid = group[col].dropna()
@@ -165,6 +219,16 @@ def _quality_score(row: pd.Series) -> Optional[float]:
 def _write_thesis_summary(summary: pd.DataFrame, path: Path) -> None:
     thesis = summary.copy()
     thesis["quality_mean"] = thesis.apply(_quality_score, axis=1)
+    if "energy_consumed_kwh_mean" in thesis:
+        thesis["quality_per_kwh"] = thesis.apply(
+            lambda row: _safe_ratio(row.get("quality_mean"), row.get("energy_consumed_kwh_mean")),
+            axis=1,
+        )
+        if "prompt_quality_mean" in thesis:
+            thesis["prompt_quality_per_kwh"] = thesis.apply(
+                lambda row: _safe_ratio(row.get("prompt_quality_mean"), row.get("energy_consumed_kwh_mean")),
+                axis=1,
+            )
 
     baseline_by_step = (
         thesis[thesis["axis"].eq("baseline")]
@@ -172,7 +236,20 @@ def _write_thesis_summary(summary: pd.DataFrame, path: Path) -> None:
         .to_dict(orient="index")
     )
 
-    for metric in ("quality_mean", "csv_iou_mean", "text_score_mean", "vis_score_mean", "elapsed_sec_mean", "energy_consumed_kwh_mean"):
+    delta_metrics = [
+        "quality_mean",
+        "prompt_quality_mean",
+        "completion_rate",
+        "full_completion_rate",
+        "csv_iou_mean",
+        "text_score_mean",
+        "vis_score_mean",
+        "elapsed_sec_mean",
+        "energy_consumed_kwh_mean",
+        "quality_per_kwh",
+        "prompt_quality_per_kwh",
+    ]
+    for metric in [m for m in delta_metrics if m in thesis.columns]:
         delta_col = f"delta_{metric}"
         values = []
         for _, row in thesis.iterrows():

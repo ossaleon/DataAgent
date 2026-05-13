@@ -327,6 +327,9 @@ def run_benchmark(
             "test_case_id": idx,
             "prompt": prompt,
             "difficulty": entry.get("difficulty"),
+            "has_data_gt": has_data,
+            "has_analysis_gt": bool(entry.get("gt_analysis")),
+            "has_vis_gt": has_vis,
             "gen_sql": " ".join((result.get("sql_query", "") or "").split()),
             # GT scores — same source as run_metadata.json accuracy.ground_truth_scores
             "csv_iou":    csv_iou_val,

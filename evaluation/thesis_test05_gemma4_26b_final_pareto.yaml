@@ -1,0 +1,94 @@
+# Thesis Test 05 final Pareto confirmation for gemma4:26b.
+#
+# Use with:
+#   --model gemma4:26b
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: baseline
+    vary_step: all_steps
+    axis: baseline
+    description: Gemma 26B MoE baseline from Test 01.
+    steps: {}
+
+  - name: efficient_static
+    vary_step: all_steps
+    axis: efficient_static
+    description: Static visualization fix from Test 02 with no extra inference calls.
+    steps:
+      create_visualization: {top_k_min: 128, top_k_max: 128}
+
+  - name: best_step_static
+    vary_step: all_steps
+    axis: best_step_static
+    description: "Cost-aware visualization repair: top_k_high plus the successful visualization max_tokens=10000 cap from Test 03."
+    steps:
+      create_visualization: {top_k_min: 128, top_k_max: 128, max_tokens: 10000}
+
+  - name: max_tokens_adjusted
+    vary_step: all_steps
+    axis: max_tokens_adjusted
+    description: "Per-agent token caps from Test 03: SQL/text safe lower caps and generous visualization cap."
+    steps:
+      lookup_sales_data: {max_tokens: 3000}
+      analyzing_data: {max_tokens: 5000}
+      create_visualization: {max_tokens: 10000}
+
+  - name: visualization_bon_top_k_n2
+    vary_step: all_steps
+    axis: compute_expansion_candidate
+    description: Visualization Best-of-2 top-k candidate from Test 02.
+    steps:
+      create_visualization: {n: 2, bon_param: top_k, top_k_min: 20, top_k_max: 128}
+
+  - name: combined_best_candidate
+    vary_step: all_steps
+    axis: combined_best_candidate
+    description: "Combined high-quality MoE candidate: safe SQL/text caps plus static visualization repair and max_tokens=10000."
+    steps:
+      lookup_sales_data: {max_tokens: 3000}
+      analyzing_data: {max_tokens: 5000}
+      create_visualization: {top_k_min: 128, top_k_max: 128, max_tokens: 10000}

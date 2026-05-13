@@ -1,0 +1,97 @@
+# Thesis Test 05 final Pareto confirmation for gemma4:e4b.
+#
+# Use with:
+#   --model gemma4:e4b
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: baseline
+    vary_step: all_steps
+    axis: baseline
+    description: Gemma E4B baseline from Test 01.
+    steps: {}
+
+  - name: efficient_static
+    vary_step: all_steps
+    axis: efficient_static
+    description: "Static low-cost candidate: keep lookup conservative, raise analysis/visualization token caps, and use visualization top_k_low."
+    steps:
+      lookup_sales_data: {max_tokens: 5000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {max_tokens: 10000, top_k_min: 20, top_k_max: 20}
+
+  - name: best_step_static
+    vary_step: all_steps
+    axis: best_step_static
+    description: "Static accuracy candidate from Test 02: analysis temperature_high plus visualization top_k_low."
+    steps:
+      analyzing_data: {temp_min: 1.3, temp_max: 1.3}
+      create_visualization: {top_k_min: 20, top_k_max: 20}
+
+  - name: max_tokens_adjusted
+    vary_step: all_steps
+    axis: max_tokens_adjusted
+    description: Per-agent token caps from Test 03 without sampling or compute-expansion changes.
+    steps:
+      lookup_sales_data: {max_tokens: 5000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {max_tokens: 10000}
+
+  - name: lookup_cot_n2
+    vary_step: all_steps
+    axis: compute_expansion_candidate
+    description: Targeted SQL feedback loop from Test 04.
+    steps:
+      lookup_sales_data: {cot_n: 2}
+
+  - name: combined_best_candidate
+    vary_step: all_steps
+    axis: combined_best_candidate
+    description: "Combined high-quality candidate: lookup CoT, analysis temperature_high, visualization top_k_low, and generous analysis/visualization token caps."
+    steps:
+      lookup_sales_data: {cot_n: 2, max_tokens: 5000}
+      analyzing_data: {temp_min: 1.3, temp_max: 1.3, max_tokens: 10000}
+      create_visualization: {top_k_min: 20, top_k_max: 20, max_tokens: 10000}
