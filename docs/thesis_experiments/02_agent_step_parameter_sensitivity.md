@@ -53,7 +53,6 @@ Use the thesis 10-case subset with at least two repeats. Run measured experiment
 ```text
 gemma4:e4b
 gemma4:26b
-nemotron-3-nano:4b
 mistral-small3.2:24b
 ```
 
@@ -109,6 +108,9 @@ Objective: measure SQL/data extraction behavior.
 lookup_baseline
 lookup_temperature_low
 lookup_temperature_high
+lookup_temperature_mid1
+lookup_temperature_mid2
+lookup_temperature_mid3
 lookup_top_p_low
 lookup_top_k_low
 lookup_top_k_high
@@ -122,16 +124,17 @@ Lookup temperature values:
 ```text
 Gemma 4 models:
   low=0.6
+  mid1=0.7
+  mid2=0.9
+  mid3=1.1
   baseline=1.0
   high=1.3
 
-Nemotron:
-  low=0.7
-  baseline=1.0
-  high=1.15
-
 Mistral Small:
   low=0.05
+  mid1=0.10
+  mid2=0.20
+  mid3=0.35
   baseline=0.15
   high=0.45
 ```
@@ -180,6 +183,9 @@ Objective: measure textual interpretation behavior.
 analysis_baseline
 analysis_temperature_low
 analysis_temperature_high
+analysis_temperature_mid1
+analysis_temperature_mid2
+analysis_temperature_mid3
 analysis_top_p_low
 analysis_top_k_low
 analysis_top_k_high
@@ -187,7 +193,7 @@ analysis_bon_temperature_n2
 analysis_cot_n2
 ```
 
-Analysis temperature values use the same model-specific low/baseline/high values as lookup.
+Analysis temperature values use the same model-specific low/mid/baseline/high values as lookup.
 
 Analysis sampling values:
 
@@ -231,20 +237,25 @@ Objective: measure chart/config/code robustness.
 visualization_baseline
 visualization_temperature_low
 visualization_temperature_high
+visualization_temperature_mid1
+visualization_temperature_mid2
+visualization_temperature_mid3
 visualization_top_p_low
 visualization_top_k_low
 visualization_top_k_high
+visualization_top_k_mid
 visualization_bon_top_k_n2
 visualization_cot_n2
 ```
 
-Visualization temperature values use the same model-specific low/baseline/high values as lookup.
+Visualization temperature values use the same model-specific low/mid/baseline/high values as lookup.
 
 Visualization sampling values:
 
 ```text
 top_p_low=0.80
 top_k_low=20
+top_k_mid=40
 top_k_high=128
 ```
 
@@ -299,16 +310,16 @@ This test is the main source of evidence for parameter sensitivity. It keeps the
 Configs per model:
 
 ```text
-lookup phase:        9 configs
-analysis phase:      8 configs
-visualization phase: 8 configs
-total:              25 configs
+lookup phase:        12 configs
+analysis phase:      11 configs
+visualization phase: 12 configs
+total:               35 configs
 ```
 
 Expected rows:
 
 ```text
-models x repeats x 25 configs x 10 prompts
+models x repeats x 35 configs x 15 prompts
 ```
 
 ## Code Readiness
@@ -320,11 +331,10 @@ Manifests:
 ```text
 gemma4:e4b             evaluation/thesis_test02_gemma4_sensitivity.yaml
 gemma4:26b             evaluation/thesis_test02_gemma4_sensitivity.yaml
-nemotron-3-nano:4b     evaluation/thesis_test02_nemotron3_nano_sensitivity.yaml
 mistral-small3.2:24b   evaluation/thesis_test02_mistral_small32_sensitivity.yaml
 ```
 
-The manifests contain exactly 25 configs per model and preserve the bulk-runner logic: one step varies, the other two steps stay fixed.
+The manifests contain exactly 35 configs per model and preserve the bulk-runner logic: one step varies, the other two steps stay fixed.
 
 ## Remote Docker Commands
 
@@ -345,7 +355,6 @@ Pull the models:
 ```bash
 ollama pull gemma4:e4b
 ollama pull gemma4:26b
-ollama pull nemotron-3-nano:4b
 ollama pull mistral-small3.2:24b
 ```
 
@@ -358,13 +367,13 @@ for REP in 01 02; do
     -v "$(pwd)/runs:/app/runs" \
     data-agent \
     evaluation/run_manifest_benchmark.py \
-    evaluation/benchmark_dataset_gemma4_thesis_10.json \
+    evaluation/benchmark_dataset_gemma4_thesis_15.json \
     evaluation/thesis_test02_gemma4_sensitivity.yaml \
     --provider ollama \
     --model gemma4:e4b \
     --judge-provider ollama \
     --judge-model gemma4:e4b \
-    --save-dir runs/thesis_tests/02_agent_step_parameter_sensitivity/gemma4_e4b/rep${REP} \
+    --save-dir runs/thesis_tests/02v2_agent_step_parameter_sensitivity/gemma4_e4b/rep${REP} \
     --resume
 
   docker run --rm --gpus '"device=0"' --network=host \
@@ -372,13 +381,13 @@ for REP in 01 02; do
     -v "$(pwd)/runs:/app/runs" \
     data-agent \
     evaluation/run_manifest_benchmark.py \
-    evaluation/benchmark_dataset_gemma4_thesis_10.json \
+    evaluation/benchmark_dataset_gemma4_thesis_15.json \
     evaluation/thesis_test02_gemma4_sensitivity.yaml \
     --provider ollama \
     --model gemma4:26b \
     --judge-provider ollama \
     --judge-model gemma4:26b \
-    --save-dir runs/thesis_tests/02_agent_step_parameter_sensitivity/gemma4_26b/rep${REP} \
+    --save-dir runs/thesis_tests/02v2_agent_step_parameter_sensitivity/gemma4_26b/rep${REP} \
     --resume
 
   docker run --rm --gpus '"device=0"' --network=host \
@@ -386,27 +395,13 @@ for REP in 01 02; do
     -v "$(pwd)/runs:/app/runs" \
     data-agent \
     evaluation/run_manifest_benchmark.py \
-    evaluation/benchmark_dataset_gemma4_thesis_10.json \
-    evaluation/thesis_test02_nemotron3_nano_sensitivity.yaml \
-    --provider ollama \
-    --model nemotron-3-nano:4b \
-    --judge-provider ollama \
-    --judge-model nemotron-3-nano:4b \
-    --save-dir runs/thesis_tests/02_agent_step_parameter_sensitivity/nemotron3_nano_4b/rep${REP} \
-    --resume
-
-  docker run --rm --gpus '"device=0"' --network=host \
-    -e OLLAMA_HOST=http://localhost:11434 \
-    -v "$(pwd)/runs:/app/runs" \
-    data-agent \
-    evaluation/run_manifest_benchmark.py \
-    evaluation/benchmark_dataset_gemma4_thesis_10.json \
+    evaluation/benchmark_dataset_gemma4_thesis_15.json \
     evaluation/thesis_test02_mistral_small32_sensitivity.yaml \
     --provider ollama \
     --model mistral-small3.2:24b \
     --judge-provider ollama \
     --judge-model mistral-small3.2:24b \
-    --save-dir runs/thesis_tests/02_agent_step_parameter_sensitivity/mistral_small32_24b/rep${REP} \
+    --save-dir runs/thesis_tests/02v2_agent_step_parameter_sensitivity/mistral_small32_24b/rep${REP} \
     --resume
 done
 ```

@@ -52,6 +52,9 @@ configs:
   - {name: lookup_baseline, vary_step: lookup_sales_data, axis: baseline, description: Lookup baseline, steps: {}}
   - {name: lookup_temperature_low, vary_step: lookup_sales_data, axis: temperature_low, description: Lower lookup temperature, steps: {lookup_sales_data: {temp_min: 0.6, temp_max: 0.6}}}
   - {name: lookup_temperature_high, vary_step: lookup_sales_data, axis: temperature_high, description: Higher lookup temperature, steps: {lookup_sales_data: {temp_min: 1.3, temp_max: 1.3}}}
+  - {name: lookup_temperature_mid1, vary_step: lookup_sales_data, axis: temperature_mid1, description: Intermediate lookup temperature 0.7, steps: {lookup_sales_data: {temp_min: 0.7, temp_max: 0.7}}}
+  - {name: lookup_temperature_mid2, vary_step: lookup_sales_data, axis: temperature_mid2, description: Intermediate lookup temperature 0.9, steps: {lookup_sales_data: {temp_min: 0.9, temp_max: 0.9}}}
+  - {name: lookup_temperature_mid3, vary_step: lookup_sales_data, axis: temperature_mid3, description: Intermediate lookup temperature 1.1, steps: {lookup_sales_data: {temp_min: 1.1, temp_max: 1.1}}}
   - {name: lookup_top_p_low, vary_step: lookup_sales_data, axis: top_p_low, description: Lower lookup nucleus sampling, steps: {lookup_sales_data: {top_p_min: 0.80, top_p_max: 0.80}}}
   - {name: lookup_top_k_low, vary_step: lookup_sales_data, axis: top_k_low, description: Lower lookup top-k, steps: {lookup_sales_data: {top_k_min: 20, top_k_max: 20}}}
   - {name: lookup_top_k_high, vary_step: lookup_sales_data, axis: top_k_high, description: Higher lookup top-k, steps: {lookup_sales_data: {top_k_min: 128, top_k_max: 128}}}
@@ -62,6 +65,9 @@ configs:
   - {name: analysis_baseline, vary_step: analyzing_data, axis: baseline, description: Analysis baseline, steps: {}}
   - {name: analysis_temperature_low, vary_step: analyzing_data, axis: temperature_low, description: Lower analysis temperature, steps: {analyzing_data: {temp_min: 0.6, temp_max: 0.6}}}
   - {name: analysis_temperature_high, vary_step: analyzing_data, axis: temperature_high, description: Higher analysis temperature, steps: {analyzing_data: {temp_min: 1.3, temp_max: 1.3}}}
+  - {name: analysis_temperature_mid1, vary_step: analyzing_data, axis: temperature_mid1, description: Intermediate analysis temperature 0.7, steps: {analyzing_data: {temp_min: 0.7, temp_max: 0.7}}}
+  - {name: analysis_temperature_mid2, vary_step: analyzing_data, axis: temperature_mid2, description: Intermediate analysis temperature 0.9, steps: {analyzing_data: {temp_min: 0.9, temp_max: 0.9}}}
+  - {name: analysis_temperature_mid3, vary_step: analyzing_data, axis: temperature_mid3, description: Intermediate analysis temperature 1.1, steps: {analyzing_data: {temp_min: 1.1, temp_max: 1.1}}}
   - {name: analysis_top_p_low, vary_step: analyzing_data, axis: top_p_low, description: Lower analysis nucleus sampling, steps: {analyzing_data: {top_p_min: 0.80, top_p_max: 0.80}}}
   - {name: analysis_top_k_low, vary_step: analyzing_data, axis: top_k_low, description: Lower analysis top-k, steps: {analyzing_data: {top_k_min: 20, top_k_max: 20}}}
   - {name: analysis_top_k_high, vary_step: analyzing_data, axis: top_k_high, description: Higher analysis top-k, steps: {analyzing_data: {top_k_min: 128, top_k_max: 128}}}
@@ -71,8 +77,12 @@ configs:
   - {name: visualization_baseline, vary_step: create_visualization, axis: baseline, description: Visualization baseline, steps: {}}
   - {name: visualization_temperature_low, vary_step: create_visualization, axis: temperature_low, description: Lower visualization temperature, steps: {create_visualization: {temp_min: 0.6, temp_max: 0.6}}}
   - {name: visualization_temperature_high, vary_step: create_visualization, axis: temperature_high, description: Higher visualization temperature, steps: {create_visualization: {temp_min: 1.3, temp_max: 1.3}}}
+  - {name: visualization_temperature_mid1, vary_step: create_visualization, axis: temperature_mid1, description: Intermediate visualization temperature 0.7, steps: {create_visualization: {temp_min: 0.7, temp_max: 0.7}}}
+  - {name: visualization_temperature_mid2, vary_step: create_visualization, axis: temperature_mid2, description: Intermediate visualization temperature 0.9, steps: {create_visualization: {temp_min: 0.9, temp_max: 0.9}}}
+  - {name: visualization_temperature_mid3, vary_step: create_visualization, axis: temperature_mid3, description: Intermediate visualization temperature 1.1, steps: {create_visualization: {temp_min: 1.1, temp_max: 1.1}}}
   - {name: visualization_top_p_low, vary_step: create_visualization, axis: top_p_low, description: Lower visualization nucleus sampling, steps: {create_visualization: {top_p_min: 0.80, top_p_max: 0.80}}}
   - {name: visualization_top_k_low, vary_step: create_visualization, axis: top_k_low, description: Lower visualization top-k, steps: {create_visualization: {top_k_min: 20, top_k_max: 20}}}
   - {name: visualization_top_k_high, vary_step: create_visualization, axis: top_k_high, description: Higher visualization top-k, steps: {create_visualization: {top_k_min: 128, top_k_max: 128}}}
+  - {name: visualization_top_k_mid, vary_step: create_visualization, axis: top_k_mid, description: Intermediate visualization top-k 40, steps: {create_visualization: {top_k_min: 40, top_k_max: 40}}}
   - {name: visualization_bon_top_k_n2, vary_step: create_visualization, axis: best_of_n, description: Best-of-2 visualization varying top-k, steps: {create_visualization: {n: 2, bon_param: top_k, top_k_min: 20, top_k_max: 128}}}
   - {name: visualization_cot_n2, vary_step: create_visualization, axis: cot_n2, description: Two-pass visualization refinement, steps: {create_visualization: {cot_n: 2}}}
