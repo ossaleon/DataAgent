@@ -4,4 +4,347 @@
 \section{State of the Art}
 \label{sec:stateofart}
 
+\subsection{LLM Agents for Structured Data Analysis}
 
+Large Language Models have evolved from single-turn text generators into the
+reasoning core of multi-step, tool-using systems.
+An \textit{LLM agent} extends a base model with the ability to invoke external
+tools - such as code executors, search engines, or database interfaces - and
+to maintain state across multiple interaction steps~\cite{yao2022react}.
+This architectural shift enables a qualitatively different class of applications:
+rather than producing a single response to a question, the agent orchestrates a
+sequence of operations whose intermediate outputs inform subsequent decisions.
+
+In the context of data analysis, this capability is especially significant.
+A \textit{data-analysis agent} receives a natural language business question and
+must translate it into a sequence of formal operations: identifying the relevant
+data sources, generating and executing a database query, interpreting the
+numerical results, and optionally producing a visualization.
+Each step depends on the output of the previous one, and the final answer is not
+a single text response but a composite artifact comprising retrieved data, a
+written interpretation, and possibly chart code.
+This makes the task structurally closer to an analytical workflow than to a
+conversational exchange.
+
+The central challenge for such agents is reliability across all steps.
+The model must correctly ground the question in the available schema, produce
+syntactically and semantically valid queries, avoid unsupported numerical claims
+in the textual interpretation, and generate executable visualization code.
+Failure at any step propagates downstream: an incorrect query yields a wrong
+result set, which in turn can produce a plausible-sounding but factually
+incorrect analysis.
+
+This thesis instantiates this class of systems as a \textit{Sales Agent}:
+an LLM-powered analytical workflow over a retail dataset that follows the
+same three-phase structure - data retrieval, textual interpretation, and
+visualization - that characterises the broader class of data-analysis agents
+described above.
+
+\subsection{Text-to-SQL and Database-Grounded Generation}
+
+Text-to-SQL is the task of mapping a natural language question to an executable
+database query.
+It has been studied extensively through shared benchmarks such as
+\textcolor{red}{Spider~\cite{yu2018spider}}, which introduced cross-domain multi-table schemas
+as a standard evaluation setting, and \textcolor{red}{BIRD~\cite{li2024bird}}, which extended
+the problem to real-world databases with noisy values and shifted the primary
+metric to execution accuracy - whether the query returns the correct result
+set - rather than exact string matching.
+These benchmarks established the core challenges of the field: schema
+understanding, column grounding, join selection, aggregation logic, filtering,
+grouping, and date handling.
+Multi-table schemas are particularly demanding because the model must identify
+which tables are relevant, how they relate, and which join keys to use, without
+being able to rely on column names alone.
+
+A structural difficulty in evaluation is that SQL equivalence cannot be measured
+by string comparison: semantically different queries can produce identical result
+sets, and vice versa.
+Execution accuracy is therefore a more robust correctness signal, though it too
+has limits when result sets are large or partially ordered.
+In data-agent settings, where the query output is consumed directly by downstream
+steps, the meaningful correctness target is the returned table rather than the
+SQL string itself.
+
+Prompt engineering has become a primary lever for improving text-to-SQL quality
+with instruction-tuned LLMs.
+Static few-shot examples embedded in the system prompt - fixed
+question-to-query pairs that illustrate expected output format, join patterns,
+and aggregation conventions - provide in-context guidance without requiring
+an additional retrieval step.
+More sophisticated approaches such as \textcolor{red}{DIN-SQL~\cite{pourreza2023dinsql}} decompose
+the generation into sub-tasks (schema linking, query skeleton construction, and
+self-correction) and \textcolor{red}{use dynamic example selection to adapt the prompt to the
+specific input question}, achieving higher accuracy on complex queries at the
+cost of additional LLM calls.
+
+This thesis treats SQL generation as a dedicated agent step that uses static
+few-shot examples and schema descriptions to ground the model in the available
+data.
+The benchmark used for evaluation spans four difficulty levels - flat
+aggregation, time bucketing, single join, nested aggregation, conditional
+metrics, ratios, and year-over-year comparisons - which map directly onto
+the failure modes documented in the text-to-SQL literature: incorrect
+aggregation level, wrong date extraction, missing filters, and incorrectly
+structured output tables.
+
+\subsection{Model Families for Local Agent Inference}
+
+Model choice is a first-order variable in LLM agent performance, but its
+effect is not uniform: size, architecture, and reasoning orientation interact
+with the task structure in ways that matter for both quality and efficiency.
+
+\paragraph{Model size.}
+Larger models generally achieve higher task accuracy, but the relationship is
+not proportional across all tasks.
+For straightforward formatting or routing decisions, small models can match the
+output of much larger ones; for complex multi-step reasoning such as nested SQL
+generation, the gap widens substantially.
+At the same time, larger models increase inference latency, memory pressure, and
+energy consumption, making size a genuine trade-off rather than a free variable.
+
+\paragraph{Reasoning-oriented vs.\ instruction-following models.}
+A growing number of open-weight models are trained or fine-tuned to expose
+explicit intermediate reasoning - a chain of thought produced before the final
+answer - at inference time.
+These \textit{thinking} models can improve accuracy on tasks that benefit from
+deliberate step-by-step analysis, such as complex SQL generation or numerical
+interpretation, but they produce longer outputs and are therefore slower and
+more energy-intensive than equivalently sized instruction-following models.
+Instruction-following models, by contrast, are optimised for direct, concise
+responses and tend to be more efficient on tasks where structured output format
+matters more than reasoning depth - such as tool routing or chart configuration.
+
+\paragraph{Dense vs.\ Mixture-of-Experts architecture.}
+In a standard dense model, all parameters participate in every forward pass;
+inference cost scales roughly with the total parameter count.
+Mixture-of-Experts (MoE) models partition the feed-forward layers into a set of
+specialist sub-networks and activate only a learned subset of them per
+token~\cite{shazeer2017moe}.
+This allows MoE models to maintain large representational capacity while keeping
+active compute lower than an equivalently-sized dense model, producing a
+quality-per-FLOP profile that differs from both small and large dense models.
+
+\paragraph{Local inference.}
+When models are deployed locally on a single GPU rather than called through a
+cloud API, these architectural differences become directly observable: GPU energy,
+memory pressure, tokens-per-second throughput, and wall-clock latency all vary
+with model family and can be measured per step under controlled conditions.
+The same configuration that is cost-effective for SQL generation may be
+unnecessarily expensive for the simpler analysis or visualization steps.
+
+\paragraph{Connection to this work.}
+The experiments compare four models serving distinct roles in the
+quality-efficiency space: \textit{Gemma~4~E4B}~\cite{gemma4_2025} and
+\textit{Nemotron~3~Nano~4B}~\cite{nemotron3_2025} are \textcolor{red}{small thinking} models
+that represent the low-cost end of the reasoning spectrum;
+\textit{Gemma~4~26B}~\cite{gemma4_2025}, \textcolor{red}{a larger MoE thinking model}, offers
+higher representational capacity with partially reduced active compute; and
+\textit{Mistral~Small~3.2~24B}~\cite{mistralsmall_2025} is \textcolor{red}{a large dense
+instruction-following} model that serves as a non-thinking reference.
+All models are served locally via Ollama on a single GPU, making per-step
+latency and energy directly comparable across configurations.
+
+\subsection{Agent Orchestration and Inference-Time Reasoning Strategies}
+
+Building a multi-step data-analysis agent requires more than choosing a capable
+model: the structure of the workflow, the allocation of inference compute across
+steps, and the prompting strategy applied to each node all influence the final
+output quality and efficiency independently of model choice.
+
+\paragraph{Graph-based orchestration.}
+Agent frameworks organise LLM calls, tool invocations, and state transitions
+into explicit workflows that are easier to inspect, test, and reconfigure than
+monolithic prompt chains.
+Graph-based orchestration is particularly appropriate when an agent must decide
+at runtime which step to execute next and when to terminate - decisions that
+depend on intermediate outputs rather than a fixed linear schedule.
+LangGraph~\cite{langgraph} represents an LLM application as a stateful directed
+graph: nodes encapsulate processing steps, edges encode conditional routing
+logic, and a shared state object carries information between nodes across
+iterations.
+This design makes it possible to expose individual nodes as independent
+experimental units, varying one step's configuration while keeping the
+others fixed.
+
+\paragraph{Chain-of-Thought prompting.}
+Chain-of-Thought (CoT) prompting~\cite{wei2022chain} instructs the model to
+produce explicit intermediate reasoning steps before generating a final answer.
+Externalising the reasoning process reduces the likelihood of skipped steps
+or implicit assumptions, and improves accuracy on tasks that require multi-step
+inference such as arithmetic, symbolic reasoning, and structured query
+generation.
+Iterative CoT refinement extends this idea: the model's initial output is fed
+back into the same prompt together with a directive to verify or improve it,
+forming a self-correction loop that can recover from minor errors without
+human intervention.
+
+\paragraph{Best-of-\texorpdfstring{$N$}{N} sampling and self-consistency.}
+Best-of-$N$ sampling generates multiple candidate outputs for the same input
+and selects the best one according to an evaluation criterion.
+Self-consistency~\cite{wang2023selfconsistency} is a specific realisation of
+this strategy in which the selection rule is consensus: the candidate that
+agrees most with the others is preferred, exploiting output redundancy rather
+than requiring a reference answer.
+Both approaches treat inference-time compute as a resource that can be exchanged
+for quality: generating $N$ candidates multiplies LLM calls by $N$ and
+increases energy consumption proportionally, so the quality gain must be
+assessed against the additional cost.
+
+\paragraph{Per-step compute allocation and token budget.}
+Because different agent steps have different failure modes, optimal compute
+allocation is not uniform across the workflow.
+SQL generation is sensitive to structural errors - wrong joins or incorrect
+aggregation - that benefit from candidate diversity and re-ranking.
+Textual analysis requires numerical consistency across potentially many
+retrieved values.
+Chart code generation requires syntactic correctness that can be verified
+deterministically by attempting execution.
+Each step therefore has a different profile of how much additional inference
+compute converts into measurable quality improvement.
+
+Token budget is a complementary control variable.
+Setting the maximum output length too low can truncate reasoning chains or
+produce incomplete code; setting it too high increases latency and energy per
+call, particularly for thinking models that may expand their reasoning chain
+to fill the available budget even when the task does not require it.
+
+\paragraph{Connection to this work.}
+The thesis uses a LangGraph workflow with four nodes - tool routing, lookup,
+analysis, and visualization - each with an independent set of sampling and
+compute parameters.
+This per-step parameterisation enables step-isolated experiments: one node's
+configuration is varied at a time while the others are held at their baseline
+values, so that the effect of each form of additional inference compute can be
+measured separately against both quality and energy metrics.
+
+\subsection{Evaluation of Data-Agent Outputs}
+
+Evaluating a data-analysis agent is fundamentally harder than evaluating a
+single chat response because the output is composite: a retrieved table, a
+natural language interpretation, and visualization code each require a
+different correctness criterion, and failure at any one step is not necessarily
+reflected in the others.
+
+\paragraph{Table and SQL evaluation.}
+Since many syntactically different SQL queries can produce the same correct
+result, string comparison of generated SQL against a reference is not a reliable
+quality signal.
+Execution accuracy - comparing the result set returned by the agent's query
+against a reference result set - is more meaningful, but exact row-level
+comparison is brittle: the agent may return correct values with different column
+names, different column ordering, boolean labels encoded as integers instead of
+strings, or results in long format where the reference is wide (or vice versa).
+Graded similarity metrics that tolerate these surface variations while measuring
+the overlap of actual data values are more appropriate for benchmarking, where
+the goal is to rank configurations rather than pass or fail individual queries.
+
+\paragraph{Textual analysis evaluation.}
+Standard n-gram overlap metrics such as BLEU or ROUGE measure surface similarity
+between generated and reference text, but are poorly suited to evaluating
+numerical reasoning: a response that correctly identifies the top-performing
+region but uses different phrasing scores low, while one that uses the right
+words with wrong numbers scores high.
+LLM-as-judge evaluation~\cite{zheng2023judging} addresses this by using a
+separate language model to assess semantic criteria such as factual accuracy and
+coverage of key conclusions.
+This approach is more aligned with the intended quality signal, but it introduces
+its own limitations: judge bias towards longer or more fluent responses,
+sensitivity to prompt phrasing, and variability across judge model versions.
+These effects should be acknowledged and, where possible, controlled by fixing
+the judge model and temperature across all evaluated configurations.
+
+\paragraph{Visualization evaluation.}
+Chart quality cannot be assessed through text comparison alone: the generated
+code must first be executable, and the resulting chart must match the reference
+in terms of chart type, axis assignments, data grouping, and any explicit
+styling requirements.
+Evaluation therefore combines a deterministic check - whether the plotting
+code runs without errors - with semantic criteria assessed by an LLM judge
+comparing the agent's chart configuration and code against the ground-truth
+equivalents.
+
+\paragraph{Failure diagnostics.}
+Aggregate scores across a benchmark conceal step-specific failure patterns.
+An agent may achieve high text scores while consistently failing on SQL joins,
+because the analysis step produces plausible text even from partially incorrect
+data.
+Evaluation pipelines should therefore produce per-item diagnostic output that
+identifies at which step correctness was lost, enabling targeted analysis of
+where additional inference compute or prompt improvements are most needed.
+
+\paragraph{Connection to this work.}
+The benchmark evaluates agent outputs across three dimensions: a deterministic
+table similarity score for data retrieval, and LLM-as-judge scores for textual
+analysis and visualization quality.
+For best-of-$N$ candidate selection, a parallel set of reference-free
+evaluators is used~\cite{wang2023selfconsistency}, so that ground-truth
+information does not influence generation or candidate ranking.
+
+\subsection{Efficiency-Aware Benchmarking of Local LLM Agents}
+
+As LLM-based systems move from research prototypes to deployed applications,
+reporting quality in isolation is increasingly insufficient.
+The energy and carbon cost of training large models has been documented
+extensively~\cite{strubell2019energy, schwartz2020greenai}, but inference-time
+costs - which accumulate across every request in a deployed system - have
+received comparatively less attention, particularly in the context of multi-step
+agentic pipelines.
+
+For locally-hosted models, inference energy is especially tractable to measure:
+the GPU is under direct experimental control, execution is sequential, and
+software tools such as CodeCarbon~\cite{lottick2019codecarbon} can attribute
+CPU, GPU, and RAM energy consumption to specific code regions with per-run
+granularity.
+This makes local deployment a natural setting for controlled energy-performance
+experiments that would be opaque when calling a cloud API.
+
+In modular agents, run-level energy totals are informative but coarse.
+Different workflow nodes can have very different cost profiles: a SQL generation
+step with best-of-$N$ sampling and a thinking model may consume an order of
+magnitude more GPU energy than a lightweight routing step.
+Per-step energy attribution is therefore more actionable than a single run-level
+figure, because it identifies which node dominates cost and where optimisation
+effort is best directed.
+
+Energy-aware evaluation should go beyond reporting the highest-quality
+configuration and identify Pareto-efficient points on the quality-energy
+frontier: configurations that preserve most of the quality gain at
+substantially lower energy or latency.
+Useful derived metrics for this analysis include quality per kWh, quality gain
+per second relative to the baseline, and delta quality versus delta energy
+compared to a reference run.
+
+\paragraph{Connection to this work.}
+Each benchmark run records elapsed time, total run-level energy, and per-step
+LLM energy broken down by CPU, GPU, and RAM via CodeCarbon.
+The experimental design covers baseline model comparisons, step-specific
+hyperparameter sensitivity, maximum-token ladders, and compute expansion through
+best-of-$N$ and CoT refinement - each representing a distinct form of
+inference-time investment.
+The final analysis distinguishes configurations that maximise output quality
+from those that achieve comparable quality at lower energy cost, providing
+Pareto-efficient deployment recommendations under latency or sustainability
+constraints.
+
+\subsection{Synthesis and Research Gap}
+
+Existing research provides the building blocks for LLM-based data-analysis
+agents: text-to-SQL methods for database grounding, graph-based orchestration
+for multi-step tool use, model families with different inference-time behaviour,
+prompting and self-consistency strategies for improving output quality, semantic
+evaluation methods for generated text and code, and software tools for
+estimating inference energy consumption.
+However, these aspects are typically studied in isolation: text-to-SQL
+benchmarks focus on query accuracy without considering downstream steps;
+orchestration frameworks are evaluated on task completion without energy
+accounting; and energy studies tend to target training rather than multi-step
+inference.
+This thesis combines all of these dimensions in a single reproducible setting:
+a modular data-analysis agent is evaluated across data retrieval correctness,
+textual analysis quality, and visualization quality simultaneously, while
+latency and per-step energy consumption are recorded for every configuration.
+Step-isolated experiments then identify which model families and which forms
+of additional inference compute - token budget, best-of-$N$ sampling, and
+Chain-of-Thought refinement - improve the quality-energy trade-off, and at
+what cost.
