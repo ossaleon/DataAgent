@@ -1,0 +1,107 @@
+%-----------------------------------------------------------------------------
+% EXPERIMENT DESIGN
+%-----------------------------------------------------------------------------
+\section{Experiment Design}
+\label{sec:experimentdesign}
+
+\subsection{Deployment with Docker}
+\label{subsec:docker}
+
+\subsubsection{Container Image}
+
+The Sales Agent is packaged as a Docker container to ensure fully reproducible
+execution across different server environments. The image is based on
+\texttt{python:3.12-slim} and is built in two layers: a dependency layer that
+installs the Python packages from \texttt{requirements.txt} (cached unless the
+file changes), and an application layer that copies the source code, data files,
+and configuration. System-level packages required by Pandas, PyArrow, CodeCarbon,
+and Matplotlib (\texttt{build-essential}, \texttt{curl}, \texttt{git}) are
+installed via \texttt{apt-get} in the dependency layer.
+
+Two environment variables are set at build time:
+\begin{itemize}
+    \item \texttt{MPLBACKEND=Agg} — switches Matplotlib to the non-interactive
+          Agg backend, enabling chart code execution in headless Linux environments
+          without a display server;
+    \item \texttt{OLLAMA\_HOST=http://localhost:11434} — sets the default Ollama
+          endpoint, which can be overridden at runtime via
+          \texttt{-e OLLAMA\_HOST=http://<host-ip>:11434}.
+\end{itemize}
+
+The output directory \texttt{/app/runs} is declared as a Docker volume. Benchmark
+results are persisted on the host by mounting a local path at container startup:
+
+\begin{verbatim}
+docker run --rm --network=host \
+    -v /host/path/runs:/app/runs data-agent \
+    python evaluation/bulk_runner.py ...
+\end{verbatim}
+
+The \texttt{--network=host} flag is used on Linux servers to allow the container
+to reach the Ollama process running on the host at \texttt{localhost:11434}.
+
+\subsubsection{Bulk Runner and Ablation Protocol}
+
+The default container entrypoint runs \texttt{bulk\_runner.py}, which implements a
+structured ablation study over the agent's hyperparameter space. The protocol
+consists of three sequential phases, one per processing step
+(\texttt{lookup\_sales\_data}, \texttt{analyzing\_data},
+\texttt{create\_visualization}). In each phase, only the target step's
+hyperparameters are varied while the other two steps are kept at their default
+configuration ($n=1$, fixed temperature). This one-step-at-a-time design isolates
+the contribution of each step's hyperparameters to the overall agent performance.
+
+In each phase, $N$ configurations are sampled at random from the search space
+defined in \texttt{search\_space.yaml} (with fixed seed 42 for reproducibility),
+and the full 20-item benchmark is executed for each configuration. A configurable
+think time drawn from an exponential distribution is inserted between consecutive
+runs to avoid saturating the LLM API. The full experimental protocol runs
+$3 \times 50 = 150$ configurations.
+
+\subsubsection{Hyperparameter Search Space}
+
+The search space for each step is defined in \texttt{search\_space.yaml} and
+covers the parameters listed in Table~\ref{tab:searchspace}. Parameters are
+specified as fixed scalars, discrete uniform choices, or continuous uniform
+intervals. Provider-specific parameters (top-$k$, beam width,
+\texttt{no\_repeat\_ngram\_size}) are sampled only for Ollama-based runs and
+silently ignored for OpenAI, which does not expose these controls.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\begin{tabular}{|l|l|l|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Parameter} & \textbf{Range / choices} & \textbf{Provider} \T\B \\
+\hline
+\texttt{n} (BoN candidates)         & $\{1, 2, 3, 4\}$                   & All \T\B \\
+\hline
+\texttt{bon\_param}                  & temperature, top-$p$ (, top-$k$)   & All (top-$k$: Ollama) \T\B \\
+\hline
+\texttt{cot\_n}                      & $\{1, 2, 3\}$                      & All \T\B \\
+\hline
+\texttt{temp\_min}                   & $[0.1,\, 0.3]$                     & All \T\B \\
+\hline
+\texttt{temp\_max}                   & $[0.3,\, 1.0]$                     & All \T\B \\
+\hline
+\texttt{top\_p\_min}                 & $[0.7,\, 1.0]$                     & All \T\B \\
+\hline
+\texttt{max\_tokens}                 & $\{1000, 1500, 2000, 3000\}$       & All \T\B \\
+\hline
+\texttt{top\_k\_min}                 & $\{$null$, 20, 40, 50\}$           & Ollama only \T\B \\
+\hline
+\texttt{num\_beams}                  & $\{1, 2\}$                         & Ollama only \T\B \\
+\hline
+\texttt{no\_repeat\_ngram\_size}     & $\{$null$, 2, 3\}$                 & Ollama only \T\B \\
+\hline
+\end{tabular}
+\caption{Hyperparameter search space per step.}
+\label{tab:searchspace}
+\end{table}
+
+At the end of each phase, \texttt{aggregate\_results.py} consolidates all
+per-configuration \texttt{detail\_combined} CSV files into a single summary,
+computing mean, minimum, and maximum scores across benchmark items and
+configurations. This aggregated output forms the primary dataset for the
+experimental analysis presented in Section~\ref{sec:experiments}.

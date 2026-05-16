@@ -136,7 +136,7 @@ unnecessarily expensive for the simpler analysis or visualization steps.
 \paragraph{Connection to this work.}
 The experiments compare four models serving distinct roles in the
 quality-efficiency space: \textit{Gemma~4~E4B}~\cite{gemma4_2025} and
-\textit{Nemotron~3~Nano~4B}~\cite{nemotron3_2025} are \textcolor{red}{small thinking} models
+\textcolor{red}{\textit{Nemotron~3~Nano~4B}~\cite{nemotron3_2025}} are \textcolor{red}{small thinking} models
 that represent the low-cost end of the reasoning spectrum;
 \textit{Gemma~4~26B}~\cite{gemma4_2025}, \textcolor{red}{a larger MoE thinking model}, offers
 higher representational capacity with partially reduced active compute; and
@@ -205,8 +205,8 @@ compute converts into measurable quality improvement.
 
 Token budget is a complementary control variable.
 Setting the maximum output length too low can truncate reasoning chains or
-produce incomplete code; setting it too high increases latency and energy per
-call, particularly for thinking models that may expand their reasoning chain
+produce incomplete code; \textcolor{red}{setting it too high increases latency and energy per
+call}, particularly for thinking models that may expand their reasoning chain
 to fill the available budget even when the task does not require it.
 
 \paragraph{Connection to this work.}
