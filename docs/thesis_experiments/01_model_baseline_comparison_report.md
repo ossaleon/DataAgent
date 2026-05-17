@@ -32,7 +32,15 @@ However, the models have different failure modes:
 
 - `gemma4:26b` is the strongest SQL/data model, with `csv_iou=0.9987`, but it is slowest and weakest on visualization.
 - `mistral-small3.2:24b` gives the best energy/latency tradeoff and nearly the same quality as the best model.
-- `gemma4:e4b` is strong when it completes the pipeline, especially on visualization, but two SQL failures on difficulty-4 prompts reduce its prompt-level reliability.
+- `gemma4:e4b` is strong when it completes the pipeline, especially on visualization, but two SQL failures on difficulty-4 prompts reduce its end-to-end reliability.
+
+When missing expected downstream scores are counted as `0.0`, the component-balanced end-to-end scores are:
+
+```text
+mistral-small3.2:24b   0.9265
+gemma4:26b             0.9259
+gemma4:e4b             0.8460
+```
 
 Main thesis signal: model size and thinking behavior alone do not determine the best agent. The best baseline tradeoff here is the larger non-thinking Mistral Small model, while the larger Gemma thinking MoE improves SQL/text reliability but pays heavily in latency and energy.
 
@@ -46,28 +54,46 @@ mean(csv_iou_mean, text_score_mean, vis_score_mean)
 
 This is useful for continuity, but it can mask missing downstream outputs. For example, `gemma4:e4b` failed SQL on two prompts, which also prevented text/visualization scoring for those prompts. Its official `quality_mean` remains high because missing text/visualization scores are excluded from those metric means.
 
-For this report, two quality views are used:
+For this report, three quality views are used:
 
 ```text
-official_quality      quality_mean from thesis_summary.csv
-prompt_quality        mean per prompt over the scores available for that prompt
+official_quality              quality_mean from thesis_summary.csv
+component_e2e_quality         mean(csv, text, vis), missing expected scores count as 0
+prompt_e2e_quality            mean per prompt over expected components, missing expected scores count as 0
 ```
 
-`prompt_quality` better exposes full-pipeline failures, while `official_quality` remains the current thesis runner summary metric.
+`component_e2e_quality` is the cleanest main accuracy metric for this report because it keeps the same component-balanced structure as `quality_mean`, but treats failed downstream outputs as part of the model result. `official_quality` remains useful for continuity with the runner output.
 
 ## Aggregate Results
 
-| Model | Role | Official quality | Prompt quality | csv_iou | text_score | vis_score | Mean sec | Mean kWh | Official quality/kWh |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `mistral-small3.2:24b` | larger non-thinking | 0.9265 | 0.9206 | 0.9758 | 0.8313 | 0.9724 | 112.5 | 0.00705 | 131.4 |
-| `gemma4:26b` | larger thinking MoE | 0.9259 | 0.9423 | 0.9987 | 0.9438 | 0.8352 | 228.3 | 0.01113 | 83.2 |
-| `gemma4:e4b` | small thinking | 0.9222 | 0.8556 | 0.8987 | 0.8889 | 0.9792 | 135.3 | 0.00855 | 107.8 |
+| Model | Role | Official quality | Component E2E quality | Prompt E2E quality | csv E2E | text E2E | vis E2E | Mean sec | Mean kWh | Component E2E quality/kWh |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `mistral-small3.2:24b` | larger non-thinking | 0.9265 | 0.9265 | 0.9206 | 0.9758 | 0.8313 | 0.9724 | 112.5 | 0.00705 | 131.4 |
+| `gemma4:26b` | larger thinking MoE | 0.9259 | 0.9259 | 0.9423 | 0.9987 | 0.9438 | 0.8352 | 228.3 | 0.01113 | 83.2 |
+| `gemma4:e4b` | small thinking | 0.9222 | 0.8460 | 0.8556 | 0.8987 | 0.8000 | 0.8393 | 135.3 | 0.00855 | 98.9 |
 
 Interpretation:
 
 - By official quality, all three are effectively tied.
-- By prompt-level quality, `gemma4:26b` is best because it completes all prompts and has near-perfect SQL.
-- By efficiency, `mistral-small3.2:24b` is clearly best: it is fastest, lowest-energy, and has the highest quality per kWh.
+- By component end-to-end quality, `mistral-small3.2:24b` and `gemma4:26b` remain tied, while `gemma4:e4b` drops because missing expected text/visual scores are counted as failures.
+- By prompt end-to-end quality, `gemma4:26b` is best because it completes all prompts and has near-perfect SQL.
+- By efficiency, `mistral-small3.2:24b` is clearly best: it is fastest, lowest-energy, and has the highest end-to-end quality per kWh.
+
+## Figures
+
+The plots below use the corrected end-to-end interpretation. In particular, the main quality-energy plot uses `component_e2e_quality`, not the optimistic official `quality_mean`.
+
+![Test 01 accuracy vs energy](plots/test01_accuracy_vs_energy.png)
+
+![Test 01 per-agent accuracy](plots/test01_per_agent_accuracy.png)
+
+![Test 01 per-agent energy breakdown](plots/test01_per_agent_energy_breakdown.png)
+
+![Test 01 per-agent latency breakdown](plots/test01_per_agent_latency_breakdown.png)
+
+![Test 01 accuracy by difficulty](plots/test01_accuracy_by_difficulty.png)
+
+![Test 01 completion rates](plots/test01_completion_rates.png)
 
 ## Completeness And Reliability
 
@@ -100,7 +126,7 @@ This supports the need for the later step-isolated tests: the small thinking mod
 
 ## Cost And Energy
 
-Relative to `mistral-small3.2:24b`:
+Relative to `mistral-small3.2:24b`, using prompt end-to-end quality:
 
 | Model | Relative prompt quality | Relative time | Relative energy |
 |---|---:|---:|---:|
@@ -108,7 +134,7 @@ Relative to `mistral-small3.2:24b`:
 | `gemma4:e4b` | 0.929 | 1.202 | 1.213 |
 | `gemma4:26b` | 1.024 | 2.028 | 1.578 |
 
-`gemma4:26b` improves prompt-level quality by about 2.4% over Mistral, but takes about 2.0x the time and 1.6x the energy. This is not a favorable baseline Pareto tradeoff unless the thesis prioritizes deterministic SQL correctness over energy and latency.
+`gemma4:26b` improves prompt end-to-end quality by about 2.4% over Mistral, but takes about 2.0x the time and 1.6x the energy. This is not a favorable baseline Pareto tradeoff unless the thesis prioritizes deterministic SQL correctness over energy and latency.
 
 `gemma4:e4b` is slower and more energy-intensive than Mistral while also less reliable at prompt level in this run.
 

@@ -95,6 +95,26 @@ For each model and step, the table reports the best and worst full-pipeline qual
 
 The strongest single effect is `gemma4:e4b` analysis Best-of-N, followed by `gemma4:e4b` visualization `top_k_low`. Mistral's sensitivity range is much smaller, which means its baseline is already close to its local optimum for this subset.
 
+## Figures
+
+The figures below summarize the same sensitivity result from four angles: full-pipeline quality movement, direct agent-metric movement, quality-energy tradeoff, and resource overhead.
+
+![Test 02 quality delta heatmap](plots/test02_quality_delta_heatmap.png)
+
+This heatmap is the quickest way to explain the experiment. Rows are parameter changes, columns are models, and each cell is the full-pipeline `quality_mean` delta against the baseline for the same varied agent step.
+
+![Test 02 agent-relevant metric delta heatmap](plots/test02_step_metric_delta_heatmap.png)
+
+This companion heatmap isolates the metric most directly tied to the varied agent: `csv_iou` for lookup, `text_score` for analysis, and `vis_score` for visualization. It helps separate direct agent behavior from downstream pipeline noise.
+
+![Test 02 quality-energy delta Pareto](plots/test02_quality_energy_delta_pareto.png)
+
+This plot shows whether each parameter change buys accuracy or only increases cost. Points above the horizontal zero line improve quality; points to the right consume more energy than the same-step baseline.
+
+![Test 02 resource delta by step](plots/test02_resource_delta_by_step.png)
+
+This resource plot highlights the cost side of the thesis question: which agent-step parameter changes tend to add latency and energy, and whether those costs are concentrated in a specific model.
+
 ## Step-Relevant Metric Findings
 
 ### Lookup Agent

@@ -137,6 +137,18 @@ Gemma 26B best_step_static:
   best absolute accuracy candidate
 ```
 
+## Figures
+
+The figures below summarize Test 05 as the final confirmation stage: which candidate configurations improve the accuracy-energy tradeoff on the full benchmark, and whether tuning was worth the cost relative to each model baseline.
+
+![Test 05 final Pareto frontier](plots/test05_final_pareto_frontier.png)
+
+This is the main final-decision plot. It uses prompt end-to-end quality on the y-axis and mean energy per prompt on the x-axis. The dashed line marks the prompt-quality Pareto frontier. The key comparison is between the low-cost Mistral baseline, the tuned Gemma E4B `efficient_static`, and the absolute-best Gemma 26B `best_step_static`.
+
+![Test 05 baseline candidate deltas](plots/test05_baseline_candidate_deltas.png)
+
+This plot compares each candidate against its own model baseline. It shows whether tuning improved prompt quality and whether that came with higher energy or latency. This is useful because some exploratory candidates reduce cost slightly but lose completion or hard-prompt accuracy.
+
 ## Model-Level Findings
 
 ### Gemma E4B

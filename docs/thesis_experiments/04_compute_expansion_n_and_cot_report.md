@@ -132,6 +132,26 @@ The strongest negative result is:
 visualization_cot_n2
 ```
 
+## Figures
+
+The figures below show Test 04 as a compute-expansion experiment: when extra calls improve accuracy, how much latency they add, and whether the selector actually uses later candidates.
+
+![Test 04 compute expansion Pareto](plots/test04_compute_expansion_pareto.png)
+
+This is the main Test 04 decision plot. Points above zero improve full-pipeline quality, while points farther right add more energy per prompt. The strongest result is that lookup CoT and lookup Best-of-N both improve quality with relatively modest extra energy, while visualization `n=3` and visualization CoT are not attractive.
+
+![Test 04 agent metric gain cost](plots/test04_agent_metric_gain_cost.png)
+
+This plot isolates the direct metric of the varied agent: `csv_iou` for lookup, `text_score` for analysis, and `vis_score` for visualization. It shows that lookup compute expansion repairs the intended SQL metric, while visualization improvements are smaller because the baseline visual score was already high.
+
+![Test 04 accuracy vs extra calls](plots/test04_accuracy_vs_extra_calls.png)
+
+This plot shows that more calls are not monotonically better. `n=2` is the useful Best-of-N setting; `n=3` is dominated for lookup and visualization in this run.
+
+![Test 04 Best-of-N selection behavior](plots/test04_bon_selection_behavior.png)
+
+This plot checks whether Best-of-N is really benefiting from later candidates. Later candidates are rarely selected, especially for lookup and visualization `n=3`, which supports the caveat that some Best-of-N gains may come from the first candidate's parameter setting rather than from the selector.
+
 ## Lookup Agent
 
 Lookup is the clearest winner for compute expansion.

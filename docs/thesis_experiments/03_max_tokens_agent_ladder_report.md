@@ -103,6 +103,30 @@ The table reports the range between the best and worst token cap inside each age
 
 The strongest effect in the whole test is `gemma4:26b` visualization. That is thesis-relevant because it shows that a large thinking MoE can still have a very specific agent-step bottleneck.
 
+## Figures
+
+The figures below focus on the main Test 03 question: whether larger `max_tokens` values improve accuracy, whether the effect depends on the agent step, and whether the additional budget is expensive.
+
+![Test 03 quality ladder by model](plots/test03_quality_ladder_by_model.png)
+
+This is the main Test 03 plot. Each panel is a model, and each line varies `max_tokens` for one agent while the other agents remain fixed at generous caps. It shows that `max_tokens` is not a global model setting: the same model can be insensitive in lookup but highly sensitive in visualization.
+
+![Test 03 agent metric ladder](plots/test03_agent_metric_ladder.png)
+
+This companion plot isolates the direct metric for the varied agent: `csv_iou` for lookup, `text_score` for analysis, and `vis_score` for visualization. It makes the strongest result very clear: `gemma4:26b` visualization improves sharply as the cap rises.
+
+![Test 03 quality-energy delta](plots/test03_quality_energy_delta.png)
+
+This plot shows the quality and energy delta relative to the baseline for the same agent step. It supports the thesis point that larger token caps are upper bounds, not guaranteed extra computation: some higher caps improve quality with little or no measured energy increase.
+
+![Test 03 completion ladder](plots/test03_completion_ladder.png)
+
+This reliability plot counts expected score-slot completion only. It shows why too-low caps are risky: even if average energy falls, missing expected scores can reduce the usable end-to-end result.
+
+![Test 03 marginal quality gain](plots/test03_marginal_quality_gain.png)
+
+This plot shows the marginal quality gain between adjacent token levels. It is useful for selecting practical caps: choose generous values where low caps create structural failures, but avoid increasing caps where the curve is already flat or negative.
+
 ## Gemma E4B Findings
 
 | Step | Token cap behavior | Best full-quality cap | Best step-metric cap | Interpretation |
