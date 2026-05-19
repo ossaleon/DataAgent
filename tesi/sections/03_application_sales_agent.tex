@@ -98,7 +98,7 @@ of semantically similar past runs by prompt similarity, allowing the agent to re
 previously computed results and avoid redundant LLM calls.
 
 \textbf{TracingHelper} provides optional observability integration via
-OpenTelemetry~\cite{opentelemetry} and the Arize Phoenix platform. When enabled,
+OpenTelemetry~\cite{opentelemetry} and the Arize Phoenix platform~\cite{arize_phoenix}. When enabled,
 it records structured spans for each processing step, capturing inputs, outputs,
 latencies, and evaluation scores for post-hoc analysis.
 
@@ -513,8 +513,9 @@ activates automatically as the schema grows.
 
 To evaluate the Sales Agent systematically, a benchmark of 20 question-answer pairs
 was constructed manually. Each item in \texttt{benchmark\_dataset.json} represents
-a realistic analytical question that a business analyst might pose, and is composed
-of the following fields:
+a realistic analytical question that a business analyst might pose. The full list of
+benchmark prompts, grouped by difficulty level, is provided in
+Appendix~\ref{appendix:benchmark}. Each item is composed of the following fields:
 
 \begin{itemize}
     \item \textbf{\texttt{prompt}} — the natural language question given as input
@@ -558,6 +559,15 @@ required, not the wording of the prompt. The four levels are:
           year-over-year comparisons (e.g.\ promo revenue share by category,
           region-category YoY growth).
 \end{itemize}
+
+Scores were assigned by inspecting the ground-truth SQL query rather than the
+natural-language wording of the prompt, following a set of prioritised rules:
+a single-table flat query is classified as level~1 or~2 depending on whether it
+involves time bucketing or multiple aggregates; any join to \texttt{products} or
+\texttt{stores} raises the level to at least~3; and the presence of a subquery,
+a derived table, a ratio or share metric, or a year-over-year comparison raises it
+to~4. Prompt length, the presence of a visualisation request, and the number of
+result rows do not influence the score.
 
 The 20 benchmark items are distributed across difficulty levels as shown in
 Table~\ref{tab:benchmark_dist}.
@@ -606,31 +616,35 @@ The Sales Agent is evaluated across three complementary dimensions, one per
 processing step.
 
 \paragraph{CSV IoU (\texttt{csv\_iou}).}
-The quality of the data retrieval step is measured by comparing the agent's result
-\texttt{DataFrame} to the ground-truth CSV using a row-level Intersection over
-Union (IoU) metric. Before comparison, both DataFrames are passed through a
-normalisation step (\texttt{normalize\_dataframe\_values}) that: casts
-float-encoded integers to their integer representation (e.g.\ \texttt{33653.0}
-$\to$ \texttt{33653}), rounds floating-point values to two decimal places,
-formats date columns as \texttt{YYYY-MM-DD} strings, and strips leading and
-trailing whitespace from string cells. Column names are additionally lowercased
-on both sides to make the comparison case-insensitive.
-
-After normalisation, the algorithm performs greedy row matching: for each row in
-the agent's result it searches for the first unmatched row in the ground-truth
-table that agrees element-wise. Numeric values are compared with an absolute
-tolerance of $5 \times 10^{-2}$ to absorb residual precision differences from SQL
-casts; date strings are further normalised to treat \texttt{YYYY-MM} and
-\texttt{YYYY-MM-01} as equivalent. The score is defined as:
+The quality of the data retrieval step is measured by applying the IoU metric
+defined in Section~\ref{sec:stateofart} to the agent's result \texttt{DataFrame}
+and the ground-truth CSV. The score instantiates Equation~\ref{eq:iou_general} as:
 
 \begin{equation}
     \text{csv\_iou} = \frac{|\text{matched rows}|}{|\text{agent rows}| + |\text{GT rows}| - |\text{matched rows}|}
     \label{eq:iou}
 \end{equation}
 
-\noindent and takes values in $[0, 1]$, where 1.0 indicates an exact match. When
-the result and ground-truth tables have different column sets, only the shared
-columns are compared; if no columns are shared the score is 0.
+\noindent where matched rows are determined by the normalisation and matching
+procedure described below. When the result and ground-truth tables have different
+column sets, only the shared columns are compared; if no columns are shared the
+score is 0.
+
+Before matching, both DataFrames are passed through a normalisation step
+(\texttt{normalize\_dataframe\_values}) that absorbs representational differences
+that do not reflect genuine retrieval errors: float-encoded integers are cast to
+their integer representation (e.g.\ \texttt{33653.0} $\to$ \texttt{33653}),
+floating-point values are rounded to two decimal places, date columns are
+formatted as \texttt{YYYY-MM-DD} strings, and leading/trailing whitespace is
+stripped from string cells. Column names are lowercased on both sides to make the
+comparison case-insensitive.
+
+After normalisation, the algorithm performs greedy row matching: for each row in
+the agent's result it searches for the first unmatched row in the ground-truth
+table that agrees element-wise. Numeric values are compared with an absolute
+tolerance of $5 \times 10^{-2}$ to absorb residual precision differences from SQL
+casts; date strings are further normalised to treat \texttt{YYYY-MM} and
+\texttt{YYYY-MM-01} as equivalent.
 
 \paragraph{Text Score (\texttt{text\_score}).}
 The quality of the natural language analysis is evaluated using an LLM-as-judge
@@ -707,7 +721,7 @@ For the analysis and visualisation steps, the no-GT evaluator uses an LLM judge
 that scores the output against the retrieved data and the original question, rather
 than against a reference text.
 
-\subsubsection{Output: the \texttt{detail\_combined} CSV}
+\subsubsection{\textcolor{red}{Output: the \texttt{detail\_combined} CSV}}
 
 At the end of a benchmark run, all per-item results are aggregated into a single
 \texttt{detail\_combined} CSV file. Each row corresponds to one benchmark item and

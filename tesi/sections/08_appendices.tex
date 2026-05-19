@@ -1,5 +1,492 @@
 \appendix
-\section{Appendix A}
+\section{Benchmark Prompt Set}
+\label{appendix:benchmark}
+
+This appendix lists all 20 benchmark prompts used to evaluate the Sales Agent,
+grouped by difficulty level. Each entry reports: the natural language question
+given as input to the agent; the visualisation directive (if any); the reference
+SQL query used to generate the ground-truth result set; and the reference analysis
+text used to evaluate the agent's textual output.
+
+%----------------------------------------------------------------------
+\subsection*{Difficulty Level 1 — Single-table aggregation}
+%----------------------------------------------------------------------
+
+\paragraph{Prompt 1.}
+Difficulty: 1 \quad Visualisation goal: none.\\[2pt]
+\textit{``Return the top 5 stores by total revenue, identified by store number.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT Store_Number,
+       SUM(Total_Sale_Value) AS total_revenue
+FROM sales
+GROUP BY Store_Number
+ORDER BY total_revenue DESC
+LIMIT 5
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Store 2970: \$836,341.33; Store 3300: \$619,660.17; Store 1320: \$592,832.07;
+Store 1650: \$580,443.01; Store 1210: \$508,393.77.
+
+\bigskip
+
+\paragraph{Prompt 2.}
+Difficulty: 1 \quad Visualisation goal: bar chart comparing total revenue for promo and non-promo sales in 2023.\\[2pt]
+\textit{``Show promo vs non-promo revenue in 2023 as a bar chart.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT CASE WHEN On_Promo = 1 THEN 'Promo' ELSE 'Non-Promo' END
+           AS promo_status,
+       ROUND(SUM(Total_Sale_Value), 2) AS total_revenue
+FROM sales
+WHERE EXTRACT(YEAR FROM CAST(Sold_Date AS DATE)) = 2023
+GROUP BY On_Promo
+ORDER BY On_Promo ASC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Non-promo sales generated \$5,316,412.07 in 2023, vs \$99,706.86 for promo sales
+($\approx$1.8\% of total revenue).
+
+\bigskip
+
+\paragraph{Prompt 3.}
+Difficulty: 1 \quad Visualisation goal: none.\\[2pt]
+\textit{``Return the top 10 product class codes by total units sold in 2023.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT Product_Class_Code,
+       SUM(Qty_Sold) AS total_units
+FROM sales
+WHERE EXTRACT(YEAR FROM CAST(Sold_Date AS DATE)) = 2023
+GROUP BY Product_Class_Code
+ORDER BY total_units DESC, Product_Class_Code ASC
+LIMIT 10
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Product class 22850 leads with 89,229 units sold in 2023, followed by 22975
+(60,425) and 22800 (57,485). The top 10 ranges down to class 24375 with 11,358 units.
+
+\bigskip
+
+\paragraph{Prompt 4.}
+Difficulty: 1 \quad Visualisation goal: bar chart of the top 8 stores ranked by total units sold in 2022.\\[2pt]
+\textit{``Show the top 8 stores by total units sold in 2022 as a bar chart, identifying each store by its store number.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT Store_Number,
+       SUM(Qty_Sold) AS total_units
+FROM sales
+WHERE EXTRACT(YEAR FROM CAST(Sold_Date AS DATE)) = 2022
+GROUP BY Store_Number
+ORDER BY total_units DESC, Store_Number ASC
+LIMIT 8
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Store 2970 leads with 23,580 units; the eighth-ranked store (1540) sold 14,517 units.
+
+%----------------------------------------------------------------------
+\subsection*{Difficulty Level 2 — Time bucketing and multi-aggregate}
+%----------------------------------------------------------------------
+
+\paragraph{Prompt 5.}
+Difficulty: 2 \quad Visualisation goal: line chart with date on the $x$-axis and daily sales value on the $y$-axis.\\[2pt]
+\textit{``Show me the sales in Nov 2021.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT Sold_Date,
+       SUM(Total_Sale_Value) AS Total_Sales_Value
+FROM sales
+WHERE CAST(Sold_Date AS VARCHAR) LIKE '2021-11%'
+GROUP BY Sold_Date
+ORDER BY Sold_Date
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Sales in November 2021 show daily values ranging from \$11,030.39 to \$52,004.60,
+with a total of \$499,984.43 across 29 days.
+
+\bigskip
+
+\paragraph{Prompt 6.}
+Difficulty: 2 \quad Visualisation goal: line chart showing monthly revenue trends for 2023.\\[2pt]
+\textit{``Show the 12 months of 2023 with total revenue and total units sold.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT DATE_TRUNC('month', Sold_Date)  AS month_start,
+       SUM(Total_Sale_Value)           AS total_revenue,
+       SUM(Qty_Sold)                   AS total_units
+FROM sales
+WHERE EXTRACT(YEAR FROM Sold_Date) = 2023
+GROUP BY DATE_TRUNC('month', Sold_Date)
+ORDER BY month_start ASC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+The 12 months of 2023 show total revenue ranging from \$353,284.21 (July) to
+\$874,263.67 (December), with total units from 27,932 to 60,941.
+
+\bigskip
+
+\paragraph{Prompt 7.}
+Difficulty: 2 \quad Visualisation goal: none.\\[2pt]
+\textit{``Return the top 10 sales days in 2023 with total revenue and total units sold.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT CAST(Sold_Date AS DATE)             AS Sold_Date,
+       ROUND(SUM(Total_Sale_Value), 2)     AS total_revenue,
+       SUM(Qty_Sold)                       AS total_units
+FROM sales
+WHERE EXTRACT(YEAR FROM CAST(Sold_Date AS DATE)) = 2023
+GROUP BY CAST(Sold_Date AS DATE)
+ORDER BY total_revenue DESC, Sold_Date ASC
+LIMIT 10
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+The highest-revenue day is 2023-12-22 with \$62,640.70 and 4,059 units; the
+tenth-ranked day is 2023-12-16 with \$34,630.77 and 2,435 units.
+
+\bigskip
+
+\paragraph{Prompt 8.}
+Difficulty: 2 \quad Visualisation goal: line chart showing monthly revenue for product class code 22975 in 2022.\\[2pt]
+\textit{``Show monthly revenue for product class code 22975 in 2022 as a line chart.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT DATE_TRUNC('month', CAST(Sold_Date AS DATE)) AS month_start,
+       ROUND(SUM(Total_Sale_Value), 2)              AS total_revenue
+FROM sales
+WHERE EXTRACT(YEAR FROM CAST(Sold_Date AS DATE)) = 2022
+  AND Product_Class_Code = 22975
+GROUP BY month_start
+ORDER BY month_start ASC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Monthly revenue for product class 22975 in 2022 ranges from \$73,802.56 (July) to
+\$122,319.24 (December), with a mid-year trough and a strong year-end peak.
+
+\bigskip
+
+\paragraph{Prompt 9.}
+Difficulty: 2 \quad Visualisation goal: grouped bar chart showing monthly revenue in 2023 split between promo and non-promo sales.\\[2pt]
+\textit{``Show monthly revenue split by promo flag for 2023 as a grouped bar chart.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT DATE_TRUNC('month', CAST(Sold_Date AS DATE)) AS month_start,
+       ROUND(SUM(CASE WHEN On_Promo = 1
+                      THEN Total_Sale_Value ELSE 0 END), 2) AS promo_revenue,
+       ROUND(SUM(CASE WHEN On_Promo = 0
+                      THEN Total_Sale_Value ELSE 0 END), 2) AS non_promo_revenue
+FROM sales
+WHERE EXTRACT(YEAR FROM CAST(Sold_Date AS DATE)) = 2023
+GROUP BY month_start
+ORDER BY month_start ASC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Monthly non-promo revenue peaks in December at \$835,289.24, with promo revenue
+highest in December (\$38,974.43) and November (\$35,099.91). February, March,
+June, and July had no promo sales.
+
+%----------------------------------------------------------------------
+\subsection*{Difficulty Level 3 — Joins and business-dimension grouping}
+%----------------------------------------------------------------------
+
+\paragraph{Prompt 10.}
+Difficulty: 3 \quad Visualisation goal: bar chart showing total revenue per brand for 2023, ordered from highest to lowest.\\[2pt]
+\textit{``Show total revenue by product brand for 2023 as a bar chart.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT p.brand,
+       ROUND(SUM(s.Total_Sale_Value), 2) AS total_revenue
+FROM sales s
+JOIN products p ON s.SKU_Coded = p.SKU_Coded
+WHERE YEAR(CAST(s.Sold_Date AS DATE)) = 2023
+GROUP BY p.brand
+ORDER BY total_revenue DESC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+In 2023, GoldenCrust leads with \$1,237,536.46, followed by CreamyFarm
+(\$1,116,963.60), CleanHome (\$985,063.32), CoolSip (\$942,234.79), and GlowUp
+(\$682,053.43). CrunchTime has the lowest revenue at \$452,267.33; total across all
+brands is \$5,416,118.93.
+
+\bigskip
+
+\paragraph{Prompt 11.}
+Difficulty: 3 \quad Visualisation goal: bar chart of store cities with total 2022 revenue above \$200{,}000, ordered from highest to lowest.\\[2pt]
+\textit{``Show store cities where total revenue in 2022 exceeded 200{,}000 as a bar chart.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT st.city,
+       ROUND(SUM(s.Total_Sale_Value), 2) AS total_revenue
+FROM sales s
+JOIN stores st ON s.Store_Number = st.Store_Number
+WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) = 2022
+GROUP BY st.city
+HAVING SUM(s.Total_Sale_Value) > 200000
+ORDER BY total_revenue DESC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Seven cities exceeded \$200,000 in total revenue in 2022. Washington leads at
+\$342,948.68, followed by Memphis (\$255,559.74) and Austin (\$244,685.18). The
+remaining four — Dallas, Las Vegas, San Diego, and San Antonio — range between
+\$202,010.28 and \$223,011.84.
+
+\bigskip
+
+\paragraph{Prompt 12.}
+Difficulty: 3 \quad Visualisation goal: bar chart showing total 2023 revenue by store type.\\[2pt]
+\textit{``Show total revenue by store type for 2023 as a bar chart.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT st.store_type,
+       ROUND(SUM(s.Total_Sale_Value), 2) AS total_revenue
+FROM sales s
+JOIN stores st ON s.Store_Number = st.Store_Number
+WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) = 2023
+GROUP BY st.store_type
+ORDER BY total_revenue DESC, st.store_type ASC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Supermarket leads with \$1,938,262.70, followed by Discount (\$1,574,739.14),
+Hypermarket (\$1,188,793.49), and Convenience (\$714,323.60).
+
+\bigskip
+
+\paragraph{Prompt 13.}
+Difficulty: 3 \quad Visualisation goal: bar chart showing total units sold by product category in 2023.\\[2pt]
+\textit{``Show total units sold by product category for 2023 as a bar chart.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT p.category,
+       SUM(s.Qty_Sold) AS total_units
+FROM sales s
+JOIN products p ON s.SKU_Coded = p.SKU_Coded
+WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) = 2023
+GROUP BY p.category
+ORDER BY total_units DESC, p.category ASC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Dairy leads with 141,284 units, followed by Bakery (87,114), Beverages (71,131),
+Household (57,576), Personal Care (38,045), and Snacks (24,817).
+
+\bigskip
+
+\paragraph{Prompt 14.}
+Difficulty: 3 \quad Visualisation goal: none.\\[2pt]
+\textit{``Return the top 3 brands by realized average selling price in 2023, where average price is computed as total revenue divided by total units sold, along with total units sold per brand.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT p.brand,
+       ROUND(SUM(s.Total_Sale_Value) /
+             NULLIF(SUM(s.Qty_Sold), 0), 4) AS avg_realized_unit_price,
+       SUM(s.Qty_Sold)                       AS total_units
+FROM sales s
+JOIN products p ON s.SKU_Coded = p.SKU_Coded
+WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) = 2023
+GROUP BY p.brand
+HAVING SUM(s.Qty_Sold) > 0
+ORDER BY avg_realized_unit_price DESC, total_units DESC, p.brand ASC
+LIMIT 3
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+The top 3 brands by average realized price are CrunchTime (18.2241), GlowUp
+(17.9275), and CleanHome (17.1089).
+
+\bigskip
+
+\paragraph{Prompt 15.}
+Difficulty: 3 \quad Visualisation goal: none.\\[2pt]
+\textit{``Return the top 8 cities by total revenue in 2023.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT st.city,
+       ROUND(SUM(s.Total_Sale_Value), 2) AS total_revenue
+FROM sales s
+JOIN stores st ON s.Store_Number = st.Store_Number
+WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) = 2023
+GROUP BY st.city
+ORDER BY total_revenue DESC, st.city ASC
+LIMIT 8
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Washington leads with \$331,128.83; the eighth-ranked city (Seattle) generated
+\$181,115.33.
+
+\bigskip
+
+\paragraph{Prompt 16.}
+Difficulty: 3 \quad Visualisation goal: grouped bar chart comparing 2023 revenue by region for organic and non-organic products.\\[2pt]
+\textit{``Show 2023 revenue by region comparing Organic and Non-Organic products as a grouped bar chart.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT st.region,
+       CASE WHEN p.is_organic THEN 'Organic'
+            ELSE 'Non-Organic' END          AS is_organic,
+       ROUND(SUM(s.Total_Sale_Value), 2)    AS total_revenue
+FROM sales s
+JOIN stores   st ON s.Store_Number = st.Store_Number
+JOIN products p  ON s.SKU_Coded    = p.SKU_Coded
+WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) = 2023
+GROUP BY st.region, is_organic
+ORDER BY st.region ASC, is_organic ASC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+West leads with \$1,701,793.25 in Non-Organic revenue in 2023. Non-Organic
+revenue outpaces Organic by roughly 5:1 across all four regions.
+
+%----------------------------------------------------------------------
+\subsection*{Difficulty Level 4 — Multi-step aggregation and year-over-year}
+%----------------------------------------------------------------------
+
+\paragraph{Prompt 17.}
+Difficulty: 4 \quad Visualisation goal: grouped bar chart comparing average monthly revenue per region between 2022 and 2023.\\[2pt]
+\textit{``Compare average monthly revenue between store regions for 2022 and 2023.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT st.region,
+       s.yr AS year,
+       ROUND(AVG(s.monthly_rev), 2) AS avg_monthly_revenue
+FROM (
+    SELECT Store_Number,
+           YEAR(CAST(Sold_Date AS DATE))              AS yr,
+           DATE_TRUNC('month', CAST(Sold_Date AS DATE)) AS month,
+           SUM(Total_Sale_Value)                      AS monthly_rev
+    FROM sales
+    WHERE YEAR(CAST(Sold_Date AS DATE)) IN (2022, 2023)
+    GROUP BY Store_Number, yr, month
+) s
+JOIN stores st ON s.Store_Number = st.Store_Number
+GROUP BY st.region, s.yr
+ORDER BY st.region, s.yr
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Northeast has the highest average monthly revenue in both years (\$17,703.52 in
+2022, \$14,970.11 in 2023), though it declined year-over-year. Midwest is lowest
+but shows growth from \$10,522.09 to \$10,821.44. South and West both show a
+slight decline from 2022 to 2023.
+
+\bigskip
+
+\paragraph{Prompt 18.}
+Difficulty: 4 \quad Visualisation goal: grouped bar chart comparing average monthly revenue by store type between 2022 and 2023.\\[2pt]
+\textit{``Compare average monthly revenue between store types for 2022 and 2023.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT st.store_type,
+       monthly.yr                            AS year,
+       ROUND(AVG(monthly.monthly_revenue), 2) AS avg_monthly_revenue
+FROM (
+    SELECT s.Store_Number,
+           EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE))       AS yr,
+           DATE_TRUNC('month', CAST(s.Sold_Date AS DATE))     AS month_start,
+           SUM(s.Total_Sale_Value)                            AS monthly_revenue
+    FROM sales s
+    WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) IN (2022, 2023)
+    GROUP BY s.Store_Number, yr, month_start
+) monthly
+JOIN stores st ON monthly.Store_Number = st.Store_Number
+GROUP BY st.store_type, monthly.yr
+ORDER BY st.store_type ASC, monthly.yr ASC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Convenience has the highest average monthly revenue in 2022 (\$15,914.67) and
+remains first in 2023 (\$14,881.74). All store types show a slight decline from
+2022 to 2023.
+
+\bigskip
+
+\paragraph{Prompt 19.}
+Difficulty: 4 \quad Visualisation goal: bar chart showing the promo revenue share as a percentage of total revenue for each product category in 2023.\\[2pt]
+\textit{``Show promo revenue share by product category for 2023 as a bar chart, expressing the share as a percentage of total revenue.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+SELECT p.category,
+       ROUND(SUM(CASE WHEN s.On_Promo = 1
+                      THEN s.Total_Sale_Value ELSE 0 END) /
+             NULLIF(SUM(s.Total_Sale_Value), 0) * 100, 2) AS promo_revenue_share
+FROM sales s
+JOIN products p ON s.SKU_Coded = p.SKU_Coded
+WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) = 2023
+GROUP BY p.category
+ORDER BY promo_revenue_share DESC, p.category ASC
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Snacks leads with 6.26\% promo revenue share, followed by Dairy (5.00\%) and
+Personal Care (1.90\%). Bakery shows only 0.21\%; Beverages and Household have
+no promo sales.
+
+\bigskip
+
+\paragraph{Prompt 20.}
+Difficulty: 4 \quad Visualisation goal: none.\\[2pt]
+\textit{``Return the top 10 region-category combinations by year-over-year revenue growth from 2022 to 2023, showing revenue for both years and the growth expressed as a percentage rounded to 2 decimal places.''}
+
+\textbf{Reference SQL:}
+\begin{lstlisting}[language=SQL]
+WITH yearly AS (
+    SELECT st.region, p.category,
+           EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) AS yr,
+           SUM(s.Total_Sale_Value)                      AS revenue
+    FROM sales s
+    JOIN stores   st ON s.Store_Number = st.Store_Number
+    JOIN products p  ON s.SKU_Coded    = p.SKU_Coded
+    WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) IN (2022, 2023)
+    GROUP BY st.region, p.category, yr
+)
+SELECT region, category,
+    ROUND(SUM(CASE WHEN yr = 2022 THEN revenue ELSE 0 END), 2) AS revenue_2022,
+    ROUND(SUM(CASE WHEN yr = 2023 THEN revenue ELSE 0 END), 2) AS revenue_2023,
+    ROUND(
+        ((SUM(CASE WHEN yr = 2023 THEN revenue ELSE 0 END) -
+          SUM(CASE WHEN yr = 2022 THEN revenue ELSE 0 END)) /
+         NULLIF(SUM(CASE WHEN yr = 2022 THEN revenue ELSE 0 END), 0)) * 100,
+    2) AS yoy_growth_pct
+FROM yearly
+GROUP BY region, category
+HAVING SUM(CASE WHEN yr = 2022 THEN revenue ELSE 0 END) > 0
+ORDER BY yoy_growth_pct DESC, revenue_2023 DESC, region ASC, category ASC
+LIMIT 10
+\end{lstlisting}
+
+\textbf{Reference analysis:}
+Top growth: Midwest/Dairy +61.89\% (\$109,924.97 $\to$ \$177,962.09), followed
+by Northeast/Dairy +52.08\% and West/Dairy +38.41\%. The tenth entry is
+Midwest/Personal Care +0.60\% (\$97,222.05 $\to$ \$97,802.39).
 
 \section{Appendix B}
-
