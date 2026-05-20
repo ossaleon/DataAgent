@@ -45,11 +45,15 @@ described above.
 Text-to-SQL is the task of mapping a natural language question to an executable
 database query.
 It has been studied extensively through shared benchmarks such as
-\textcolor{red}{Spider~\cite{yu2018spider}}, which introduced cross-domain multi-table schemas
-as a standard evaluation setting, and \textcolor{red}{BIRD~\cite{li2024bird}}, which extended
-the problem to real-world databases with noisy values and shifted the primary
-metric to execution accuracy --- whether the query returns the correct result
-set --- rather than exact string matching.
+Spider~\cite{yu2018spider}, which introduced cross-domain multi-table schemas
+as a standard evaluation setting, and BIRD~\cite{li2024bird}, which extended
+the problem to real-world databases with noisy values and ambiguous content,
+making execution accuracy --- whether the query returns the correct result
+set --- a more meaningful correctness target than exact SQL string matching.
+While modern models now achieve over 85\% execution accuracy on Spider,
+the same generation of models reached only approximately 55\% on BIRD at the
+time of its release, highlighting that real-world database complexity remains
+a substantially harder challenge than cross-domain schema generalisation alone.
 These benchmarks established the core challenges of the field: schema
 understanding, column grounding, join selection, aggregation logic, filtering,
 grouping, and date handling.
@@ -72,11 +76,13 @@ Static few-shot examples embedded in the system prompt --- fixed
 question-to-query pairs that illustrate expected output format, join patterns,
 and aggregation conventions --- provide in-context guidance without requiring
 an additional retrieval step.
-More sophisticated approaches such as \textcolor{red}{DIN-SQL~\cite{pourreza2023dinsql}} decompose
-the generation into sub-tasks (schema linking, query skeleton construction, and
-self-correction) and \textcolor{red}{use dynamic example selection to adapt the prompt to the
-specific input question}, achieving higher accuracy on complex queries at the
-cost of additional LLM calls.
+More sophisticated approaches such as DIN-SQL~\cite{pourreza2023dinsql} decompose
+the generation into sub-tasks --- schema linking, query classification, and
+self-correction --- each guided by static few-shot examples,
+achieving higher accuracy on complex queries at the cost of additional LLM calls.
+DIN-SQL with GPT-4 reached 85.3\% execution accuracy on Spider, compared to
+67.4\% achieved by GPT-4 with direct few-shot prompting, demonstrating the
+benefit of task decomposition over end-to-end generation.
 
 This thesis treats SQL generation as a dedicated agent step that uses static
 few-shot examples and schema descriptions to ground the model in the available
@@ -348,7 +354,7 @@ agentic pipelines.
 
 For locally-hosted models, inference energy is especially tractable to measure:
 the GPU is under direct experimental control, execution is sequential, and
-software tools such as CodeCarbon~\cite{lottick2019codecarbon} can attribute
+software tools such as \textbf{CodeCarbon}~\cite{lottick2019codecarbon} can attribute
 CPU, GPU, and RAM energy consumption to specific code regions with per-run
 granularity.
 This makes local deployment a natural setting for controlled energy-performance
@@ -399,7 +405,7 @@ This thesis combines all of these dimensions in a single reproducible setting:
 a modular data-analysis agent is evaluated across data retrieval correctness,
 textual analysis quality, and visualization quality simultaneously, while
 latency and per-step energy consumption are recorded for every configuration.
-Step-isolated experiments then identify which model families and which forms
-of additional inference compute --- token budget, best-of-$N$ sampling, and
-Chain-of-Thought refinement --- improve the quality-energy trade-off, and at
-what cost.
+Step-isolated experiments then identify which model families and which
+hyperparameters --- sampling temperature, top-$p$, top-$k$, beam search width,
+token budget, best-of-$N$ sampling, and Chain-of-Thought refinement --- improve the
+quality-energy trade-off, and at what cost.

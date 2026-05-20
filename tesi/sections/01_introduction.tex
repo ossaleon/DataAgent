@@ -21,21 +21,25 @@ of the results, and optionally renders a Matplotlib chart. The agent is orchestr
 LangGraph~\cite{langgraph}, a framework for stateful graph-based LLM pipelines, and supports
 two interchangeable backends: locally-hosted open-weight models via Ollama and cloud-based
 models via the OpenAI API. A hierarchical YAML configuration system exposes all inference
-hyperparameters --- sampling temperature, top-$p$, top-$k$, best-of-$N$ candidates, and
+hyperparameters --- sampling temperature, top-$p$, top-$k$, beam search width, best-of-$N$ candidates, and
 Chain-of-Thought refinement iterations --- making every run fully reproducible and configurable
 without code changes.
 
 On the experimental side, the primary focus of the thesis is the systematic profiling of the
-agent under varying configurations. A benchmark of 20 analytical questions is used to evaluate
-output quality across three complementary dimensions: a row-level Intersection-over-Union metric
-for data retrieval accuracy, an LLM-as-judge score for the natural language analysis, and a
-further LLM-based score for visualisation correctness. A structured ablation study is then
-conducted by varying the hyperparameters of each processing step independently across 150
-sampled configurations. For each configuration, execution time and energy consumption ---
-tracked per step using CodeCarbon~\cite{lottick2019codecarbon} --- are recorded alongside quality scores. This profiling
-perspective allows us to characterise the trade-offs between inference cost and output quality
-as a function of the chosen parameters, providing actionable guidance for deploying LLM agents
-under latency or sustainability constraints.
+agent under varying configurations. A benchmark of 20 analytical questions, stratified across
+four SQL difficulty levels, is used to evaluate output quality across three complementary
+dimensions: a row-level Intersection-over-Union metric for data retrieval accuracy, an
+LLM-as-judge score for the natural language analysis, and a further LLM-based score for
+visualisation correctness. The evaluation is structured as a sequence of five step-isolated
+experiments. The first establishes a quality and energy baseline for three locally-hosted
+open-weight models --- Gemma~4~E4B, Gemma~4~26B, and Mistral~Small~3.2~24B. The subsequent
+tests vary one agent step at a time: a one-factor-at-a-time sensitivity analysis across
+sampling hyperparameters, a token-budget ladder, and a compute-expansion study combining
+best-of-$N$ sampling with Chain-of-Thought refinement. A final Pareto confirmation run then
+identifies the configurations that best balance output quality against inference cost. For
+every run, execution time and energy consumption --- tracked per step using
+CodeCarbon~\cite{lottick2019codecarbon} --- are recorded alongside quality scores, providing
+actionable guidance for deploying LLM agents under latency or sustainability constraints.
 
 The document is organised as follows: Section~\ref{sec:stateofart} reviews related work on LLM agents for structured data analysis,
 text-to-SQL generation, local model families and inference-time reasoning strategies,

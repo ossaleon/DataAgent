@@ -384,26 +384,33 @@ Each step exposes the parameters listed in Table~\ref{tab:stepconfig}. A step ca
 also override the global LLM provider and model, enabling heterogeneous deployments
 where, for example, SQL generation uses a larger cloud model while routing uses a
 lightweight local model.
+The default values shown reflect the baseline configurations used in the experiments
+(Section~\ref{sec:experiments}): Gemma~4 models are run at temperature~1.0, which
+is the recommended setting for thinking models; Mistral~Small~3.2 is run at
+temperature~0.15, appropriate for an instruction-following model.
 
 \begin{table}[H]
 \centering
-\begin{tabular}{|l|l|p{6cm}|}
+\begin{tabular}{|l|l|l|p{4.5cm}|}
 \arrayrulecolor{black}\hline
 \rowcolor{bluePoli!30}
-\textbf{Parameter} & \textbf{Default} & \textbf{Description} \T\B \\
+\textbf{Parameter} & \textbf{Default (Gemma~4)} & \textbf{Default (Mistral)} & \textbf{Description} \T\B \\
 \arrayrulecolor{black}\hline
-\texttt{n} & 1 & Number of best-of-$n$ candidates \T\B \\
-\texttt{bon\_param} & \texttt{temperature} & Parameter varied across candidates \T\B \\
-\texttt{temp\_min / temp\_max} & 0.1 / 0.1 & Temperature range for sampling \T\B \\
-\texttt{top\_p\_min / top\_p\_max} & 1.0 / 1.0 & Top-$p$ nucleus sampling range \T\B \\
-\texttt{top\_k\_min / top\_k\_max} & null / null & Top-$k$ sampling range (Ollama only) \T\B \\
-\texttt{num\_beams} & 1 & Beam search width; 1 = greedy (Ollama only) \T\B \\
-\texttt{max\_tokens} & 2000 & Maximum tokens per LLM generation \T\B \\
-\texttt{cot\_n} & 1 & Maximum CoT refinement iterations \T\B \\
-\texttt{use\_cache} & true & Whether to check the run cache \T\B \\
-\texttt{cache\_mode} & \texttt{auto} & Cache policy: \texttt{auto}, \texttt{skip}, \texttt{force\_fresh} \T\B \\
-\texttt{enabled} & true & Whether this step runs at all \T\B \\
-\texttt{eval} & \texttt{default} & Evaluation function: \texttt{default} or \texttt{none} \T\B \\
+\texttt{n} & 1 & 1 & Number of best-of-$n$ candidates \T\B \\
+\hline
+\texttt{bon\_param} & \texttt{temperature} & \texttt{temperature} & Parameter varied across candidates \T\B \\
+\hline
+\texttt{temp\_min / temp\_max} & 1.0 / 1.0 & 0.15 / 0.15 & Temperature range for sampling \T\B \\
+\hline
+\texttt{top\_p\_min / top\_p\_max} & 0.95 / 0.95 & 0.95 / 0.95 & Top-$p$ nucleus sampling range \T\B \\
+\hline
+\texttt{top\_k\_min / top\_k\_max} & 64 / 64 & 64 / 64 & Top-$k$ sampling range (Ollama only) \T\B \\
+\hline
+\texttt{num\_beams} & 1 & 1 & Beam search width; 1 = greedy (Ollama only) \T\B \\
+\hline
+\texttt{max\_tokens} & 5000 / 7000 & 5000 / 7000 & Maximum tokens per LLM generation (5000 for lookup, 7000 for analysis and visualization) \T\B \\
+\hline
+\texttt{cot\_n} & 1 & 1 & Maximum CoT refinement iterations \T\B \\
 \hline
 \end{tabular}
 \caption{Configurable parameters of \texttt{StepConfig}.}
