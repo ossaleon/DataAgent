@@ -1,0 +1,98 @@
+# Thesis Test 05 final Pareto confirmation for mistral-small3.2:24b.
+#
+# Use with:
+#   --model mistral-small3.2:24b
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: baseline
+    vary_step: all_steps
+    axis: baseline
+    description: Mistral Small 3.2 baseline from Test 01.
+    steps: {}
+
+  - name: efficient_static
+    vary_step: all_steps
+    axis: efficient_static
+    description: Aggressive low-token candidate from Test 03 for the already-stable Mistral pipeline.
+    steps:
+      lookup_sales_data: {max_tokens: 3000}
+      analyzing_data: {max_tokens: 5000}
+      create_visualization: {max_tokens: 5000}
+
+  - name: best_step_static
+    vary_step: all_steps
+    axis: best_step_static
+    description: "Best cheap static quality signal from Test 02: lookup top_k_high."
+    steps:
+      lookup_sales_data: {top_k_min: 128, top_k_max: 128}
+
+  - name: max_tokens_adjusted
+    vary_step: all_steps
+    axis: max_tokens_adjusted
+    description: "Conservative low-token candidate: lower lookup and visualization caps while keeping analysis at baseline."
+    steps:
+      lookup_sales_data: {max_tokens: 3000}
+      analyzing_data: {max_tokens: 7000}
+      create_visualization: {max_tokens: 5000}
+
+  - name: analysis_top_k_high_low_tokens
+    vary_step: all_steps
+    axis: efficient_static_variant
+    description: "Extra static Mistral candidate replacing compute expansion: analysis top_k_high with safe low token caps."
+    steps:
+      lookup_sales_data: {max_tokens: 3000}
+      analyzing_data: {top_k_min: 128, top_k_max: 128, max_tokens: 5000}
+      create_visualization: {max_tokens: 5000}
+
+  - name: combined_best_candidate
+    vary_step: all_steps
+    axis: combined_best_candidate
+    description: "Combined Mistral Pareto candidate: cheap lookup/analysis top-k tuning and low safe token caps."
+    steps:
+      lookup_sales_data: {top_k_min: 128, top_k_max: 128, max_tokens: 3000}
+      analyzing_data: {top_k_min: 128, top_k_max: 128, max_tokens: 5000}
+      create_visualization: {max_tokens: 5000}

@@ -2,7 +2,11 @@ PWD /home/oss/Desktop/DataAgent/tesi
 INPUT /usr/share/texlive/texmf-dist/web2c/texmf.cnf
 INPUT /usr/share/texlive/texmf-dist/web2c/texmf.cnf
 INPUT /var/lib/texmf/web2c/pdftex/pdflatex.fmt
+<<<<<<< HEAD
 INPUT Thesis.tex
+=======
+INPUT /home/oss/Desktop/DataAgent/tesi/Thesis.tex
+>>>>>>> gemma4_thesis_doe
 OUTPUT Thesis.log
 INPUT /usr/share/texlive/texmf-dist/tex/latex/base/article.cls
 INPUT /usr/share/texlive/texmf-dist/tex/latex/base/article.cls
@@ -1312,6 +1316,7 @@ INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmmib5.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbsy10.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmbsy7.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmbsy5.tfm
+<<<<<<< HEAD
 INPUT ./sections/01_introduction.tex
 INPUT ./sections/01_introduction.tex
 INPUT ./sections/01_introduction.tex
@@ -1327,6 +1332,9 @@ INPUT sections/02_state_of_the_art.tex
 INPUT ./sections/02_state_of_the_art.tex
 INPUT ./sections/02_state_of_the_art.tex
 INPUT sections/02_state_of_the_art.tex
+=======
+INPUT /usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecti1000.tfm
+>>>>>>> gemma4_thesis_doe
 INPUT ./Images//raggiera_polimi.eps
 INPUT Images//raggiera_polimi.eps
 INPUT ./Images//raggiera_polimi.eps
@@ -1339,6 +1347,7 @@ INPUT ./Images//raggiera_polimi-eps-converted-to.pdf
 INPUT ./Images//raggiera_polimi-eps-converted-to.pdf
 INPUT /var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map
 INPUT /usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc
+<<<<<<< HEAD
 INPUT ./sections/03_application_sales_agent.tex
 INPUT ./sections/03_application_sales_agent.tex
 INPUT ./sections/03_application_sales_agent.tex
@@ -1346,6 +1355,8 @@ INPUT sections/03_application_sales_agent.tex
 INPUT ./sections/03_application_sales_agent.tex
 INPUT ./sections/03_application_sales_agent.tex
 INPUT sections/03_application_sales_agent.tex
+=======
+>>>>>>> gemma4_thesis_doe
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecrm1200.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ectt1000.tfm
 INPUT ./Images/fig1_system_overview.png
@@ -1391,6 +1402,7 @@ INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbsy10.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmbsy7.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecrm0700.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecrm0500.tfm
+<<<<<<< HEAD
 INPUT ./sections/04_experimental_results.tex
 INPUT ./sections/04_experimental_results.tex
 INPUT ./sections/04_experimental_results.tex
@@ -1412,10 +1424,13 @@ INPUT sections/06_bibliography.tex
 INPUT ./sections/06_bibliography.tex
 INPUT ./sections/06_bibliography.tex
 INPUT sections/06_bibliography.tex
+=======
+>>>>>>> gemma4_thesis_doe
 INPUT ./Thesis.bbl
 INPUT Thesis.bbl
 INPUT ./Thesis.bbl
 INPUT Thesis.bbl
+<<<<<<< HEAD
 INPUT ./sections/07_appendices.tex
 INPUT ./sections/07_appendices.tex
 INPUT ./sections/07_appendices.tex
@@ -1437,6 +1452,8 @@ INPUT sections/09_acknowledgements.tex
 INPUT ./sections/09_acknowledgements.tex
 INPUT ./sections/09_acknowledgements.tex
 INPUT sections/09_acknowledgements.tex
+=======
+>>>>>>> gemma4_thesis_doe
 INPUT Thesis.aux
 INPUT ./Thesis.out
 INPUT ./Thesis.out

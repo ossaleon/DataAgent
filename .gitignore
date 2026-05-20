@@ -12,6 +12,8 @@ tesi/*.out
 tesi/*.synctex.gz
 tesi/*.pdf
 tesi/Images/*.pdf
+tesi/*.fdb_latexmk
+tesi/*.fls
 
 evaluation/csv_queries
 

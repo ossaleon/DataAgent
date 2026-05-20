@@ -1,5 +1,5 @@
 # =============================================================================
-# PRACTICAL RANDOM SEARCH SPACE FOR OLLAMA / GEMMA 4 31B
+# PRACTICAL RANDOM SEARCH SPACE FOR OLLAMA / gemma4:e4b
 # =============================================================================
 # Goal:
 #   Run an overnight-sized ablation that proves the agent works and helps choose

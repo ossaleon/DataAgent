@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Comprehensive IoU test suite for exact-column comparison plus value normalization.
+"""Comprehensive IoU/table-similarity test suite.
 
-Covers compare_dataframes_iou, normalize_dataframe_values, compare_csv, and
-make_csv_evaluator_no_gt with edge cases under the current design, where
-column-schema harmonization is expected to happen before IoU.
+Covers the exact IoU scorer used for no-GT consensus selection and the softer
+GT-only table similarity scorer used for benchmark tracking.
 """
 
 import json
@@ -20,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Agent.utils import (
     compare_csv,
     compare_dataframes_iou,
+    compare_dataframes_similarity_gt,
     make_csv_evaluator_no_gt,
     normalize_dataframe_values,
 )
@@ -77,7 +77,7 @@ def test_column_name_variations(entries):
     df = gt_to_df(entries[0]["gt_data"])
     c = df.copy()
     c.columns = ["Sale_Date", "Total_Sales_Value"]
-    check("Partial rename (Sold_Date→Sale_Date)", compare_dataframes_iou(df, c), 0.0, 0.1)
+    check("Partial rename with one shared column", compare_dataframes_iou(df, c), 1.0)
 
     # Case 2: full rename
     c2 = df.copy()
@@ -110,7 +110,7 @@ def test_column_order_variations(entries):
     # 2-column reverse
     df = gt_to_df(entries[0]["gt_data"])
     rev = df[df.columns[::-1]]
-    check("2-col reversed order, same names", compare_dataframes_iou(df, rev), 0.0, 0.1)
+    check("2-col reversed order, same names", compare_dataframes_iou(df, rev), 1.0)
 
     # 2-col reverse + rename
     rev2 = rev.copy()
@@ -120,7 +120,7 @@ def test_column_order_variations(entries):
     # 3-column shuffle
     df3 = gt_to_df(entries[1]["gt_data"])
     shuf = df3[["total_revenue", "total_units", "month_start"]]
-    check("3-col shuffled order", compare_dataframes_iou(df3, shuf), 0.0, 0.1)
+    check("3-col shuffled order, same names", compare_dataframes_iou(df3, shuf), 1.0)
 
     # 3-col shuffle + rename
     shuf2 = shuf.copy()
@@ -322,17 +322,15 @@ def test_consensus_evaluator(entries):
     batch_eval = make_csv_evaluator_no_gt()
     df = gt_to_df(entries[2]["gt_data"])
 
-    # 3 candidates: same data, different column names/order
+    # 3 candidates: same data and columns, different row order
     c1 = df.copy()
-    c2 = df.copy()
-    c2.columns = ["store_number", "Total_Revenue"]
-    c3 = df[df.columns[::-1]].copy()
-    c3.columns = ["revenue", "store_id"]
+    c2 = df.iloc[::-1].reset_index(drop=True)
+    c3 = df.sample(frac=1, random_state=7).reset_index(drop=True)
 
     results = [
         {"data_df": c1, "sql_query": "SELECT Store_Number, total_revenue ..."},
-        {"data_df": c2, "sql_query": "SELECT store_number, Total_Revenue ..."},
-        {"data_df": c3, "sql_query": "SELECT total_revenue AS revenue, Store_Number AS store_id ..."},
+        {"data_df": c2, "sql_query": "SELECT Store_Number, total_revenue ..."},
+        {"data_df": c3, "sql_query": "SELECT Store_Number, total_revenue ..."},
     ]
     scores = batch_eval(results, {})
     print(f"  Consensus scores: {[f'{s:.4f}' for s in scores]}")
@@ -355,7 +353,106 @@ def test_consensus_evaluator(entries):
     check("Single candidate → score 1.0", scores3[0], 1.0)
 
 
-# ── 5. Combined stress test ─────────────────────────────────────────────────
+# ── 5. GT-only graded table similarity ──────────────────────────────────────
+
+def test_gt_table_similarity(entries):
+    """GT benchmark scoring should handle semantic table-equivalent outputs."""
+    print("\n" + "=" * 70)
+    print("11. GT TABLE SIMILARITY")
+    print("=" * 70)
+
+    # Case 17: boolean organic flag vs Organic/Non-Organic labels.
+    organic_gt = gt_to_df(entries[16]["gt_data"])
+    organic_candidate = organic_gt.copy()
+    organic_candidate["is_organic"] = organic_candidate["is_organic"].map({
+        "Organic": True,
+        "Non-Organic": False,
+    })
+    check(
+        "Case 17: boolean is_organic vs Organic/Non-Organic",
+        compare_dataframes_similarity_gt(organic_candidate, organic_gt),
+        0.95,
+    )
+
+    organic_zero_one = organic_gt.copy()
+    organic_zero_one["is_organic"] = organic_zero_one["is_organic"].map({
+        "Organic": 1,
+        "Non-Organic": 0,
+    })
+    check(
+        "Case 17: 0/1 is_organic vs Organic/Non-Organic",
+        compare_dataframes_similarity_gt(organic_zero_one, organic_gt),
+        0.95,
+    )
+
+    # Case 11: harmless aliases should remain high.
+    monthly_gt = gt_to_df(entries[10]["gt_data"])
+    monthly_alias = monthly_gt.copy()
+    monthly_alias.columns = ["month", "monthly_revenue"]
+    check(
+        "Case 11: month/monthly_revenue aliases",
+        compare_dataframes_similarity_gt(monthly_alias, monthly_gt),
+        0.90,
+    )
+
+    # Case 12: long binary grouped table vs wide promo/non-promo GT.
+    promo_gt = gt_to_df(entries[11]["gt_data"])
+    long_rows = []
+    for _, row in promo_gt.iterrows():
+        long_rows.append({
+            "month": row["month_start"],
+            "On_Promo": True,
+            "total_revenue": row["promo_revenue"],
+        })
+        long_rows.append({
+            "month": row["month_start"],
+            "On_Promo": False,
+            "total_revenue": row["non_promo_revenue"],
+        })
+    promo_long = pd.DataFrame(long_rows)
+    check(
+        "Case 12: long promo flag table vs wide GT",
+        compare_dataframes_similarity_gt(promo_long, promo_gt),
+        0.90,
+    )
+
+    # Case 15: values correct but numeric columns swapped by output order.
+    price_gt = gt_to_df(entries[14]["gt_data"])
+    price_candidate = price_gt[["brand", "total_units", "avg_realized_unit_price"]].copy()
+    price_candidate.columns = ["brand", "total_units_sold", "avg_selling_price"]
+    check(
+        "Case 15: swapped numeric columns aligned by values",
+        compare_dataframes_similarity_gt(price_candidate, price_gt),
+        0.90,
+    )
+
+    missing_col = promo_gt[["month_start", "promo_revenue"]].copy()
+    check(
+        "Missing one important column gives partial score",
+        compare_dataframes_similarity_gt(missing_col, promo_gt),
+        0.45,
+        0.90,
+    )
+
+    wrong_values = monthly_gt.copy()
+    wrong_values["total_revenue"] = wrong_values["total_revenue"] * 0.5
+    check(
+        "Wrong numeric aggregates lower the score",
+        compare_dataframes_similarity_gt(wrong_values, monthly_gt),
+        0.10,
+        0.85,
+    )
+
+    unrelated = pd.DataFrame({"x": ["a", "b"], "y": [1, 2]})
+    check(
+        "Completely unrelated table remains near zero",
+        compare_dataframes_similarity_gt(unrelated, monthly_gt),
+        0.0,
+        0.25,
+    )
+
+
+# ── 6. Combined stress test ─────────────────────────────────────────────────
 
 def test_combined_stress(entries):
     """Everything at once: different names, order, case, value formats."""
@@ -373,7 +470,7 @@ def test_combined_stress(entries):
     stress["REVENUE"] = stress["REVENUE"].round(2)  # realistic SQL precision
     stress = stress.iloc[::-1].reset_index(drop=True)  # reverse rows
 
-    score = compare_dataframes_iou(df, stress)
+    score = compare_dataframes_similarity_gt(df, stress)
     check("Max stress: reversed cols + renamed + timestamps + round(2) + reversed rows", score, 0.90)
 
     # Extreme: round(1) creates >0.01 gaps — should still get partial credit
@@ -383,8 +480,8 @@ def test_combined_stress(entries):
     stress_extreme["REVENUE"] = stress_extreme["REVENUE"].round(1)
     stress_extreme = stress_extreme.iloc[::-1].reset_index(drop=True)
 
-    score_ext = compare_dataframes_iou(df, stress_extreme)
-    check("Extreme stress with round(1) — partial match expected", score_ext, 0.0, 0.5)
+    score_ext = compare_dataframes_similarity_gt(df, stress_extreme)
+    check("Extreme stress with round(1) — partial match expected", score_ext, 0.4, 1.0)
 
     # 3-column version (realistic precision)
     df3 = gt_to_df(entries[1]["gt_data"])
@@ -395,7 +492,7 @@ def test_combined_stress(entries):
     stress3["Units"] = stress3["Units"].astype(float)
     stress3 = stress3.sample(frac=1, random_state=99).reset_index(drop=True)
 
-    score3 = compare_dataframes_iou(df3, stress3)
+    score3 = compare_dataframes_similarity_gt(df3, stress3)
     check("3-col stress: shuffled + renamed + timestamps + round(2) + shuffled rows", score3, 0.90)
 
 
@@ -414,6 +511,7 @@ if __name__ == "__main__":
     test_normalize()
     test_compare_csv(entries)
     test_consensus_evaluator(entries)
+    test_gt_table_similarity(entries)
     test_combined_stress(entries)
 
     print("\n" + "=" * 70)

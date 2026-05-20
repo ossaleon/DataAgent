@@ -1,0 +1,232 @@
+# Extended deterministic screening DOE for nemotron-3-nano:4b.
+#
+# Ollama publishes temperature=1.0 and top_p=1.0 for nemotron-3-nano:4b.
+# top_k=64 is a controlled default used to keep this DOE comparable with the
+# other local Ollama models.
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 1.0
+    top_p_max: 1.0
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 1.0
+    top_p_max: 1.0
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 1.0
+    top_p_max: 1.0
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: lookup_baseline
+    vary_step: lookup_sales_data
+    axis: baseline
+    description: Nemotron baseline for lookup-step comparisons.
+    steps: {}
+  - name: lookup_temperature_low
+    vary_step: lookup_sales_data
+    axis: temperature_low
+    description: Lower lookup temperature.
+    steps:
+      lookup_sales_data: {temp_min: 0.5, temp_max: 0.5}
+  - name: lookup_temperature_high
+    vary_step: lookup_sales_data
+    axis: temperature_high
+    description: Higher lookup temperature.
+    steps:
+      lookup_sales_data: {temp_min: 1.3, temp_max: 1.3}
+  - name: lookup_top_p_low
+    vary_step: lookup_sales_data
+    axis: top_p_low
+    description: Lower lookup nucleus sampling.
+    steps:
+      lookup_sales_data: {top_p_min: 0.80, top_p_max: 0.80}
+  - name: lookup_top_p_high
+    vary_step: lookup_sales_data
+    axis: top_p_high
+    description: Explicit lookup top-p high setting at the Ollama baseline.
+    steps:
+      lookup_sales_data: {top_p_min: 1.00, top_p_max: 1.00}
+  - name: lookup_top_k_low
+    vary_step: lookup_sales_data
+    axis: top_k_low
+    description: Lower lookup top-k.
+    steps:
+      lookup_sales_data: {top_k_min: 20, top_k_max: 20}
+  - name: lookup_top_k_high
+    vary_step: lookup_sales_data
+    axis: top_k_high
+    description: Higher lookup top-k.
+    steps:
+      lookup_sales_data: {top_k_min: 128, top_k_max: 128}
+  - name: lookup_max_tokens_low
+    vary_step: lookup_sales_data
+    axis: max_tokens_low
+    description: Lower but usable lookup generation budget.
+    steps:
+      lookup_sales_data: {max_tokens: 3000}
+  - name: lookup_best_of_n
+    vary_step: lookup_sales_data
+    axis: best_of_n
+    description: Best-of-3 lookup at baseline sampling settings.
+    steps:
+      lookup_sales_data: {n: 3}
+  - name: lookup_cot_n2
+    vary_step: lookup_sales_data
+    axis: cot_n2
+    description: Two-pass lookup refinement.
+    steps:
+      lookup_sales_data: {cot_n: 2}
+
+  - name: analysis_baseline
+    vary_step: analyzing_data
+    axis: baseline
+    description: Nemotron baseline for analysis-step comparisons.
+    steps: {}
+  - name: analysis_temperature_low
+    vary_step: analyzing_data
+    axis: temperature_low
+    description: Lower analysis temperature.
+    steps:
+      analyzing_data: {temp_min: 0.5, temp_max: 0.5}
+  - name: analysis_temperature_high
+    vary_step: analyzing_data
+    axis: temperature_high
+    description: Higher analysis temperature.
+    steps:
+      analyzing_data: {temp_min: 1.3, temp_max: 1.3}
+  - name: analysis_top_p_low
+    vary_step: analyzing_data
+    axis: top_p_low
+    description: Lower analysis nucleus sampling.
+    steps:
+      analyzing_data: {top_p_min: 0.80, top_p_max: 0.80}
+  - name: analysis_top_p_high
+    vary_step: analyzing_data
+    axis: top_p_high
+    description: Explicit analysis top-p high setting at the Ollama baseline.
+    steps:
+      analyzing_data: {top_p_min: 1.00, top_p_max: 1.00}
+  - name: analysis_top_k_low
+    vary_step: analyzing_data
+    axis: top_k_low
+    description: Lower analysis top-k.
+    steps:
+      analyzing_data: {top_k_min: 20, top_k_max: 20}
+  - name: analysis_top_k_high
+    vary_step: analyzing_data
+    axis: top_k_high
+    description: Higher analysis top-k.
+    steps:
+      analyzing_data: {top_k_min: 128, top_k_max: 128}
+  - name: analysis_max_tokens_low
+    vary_step: analyzing_data
+    axis: max_tokens_low
+    description: Lower but usable analysis generation budget.
+    steps:
+      analyzing_data: {max_tokens: 5000}
+  - name: analysis_best_of_n
+    vary_step: analyzing_data
+    axis: best_of_n
+    description: Best-of-2 analysis at baseline sampling settings.
+    steps:
+      analyzing_data: {n: 2}
+  - name: analysis_cot_n2
+    vary_step: analyzing_data
+    axis: cot_n2
+    description: Two-pass analysis refinement.
+    steps:
+      analyzing_data: {cot_n: 2}
+
+  - name: visualization_baseline
+    vary_step: create_visualization
+    axis: baseline
+    description: Nemotron baseline for visualization-step comparisons.
+    steps: {}
+  - name: visualization_temperature_low
+    vary_step: create_visualization
+    axis: temperature_low
+    description: Lower visualization temperature.
+    steps:
+      create_visualization: {temp_min: 0.5, temp_max: 0.5}
+  - name: visualization_temperature_high
+    vary_step: create_visualization
+    axis: temperature_high
+    description: Higher visualization temperature.
+    steps:
+      create_visualization: {temp_min: 1.3, temp_max: 1.3}
+  - name: visualization_top_p_low
+    vary_step: create_visualization
+    axis: top_p_low
+    description: Lower visualization nucleus sampling.
+    steps:
+      create_visualization: {top_p_min: 0.80, top_p_max: 0.80}
+  - name: visualization_top_p_high
+    vary_step: create_visualization
+    axis: top_p_high
+    description: Explicit visualization top-p high setting at the Ollama baseline.
+    steps:
+      create_visualization: {top_p_min: 1.00, top_p_max: 1.00}
+  - name: visualization_top_k_low
+    vary_step: create_visualization
+    axis: top_k_low
+    description: Lower visualization top-k.
+    steps:
+      create_visualization: {top_k_min: 20, top_k_max: 20}
+  - name: visualization_top_k_high
+    vary_step: create_visualization
+    axis: top_k_high
+    description: Higher visualization top-k.
+    steps:
+      create_visualization: {top_k_min: 128, top_k_max: 128}
+  - name: visualization_max_tokens_low
+    vary_step: create_visualization
+    axis: max_tokens_low
+    description: Lower but usable visualization generation budget.
+    steps:
+      create_visualization: {max_tokens: 5000}
+  - name: visualization_best_of_n
+    vary_step: create_visualization
+    axis: best_of_n
+    description: Best-of-2 visualization at baseline sampling settings.
+    steps:
+      create_visualization: {n: 2}
+  - name: visualization_cot_n2
+    vary_step: create_visualization
+    axis: cot_n2
+    description: Two-pass visualization refinement.
+    steps:
+      create_visualization: {cot_n: 2}
