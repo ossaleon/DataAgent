@@ -99,6 +99,8 @@ def run_benchmark(
     enable_codecarbon: bool = False,
     max_prompts: Optional[int] = None,
     config_label: Optional[str] = None,
+    vary_step: Optional[str] = None,
+    repetition: Optional[str] = None,
 ) -> pd.DataFrame:
     """Run benchmark against a unified GT dataset.
 
@@ -156,6 +158,8 @@ def run_benchmark(
         )
 
     results = []
+    _SEP  = "=" * 62
+    _SEP2 = "-" * 62
 
     for idx, entry in enumerate(entries):
         prompt = entry["prompt"]
@@ -163,11 +167,19 @@ def run_benchmark(
         has_vis = entry.get("gt_chart_config") is not None
         has_data = entry.get("gt_data") is not None
 
-        print(f"\n{'='*60}")
-        print(f"TEST CASE {idx + 1}/{len(entries)}")
-        print(f"{'='*60}")
-        print(f"Prompt: {prompt}")
-        print(f"Has data GT: {has_data} | Has vis GT: {has_vis}")
+        print(f"\n{_SEP}")
+        print(f"  PROMPT {idx + 1}/{len(entries)}")
+        if repetition is not None:
+            print(f"  Repetition :  {repetition}")
+        print(f"  Model      :  {config.model}  [{config.provider}]")
+        if vary_step is not None:
+            print(f"  Vary step  :  {vary_step}")
+        if config_label is not None:
+            print(f"  Config     :  {config_label}")
+        print(f"  GT         :  data={has_data}  vis={has_vis}")
+        print(_SEP2)
+        print(f"  {prompt}")
+        print(_SEP)
 
         # Configure step-level eval functions for this entry.
         # GT eval functions are used for tracking/logging only (gt_eval_fn).

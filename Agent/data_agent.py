@@ -838,13 +838,11 @@ class SalesDataAgent:
                     except Exception as e:
                         print(f"[{step_name}] Column standardization warning: {e}")
 
-                _llm_invoke_time += self._run_gt_eval(step_name, config, result, state)
+                self._run_gt_eval(step_name, config, result, state)
                 eval_score = None
                 if config.eval_fn:
                     try:
-                        _t = time.perf_counter()
-                        eval_score = config.eval_fn(result, state)
-                        _llm_invoke_time += time.perf_counter() - _t
+                        eval_score = config.eval_fn(result, state, callbacks=[_llm_acc])
                     except Exception:
                         pass
                 elif config.batch_eval_fn:
@@ -855,7 +853,7 @@ class SalesDataAgent:
                         eval_score = batch_scores[0] if batch_scores else None
                     except Exception:
                         pass
-                # Add callback-accumulated LLM invoke time (core_fn + CoT + standardize)
+                # Add callback-accumulated LLM invoke time (core_fn + CoT + standardize + no-GT judges)
                 _llm_invoke_time += _llm_acc.total_time
                 _step_elapsed = time.perf_counter() - _step_t0
                 existing_timings = state.get("_step_timings_sec") or {}
@@ -946,9 +944,7 @@ class SalesDataAgent:
 
                         if config.eval_fn:
                             try:
-                                _t = time.perf_counter()
-                                score = config.eval_fn(result, state)
-                                _llm_invoke_time += time.perf_counter() - _t
+                                score = config.eval_fn(result, state, callbacks=[_llm_acc])
                             except Exception as eval_err:
                                 print(f"  Run {i + 1}/{n}: eval error: {eval_err}")
                                 score = 0.0
@@ -1025,8 +1021,8 @@ class SalesDataAgent:
                 best_result["_all_scores"] = scores
                 print(f"[{step_name}] Selected run {best_idx + 1}/{n} (score={scores[best_idx]:.3f})")
 
-            _llm_invoke_time += self._run_gt_eval(step_name, config, best_result, state, all_results=results)
-            # Add callback-accumulated LLM invoke time (core_fn + CoT + standardize across all candidates)
+            self._run_gt_eval(step_name, config, best_result, state, all_results=results)
+            # Add callback-accumulated LLM invoke time (core_fn + CoT + standardize + no-GT judges across all candidates)
             _llm_invoke_time += _llm_acc.total_time
             _step_elapsed = time.perf_counter() - _step_t0
             existing_timings = state.get("_step_timings_sec") or {}

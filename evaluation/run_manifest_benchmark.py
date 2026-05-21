@@ -354,6 +354,7 @@ def run_manifest_benchmark(
     max_configs: Optional[int],
     max_prompts: Optional[int],
     resume: bool,
+    repetition: Optional[str] = None,
 ) -> pd.DataFrame:
     manifest = _load_manifest(manifest_path)
     save_path = Path(save_dir)
@@ -414,6 +415,8 @@ def run_manifest_benchmark(
             enable_codecarbon=enable_codecarbon,
             max_prompts=max_prompts,
             config_label=spec["name"],
+            vary_step=spec.get("vary_step"),
+            repetition=repetition,
         )
         df.to_csv(result_csv, index=False)
         print(f"[config {config_id:04d}] Done in {time.perf_counter() - start:.1f}s")
@@ -437,6 +440,7 @@ def main() -> None:
     parser.add_argument("--max-prompts", type=int, default=None)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--no-codecarbon", action="store_true", help="Disable CodeCarbon; enabled by default")
+    parser.add_argument("--repetition", default=None, help="Repetition label shown in prompt header, e.g. '1/3'")
 
     args = parser.parse_args()
     run_manifest_benchmark(
@@ -452,6 +456,7 @@ def main() -> None:
         max_configs=args.max_configs,
         max_prompts=args.max_prompts,
         resume=args.resume,
+        repetition=args.repetition,
     )
 
 

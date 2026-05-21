@@ -173,6 +173,7 @@ def _run_phase(
             enable_codecarbon=enable_codecarbon,
             max_prompts=max_prompts,
             config_label=f"config {config_idx + 1}/{n_configs}",
+            vary_step=vary_step,
         )
         elapsed = time.perf_counter() - t_start
 

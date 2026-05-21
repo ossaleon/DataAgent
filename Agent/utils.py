@@ -550,6 +550,7 @@ def judge_analysis(
     provider: str = "openai",
     ollama_url: str = "http://localhost:11434",
     openai_api_key: Optional[str] = None,
+    callbacks: Optional[List] = None,
 ) -> Tuple[float, Dict]:
     """Evaluate data analysis quality using LLM-as-a-Judge.
 
@@ -611,7 +612,8 @@ Return ONLY valid JSON:
                 model=judge_model,
                 temperature=0.2,
                 api_key=api_key,
-                max_tokens=1000
+                max_tokens=1000,
+                callbacks=callbacks or [],
             )
         else:
             from langchain_ollama import ChatOllama
@@ -621,6 +623,7 @@ Return ONLY valid JSON:
                 base_url=ollama_url,
                 max_tokens=1000,
                 client_kwargs={"timeout": _OLLAMA_REQUEST_TIMEOUT},
+                callbacks=callbacks or [],
             )
 
         # Truncate data if too long
@@ -1915,7 +1918,7 @@ def make_text_evaluator_no_gt(
     Returns:
         Function with signature (result: Dict, state: Dict) -> float
     """
-    def eval_fn(result: Dict, state: Dict) -> float:
+    def eval_fn(result: Dict, state: Dict, callbacks: Optional[List] = None) -> float:
         answers = result.get("answer", [])
         if not answers:
             return 0.0
@@ -1934,6 +1937,7 @@ def make_text_evaluator_no_gt(
                 provider=provider,
                 ollama_url=ollama_url,
                 openai_api_key=openai_api_key,
+                callbacks=callbacks,
             )
             return score
         except Exception as e:
@@ -2059,6 +2063,7 @@ def judge_visualization_no_gt(
     openai_api_key: Optional[str] = None,
     ollama_url: str = "http://localhost:11434",
     temperature: float = 0.2,
+    callbacks: Optional[List] = None,
 ) -> Tuple[float, Dict]:
     """Evaluate visualization quality without ground truth using LLM-as-a-Judge.
 
@@ -2085,7 +2090,8 @@ def judge_visualization_no_gt(
                 raise ValueError("OpenAI API key not provided and OPENAI_API_KEY env var not set")
             judge_llm = ChatOpenAI(
                 model=judge_model, temperature=temperature,
-                api_key=api_key, max_tokens=1000
+                api_key=api_key, max_tokens=1000,
+                callbacks=callbacks or [],
             )
         else:
             from langchain_ollama import ChatOllama
@@ -2093,6 +2099,7 @@ def judge_visualization_no_gt(
                 model=judge_model, temperature=temperature,
                 base_url=ollama_url, max_tokens=1000,
                 client_kwargs={"timeout": _OLLAMA_REQUEST_TIMEOUT},
+                callbacks=callbacks or [],
             )
 
         max_code_len = 2000
@@ -2134,7 +2141,7 @@ def make_vis_evaluator_no_gt(
     Returns:
         Function with signature (result: Dict, state: Dict) -> float
     """
-    def eval_fn(result: Dict, state: Dict) -> float:
+    def eval_fn(result: Dict, state: Dict, callbacks: Optional[List] = None) -> float:
         chart_config = result.get("chart_config")
         answers = result.get("answer", [])
 
@@ -2168,6 +2175,7 @@ def make_vis_evaluator_no_gt(
                 provider=provider,
                 openai_api_key=openai_api_key,
                 ollama_url=ollama_url,
+                callbacks=callbacks,
             )
             for criterion, detail in evaluation.items():
                 if not isinstance(detail, dict):
