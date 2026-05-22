@@ -21,6 +21,8 @@ class StepConfig:
         max_tokens: Maximum tokens for LLM generation (default 2000)
         top_p_min: Top-p sampling parameter, lower bound (default 1.0)
         top_k_min: Top-k sampling parameter, lower bound (default None, skipped for OpenAI)
+        repeat_penalty: Ollama repetition penalty strength (default None)
+        repeat_last_n: Ollama repetition lookback window (default None)
         num_beams: Beam search width; 1 = greedy/disabled (default 1, skipped for OpenAI)
         no_repeat_ngram_size: Prevent repeating n-grams of this size (default None, skipped for OpenAI)
         eval_fn: Callable that scores a result, signature: (result: Dict, state: State) -> float
@@ -43,6 +45,8 @@ class StepConfig:
     top_p_max: float = 1.0
     top_k_min: Optional[int] = None  # Top-k sampling; skipped for OpenAI provider
     top_k_max: Optional[int] = None
+    repeat_penalty: Optional[float] = None  # Ollama repetition penalty; skipped for OpenAI provider
+    repeat_last_n: Optional[int] = None  # Ollama penalty lookback; skipped for OpenAI provider
     num_beams: int = 1  # Beam search width (1 = greedy/disabled); skipped for OpenAI provider
     no_repeat_ngram_size: Optional[int] = None  # Prevent repeating n-grams of this size; skipped for OpenAI provider
 
@@ -116,6 +120,7 @@ class StepConfig:
         valid_keys = {
             'n', 'bon_param', 'temp_min', 'temp_max', 'max_tokens',
             'top_p_min', 'top_p_max', 'top_k_min', 'top_k_max',
+            'repeat_penalty', 'repeat_last_n',
             'num_beams', 'no_repeat_ngram_size',
             'provider', 'model', 'ollama_url',
             'use_cache', 'cache_mode', 'enabled', 'step_name', 'cot_n'

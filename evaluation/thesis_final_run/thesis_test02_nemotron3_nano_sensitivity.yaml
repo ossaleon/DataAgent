@@ -1,0 +1,50 @@
+# Thesis Test 02 final rerun: static one-factor sensitivity for nemotron-3-nano:4b.
+# This manifest is kept ready even though the current Test 02 document runs
+# the Gemma and Mistral comparison set.
+
+defaults:
+  lookup_sales_data: &nemotron_step
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 1.0
+    top_p_max: 1.0
+    top_k_min: 64
+    top_k_max: 64
+    repeat_penalty: 1.1
+    repeat_last_n: 64
+    max_tokens: 5000
+    use_cache: false
+  analyzing_data:
+    <<: *nemotron_step
+    max_tokens: 7000
+  create_visualization:
+    <<: *nemotron_step
+    max_tokens: 7000
+
+one_factor_sweeps:
+  - &nemotron_sweep
+    name_prefix: lookup
+    vary_step: lookup_sales_data
+    parameters: &nemotron_parameters
+      temperature:
+        fields: [temp_min, temp_max]
+        values: [0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 1.05, 1.10, 1.20, 1.30]
+      top_p:
+        fields: [top_p_min, top_p_max]
+        values: [0.70, 0.75, 0.80, 0.85, 0.88, 0.90, 0.92, 0.94, 0.95, 0.98]
+      top_k:
+        fields: [top_k_min, top_k_max]
+        values: [16, 20, 24, 32, 40, 48, 56, 80, 96, 128]
+      repeat_penalty:
+        values: [0.90, 0.95, 1.00, 1.03, 1.06, 1.08, 1.12, 1.15, 1.20, 1.30]
+      repeat_last_n:
+        values: [16, 24, 32, 40, 48, 56, 80, 96, 128, 256]
+  - <<: *nemotron_sweep
+    name_prefix: analysis
+    vary_step: analyzing_data
+  - <<: *nemotron_sweep
+    name_prefix: visualization
+    vary_step: create_visualization

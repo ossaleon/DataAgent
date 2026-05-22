@@ -30,7 +30,8 @@ class State(TypedDict):
     _step_eval_scores: NotRequired[Optional[Dict]]
     # Ground truth scores per step (set by _run_gt_eval, propagated to final result)
     _gt_scores_per_step: NotRequired[Optional[Dict]]
+    # CoT refinement depth and convergence diagnostics per step
+    _cot_diagnostics_per_step: NotRequired[Optional[Dict]]
     # Per-step LLM call profiling (accumulated across steps)
     _step_llm_timings_sec: NotRequired[Optional[Dict]]
     _step_llm_energy: NotRequired[Optional[Dict]]
-

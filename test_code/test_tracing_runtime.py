@@ -89,6 +89,9 @@ def make_agent(tracer=None):
     agent._create_llm = lambda **kwargs: FakeLLM(temperature=kwargs.get("temperature", 0.1))
     agent.cache = types.SimpleNamespace(save_run=lambda **kwargs: None)
     agent.agent_config = types.SimpleNamespace(
+        provider="openai",
+        model="test-model",
+        ollama_url="http://localhost:11434",
         get_step_config=lambda name: StepConfig(step_name=name, use_cache=False),
         to_dict=lambda: {},
     )
@@ -151,7 +154,7 @@ def test_best_of_n_and_cot_are_traced():
         temp_min=0.1,
         temp_max=0.2,
         cot_n=2,
-        eval_fn=lambda result, state: result["_run_idx"],
+        eval_fn=lambda result, state, **_kwargs: result["_run_idx"],
     )
     call_counter = {"count": 0}
 
@@ -170,6 +173,27 @@ def test_best_of_n_and_cot_are_traced():
     assert result["_best_idx"] == 1
     step_span = next(span for span in tracer.spans if span.name == "data_analysis")
     assert step_span.attributes["selected_candidate_index"] == 1
+
+
+def test_cot_diagnostics_record_convergence_early_stop():
+    agent = make_agent()
+    config = StepConfig(step_name="analyzing_data", use_cache=False, cot_n=4)
+
+    def core_fn(state, llm, trace_helper=None):
+        return {
+            **state,
+            "answer": ["stable-analysis"],
+        }
+
+    result = agent._execute_step_with_config("analyzing_data", {"prompt": "hello", "answer": []}, core_fn, config)
+    diagnostics = result["_cot_diagnostics_per_step"]["analyzing_data"]
+
+    assert diagnostics["requested_iterations"] == 4
+    assert diagnostics["attempted_iterations"] == 2
+    assert diagnostics["executed_iterations"] == 2
+    assert diagnostics["early_stop"] is True
+    assert diagnostics["stop_reason"] == "converged"
+    assert diagnostics["final_similarity"] == 1.0
 
 
 def test_cache_hit_is_traced_and_skips_core_execution():
@@ -543,6 +567,8 @@ def test_create_llm_uses_overrides_and_attaches_callbacks(monkeypatch):
         max_tokens=512,
         top_p=0.8,
         top_k=20,
+        repeat_penalty=1.2,
+        repeat_last_n=128,
         callbacks=[cb],
         provider="ollama",
         model="llama3.2:3b",
@@ -554,3 +580,5 @@ def test_create_llm_uses_overrides_and_attaches_callbacks(monkeypatch):
     assert captured["base_url"] == "http://override-ollama:11434"
     assert captured["callbacks"] == [cb]
     assert captured["top_k"] == 20
+    assert captured["repeat_penalty"] == 1.2
+    assert captured["repeat_last_n"] == 128

@@ -316,6 +316,8 @@ class SearchSpace:
             # Non-OpenAI parameters: always present in record (None for OpenAI)
             row[f"{p}.top_k_min"] = sc.top_k_min
             row[f"{p}.top_k_max"] = sc.top_k_max
+            row[f"{p}.repeat_penalty"] = sc.repeat_penalty
+            row[f"{p}.repeat_last_n"] = sc.repeat_last_n
             row[f"{p}.num_beams"] = sc.num_beams
             row[f"{p}.no_repeat_ngram_size"] = sc.no_repeat_ngram_size
         return row

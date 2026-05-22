@@ -64,6 +64,8 @@ _TUNABLE_PARAMS = [
     ("top_p_max", float),
     ("top_k_min", int),
     ("top_k_max", int),
+    ("repeat_penalty", float),
+    ("repeat_last_n", int),
     ("max_tokens", int),
     ("cot_n", int),
 ]

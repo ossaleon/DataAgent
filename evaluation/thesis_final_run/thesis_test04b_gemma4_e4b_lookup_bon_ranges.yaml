@@ -1,0 +1,109 @@
+# Thesis Test 04b: Gemma E4B lookup Best-of-N range check.
+#
+# Purpose:
+#   Disentangle whether lookup Best-of-N gains come from having two candidates
+#   or from the temperature range / first candidate value.
+#
+# Use with:
+#   --model gemma4:e4b
+#   --dataset evaluation/benchmark_dataset_gemma4_thesis_10.json
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: lookup_baseline
+    vary_step: lookup_sales_data
+    axis: baseline
+    description: Lookup baseline at Gemma E4B recommended sampling.
+    steps: {}
+
+  - name: lookup_temp_0_3
+    vary_step: lookup_sales_data
+    axis: static_temperature
+    description: Static lookup temperature 0.3 to compare against wide BoN first candidate.
+    steps:
+      lookup_sales_data: {temp_min: 0.3, temp_max: 0.3}
+
+  - name: lookup_temp_0_6
+    vary_step: lookup_sales_data
+    axis: static_temperature
+    description: Static lookup temperature 0.6 to compare against medium BoN first candidate.
+    steps:
+      lookup_sales_data: {temp_min: 0.6, temp_max: 0.6}
+
+  - name: lookup_temp_0_8
+    vary_step: lookup_sales_data
+    axis: static_temperature
+    description: Static lookup temperature 0.8 to compare against narrow BoN first candidate.
+    steps:
+      lookup_sales_data: {temp_min: 0.8, temp_max: 0.8}
+
+  - name: lookup_bon_temp_n2_narrow
+    vary_step: lookup_sales_data
+    axis: best_of_n_range
+    description: Best-of-2 lookup with narrow temperature range 0.8 to 1.0.
+    steps:
+      lookup_sales_data: {n: 2, bon_param: temperature, temp_min: 0.8, temp_max: 1.0}
+
+  - name: lookup_bon_temp_n2_medium
+    vary_step: lookup_sales_data
+    axis: best_of_n_range
+    description: Best-of-2 lookup with medium temperature range 0.6 to 1.0, matching Test 04 n=2.
+    steps:
+      lookup_sales_data: {n: 2, bon_param: temperature, temp_min: 0.6, temp_max: 1.0}
+
+  - name: lookup_bon_temp_n2_wide
+    vary_step: lookup_sales_data
+    axis: best_of_n_range
+    description: Best-of-2 lookup with wide temperature range 0.3 to 1.0.
+    steps:
+      lookup_sales_data: {n: 2, bon_param: temperature, temp_min: 0.3, temp_max: 1.0}
+
+  - name: lookup_cot_n2
+    vary_step: lookup_sales_data
+    axis: cot_n2
+    description: Two-pass lookup refinement reference from Test 04.
+    steps:
+      lookup_sales_data: {cot_n: 2}

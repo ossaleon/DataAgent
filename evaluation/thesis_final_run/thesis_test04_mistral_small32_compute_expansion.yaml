@@ -1,0 +1,52 @@
+# Thesis Test 04 final rerun: CoT depth ladder for mistral-small3.2:24b.
+#
+# Lookup and visualization are varied one at a time. Analysis stays fixed.
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    use_cache: false
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    use_cache: false
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    use_cache: false
+
+configs:
+  - {name: lookup_cot_n1, vary_step: lookup_sales_data, axis: cot_depth, description: Lookup baseline with one initial generation, steps: {}}
+  - {name: lookup_cot_n2, vary_step: lookup_sales_data, axis: cot_depth, description: Lookup CoT depth two, steps: {lookup_sales_data: {cot_n: 2}}}
+  - {name: lookup_cot_n3, vary_step: lookup_sales_data, axis: cot_depth, description: Lookup CoT depth three, steps: {lookup_sales_data: {cot_n: 3}}}
+  - {name: lookup_cot_n4, vary_step: lookup_sales_data, axis: cot_depth, description: Lookup CoT depth four, steps: {lookup_sales_data: {cot_n: 4}}}
+
+  - {name: visualization_cot_n1, vary_step: create_visualization, axis: cot_depth, description: Visualization baseline with one initial generation, steps: {}}
+  - {name: visualization_cot_n2, vary_step: create_visualization, axis: cot_depth, description: Visualization CoT depth two, steps: {create_visualization: {cot_n: 2}}}
+  - {name: visualization_cot_n3, vary_step: create_visualization, axis: cot_depth, description: Visualization CoT depth three, steps: {create_visualization: {cot_n: 3}}}
+  - {name: visualization_cot_n4, vary_step: create_visualization, axis: cot_depth, description: Visualization CoT depth four, steps: {create_visualization: {cot_n: 4}}}

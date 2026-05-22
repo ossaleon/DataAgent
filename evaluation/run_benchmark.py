@@ -93,6 +93,10 @@ def run_benchmark(
     n: int = 1,
     judge_model: Optional[str] = None,
     judge_provider: Optional[str] = None,
+    gt_judge_model: Optional[str] = None,
+    gt_judge_provider: Optional[str] = None,
+    no_gt_judge_model: Optional[str] = None,
+    no_gt_judge_provider: Optional[str] = None,
     save_dir: str = "./evaluation/results",
     data_dir: Optional[str] = None,
     save_execution_artifacts: bool = False,
@@ -113,12 +117,19 @@ def run_benchmark(
         config_path: Optional path to run_config.yaml for base AgentConfig.
             Ignored when agent_config is provided.
         n: Best-of-N per step. Ignored when agent_config is provided.
-        judge_model: Model for LLM-as-judge evaluations.
-            Defaults to agent_config.model when agent_config is provided, otherwise
-            gpt-4o-mini.
-        judge_provider: Provider for judge model.
-            Defaults to agent_config.provider when agent_config is provided, otherwise
-            openai.
+        judge_model: Legacy alias for ``gt_judge_model``.
+        judge_provider: Legacy alias for ``gt_judge_provider``.
+        gt_judge_model: Model for ground-truth text and visualization scoring.
+            Defaults to the legacy judge model when supplied, then the agent
+            model.
+        gt_judge_provider: Provider for the ground-truth judge.
+            Defaults to the legacy judge provider when supplied, then the
+            agent provider.
+        no_gt_judge_model: Model for no-GT analysis and visualization scoring
+            used during local selection/diagnostics. Defaults to the tested
+            agent model so benchmark judging does not change real-run behavior.
+        no_gt_judge_provider: Provider for the no-GT judge. Defaults to the
+            tested agent provider.
         save_dir: Directory to save results CSV.
 
     Returns:
@@ -156,6 +167,15 @@ def run_benchmark(
             provider=judge_provider,
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
         )
+
+    # GT judging is an offline measurement concern. No-GT judging is part of
+    # agent selection behavior, so it follows the tested agent by default.
+    # ``judge_*`` remains a compatibility alias for older benchmark commands
+    # that configured only one judge pair.
+    effective_gt_judge_model = gt_judge_model or judge_model or config.model
+    effective_gt_judge_provider = gt_judge_provider or judge_provider or config.provider
+    effective_no_gt_judge_model = no_gt_judge_model or config.model
+    effective_no_gt_judge_provider = no_gt_judge_provider or config.provider
 
     results = []
     _SEP  = "=" * 62
@@ -207,12 +227,12 @@ def run_benchmark(
                 config.analyzing_data.temp_max = 0.7
             config.analyzing_data.gt_eval_fn = make_text_evaluator_gt(
                 ground_truth_text=entry["gt_analysis"],
-                judge_model=judge_model,
-                provider=judge_provider,
+                judge_model=effective_gt_judge_model,
+                provider=effective_gt_judge_provider,
             )
             config.analyzing_data.eval_fn = make_text_evaluator_no_gt(
-                judge_model=judge_model,
-                provider=judge_provider,
+                judge_model=effective_no_gt_judge_model,
+                provider=effective_no_gt_judge_provider,
                 ollama_url=config.ollama_url,
                 openai_api_key=config.openai_api_key,
             )
@@ -226,12 +246,12 @@ def run_benchmark(
                 ground_truth_config=entry["gt_chart_config"],
                 ground_truth_code=entry.get("gt_chart_code", ""),
                 explicit_requirements=entry.get("explicit_requirements"),
-                judge_model=judge_model,
-                provider=judge_provider,
+                judge_model=effective_gt_judge_model,
+                provider=effective_gt_judge_provider,
             )
             config.create_visualization.eval_fn = make_vis_evaluator_no_gt(
-                judge_model=judge_model,
-                provider=judge_provider,
+                judge_model=effective_no_gt_judge_model,
+                provider=effective_no_gt_judge_provider,
                 ollama_url=config.ollama_url,
                 openai_api_key=config.openai_api_key,
             )
@@ -313,6 +333,25 @@ def run_benchmark(
         analysis_selection = _selection_metrics("analyzing_data")
         vis_selection = _selection_metrics("create_visualization")
 
+        cot_diagnostics = result.get("_cot_diagnostics_per_step", {}) or {}
+
+        def _cot_metrics(step_name: str):
+            info = cot_diagnostics.get(step_name, {}) or {}
+            similarities = info.get("similarities") or []
+            return {
+                "requested_iterations": info.get("requested_iterations"),
+                "attempted_iterations": info.get("attempted_iterations"),
+                "executed_iterations": info.get("executed_iterations"),
+                "early_stop": info.get("early_stop"),
+                "stop_reason": info.get("stop_reason"),
+                "final_similarity": info.get("final_similarity"),
+                "similarities": json.dumps(similarities) if similarities else None,
+            }
+
+        lookup_cot = _cot_metrics("lookup_sales_data")
+        analysis_cot = _cot_metrics("analyzing_data")
+        vis_cot = _cot_metrics("create_visualization")
+
         # Override reasoning with timeout messages when a step or its judge timed out
         _step_errors = result.get("_step_errors") or {}
         _step_to_reasoning = {
@@ -372,6 +411,30 @@ def run_benchmark(
             "vis_selected_candidate_index": vis_selection["selected_candidate_index"],
             "vis_selection_score_margin": vis_selection["selection_score_margin"],
             "vis_candidate_scores": vis_selection["candidate_scores"],
+            # CoT depth diagnostics. ``executed_iterations`` counts completed
+            # iterations including the initial call, so a value lower than
+            # ``requested_iterations`` marks convergence/error early stops.
+            "lookup_cot_requested_iterations": lookup_cot["requested_iterations"],
+            "lookup_cot_attempted_iterations": lookup_cot["attempted_iterations"],
+            "lookup_cot_executed_iterations": lookup_cot["executed_iterations"],
+            "lookup_cot_early_stop": lookup_cot["early_stop"],
+            "lookup_cot_stop_reason": lookup_cot["stop_reason"],
+            "lookup_cot_final_similarity": lookup_cot["final_similarity"],
+            "lookup_cot_similarities": lookup_cot["similarities"],
+            "analysis_cot_requested_iterations": analysis_cot["requested_iterations"],
+            "analysis_cot_attempted_iterations": analysis_cot["attempted_iterations"],
+            "analysis_cot_executed_iterations": analysis_cot["executed_iterations"],
+            "analysis_cot_early_stop": analysis_cot["early_stop"],
+            "analysis_cot_stop_reason": analysis_cot["stop_reason"],
+            "analysis_cot_final_similarity": analysis_cot["final_similarity"],
+            "analysis_cot_similarities": analysis_cot["similarities"],
+            "vis_cot_requested_iterations": vis_cot["requested_iterations"],
+            "vis_cot_attempted_iterations": vis_cot["attempted_iterations"],
+            "vis_cot_executed_iterations": vis_cot["executed_iterations"],
+            "vis_cot_early_stop": vis_cot["early_stop"],
+            "vis_cot_stop_reason": vis_cot["stop_reason"],
+            "vis_cot_final_similarity": vis_cot["final_similarity"],
+            "vis_cot_similarities": vis_cot["similarities"],
             # Per-step total wall-clock timings
             "elapsed_sec":        round(total_time, 2) if total_time is not None else None,
             "lookup_time_sec":    round(step_timings.get("lookup_sales_data", 0), 2),
@@ -437,8 +500,28 @@ if __name__ == "__main__":
     parser.add_argument("dataset", help="Path to benchmark dataset JSON")
     parser.add_argument("--n", type=int, default=1, help="Best-of-N per step (default: 1)")
     parser.add_argument("--config", default=None, help="Path to run_config.yaml")
-    parser.add_argument("--judge-model", default="gpt-4o-mini", help="Judge model (default: gpt-4o-mini)")
-    parser.add_argument("--judge-provider", default="openai", help="Judge provider (default: openai)")
+    parser.add_argument(
+        "--judge-model",
+        default="gpt-4o-mini",
+        help="Legacy alias for --gt-judge-model (default: gpt-4o-mini)",
+    )
+    parser.add_argument(
+        "--judge-provider",
+        default="openai",
+        help="Legacy alias for --gt-judge-provider (default: openai)",
+    )
+    parser.add_argument("--gt-judge-model", default=None, help="GT text/visual judge model")
+    parser.add_argument("--gt-judge-provider", default=None, help="GT text/visual judge provider")
+    parser.add_argument(
+        "--no-gt-judge-model",
+        default=None,
+        help="No-GT selection judge model (default: tested agent model)",
+    )
+    parser.add_argument(
+        "--no-gt-judge-provider",
+        default=None,
+        help="No-GT selection judge provider (default: tested agent provider)",
+    )
     parser.add_argument("--save-dir", default="./evaluation/results", help="Output directory")
 
     args = parser.parse_args()
@@ -449,5 +532,9 @@ if __name__ == "__main__":
         n=args.n,
         judge_model=args.judge_model,
         judge_provider=args.judge_provider,
+        gt_judge_model=args.gt_judge_model,
+        gt_judge_provider=args.gt_judge_provider,
+        no_gt_judge_model=args.no_gt_judge_model,
+        no_gt_judge_provider=args.no_gt_judge_provider,
         save_dir=args.save_dir,
     )

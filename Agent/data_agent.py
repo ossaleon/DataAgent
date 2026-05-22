@@ -362,6 +362,8 @@ class SalesDataAgent:
         max_tokens: int,
         top_p: float = 1.0,
         top_k: Optional[int] = None,
+        repeat_penalty: Optional[float] = None,
+        repeat_last_n: Optional[int] = None,
         num_beams: int = 1,
         no_repeat_ngram_size: Optional[int] = None,
         callbacks: Optional[list] = None,
@@ -379,6 +381,8 @@ class SalesDataAgent:
             max_tokens: Maximum tokens for generation
             top_p: Top-p sampling parameter
             top_k: Top-k sampling parameter (skipped for OpenAI)
+            repeat_penalty: Ollama repetition penalty strength (skipped for OpenAI)
+            repeat_last_n: Ollama repetition lookback window (skipped for OpenAI)
             num_beams: Beam search width, 1 = greedy/disabled (skipped for OpenAI)
             no_repeat_ngram_size: Prevent repeating n-grams of this size (skipped for OpenAI)
 
@@ -413,6 +417,10 @@ class SalesDataAgent:
             )
             if top_k is not None:
                 kwargs["top_k"] = top_k
+            if repeat_penalty is not None:
+                kwargs["repeat_penalty"] = repeat_penalty
+            if repeat_last_n is not None:
+                kwargs["repeat_last_n"] = repeat_last_n
             if num_beams > 1:
                 kwargs["num_beams"] = num_beams
             if no_repeat_ngram_size is not None:
@@ -457,17 +465,37 @@ class SalesDataAgent:
         Returns:
             The result from the final (or converged) iteration.
         """
-        if cot_n <= 1:
-            return initial_result
+        requested_iterations = max(int(cot_n), 1)
+        diagnostics = {
+            "requested_iterations": requested_iterations,
+            "attempted_iterations": 1,
+            "executed_iterations": 1,
+            "early_stop": False,
+            "stop_reason": "requested_depth_reached",
+            "similarity_threshold": _COT_SIMILARITY_THRESHOLD,
+            "similarities": [],
+            "final_similarity": None,
+        }
+
+        def _with_cot_diagnostics(current_result: Dict) -> Dict:
+            per_step = dict(state.get("_cot_diagnostics_per_step") or {})
+            per_step.update(current_result.get("_cot_diagnostics_per_step") or {})
+            per_step[step_name] = dict(diagnostics)
+            current_result["_cot_diagnostics_per_step"] = per_step
+            return current_result
+
+        if requested_iterations <= 1:
+            return _with_cot_diagnostics(initial_result)
 
         result = initial_result
         previous_output = _extract_step_output(step_name, result)
         execution_error = result.get("error", "")
         helper = trace_helper or self.trace_helper
 
-        for cot_i in range(1, cot_n):
+        for cot_i in range(1, requested_iterations):
+            diagnostics["attempted_iterations"] = cot_i + 1
             print()
-            print(f"[{step_name}] CoT iteration {cot_i + 1}/{cot_n}: starting refinement...")
+            print(f"[{step_name}] CoT iteration {cot_i + 1}/{requested_iterations}: starting refinement...")
             refinement_llm = CoTRefinementLLM(llm, previous_output, execution_error)
             with helper.start_span(
                 "cot_refinement",
@@ -475,7 +503,7 @@ class SalesDataAgent:
                 attributes={
                     "step_name": step_name,
                     "cot_iteration": cot_i + 1,
-                    "cot_total": cot_n,
+                    "cot_total": requested_iterations,
                 },
                 input_data={
                     "previous_output": _truncate_trace_text(previous_output),
@@ -486,13 +514,16 @@ class SalesDataAgent:
                     new_result = core_fn(state, refinement_llm, trace_helper=helper)
                     helper.set_output(span, _summarize_result_for_trace(new_result))
                 except Exception as e:
-                    print(f"[{step_name}] CoT iteration {cot_i + 1}/{cot_n} failed: {e}")
+                    diagnostics["early_stop"] = diagnostics["executed_iterations"] < requested_iterations
+                    diagnostics["stop_reason"] = "refinement_error"
+                    print(f"[{step_name}] CoT iteration {cot_i + 1}/{requested_iterations} failed: {e}")
                     break
 
+            diagnostics["executed_iterations"] = cot_i + 1
             new_error = new_result.get("error", "")
             if new_error:
                 print(
-                    f"[{step_name}] CoT iteration {cot_i + 1}/{cot_n}: "
+                    f"[{step_name}] CoT iteration {cot_i + 1}/{requested_iterations}: "
                     f"execution error — {new_error}"
                 )
                 result = new_result
@@ -503,12 +534,14 @@ class SalesDataAgent:
             new_output = _extract_step_output(step_name, new_result)
             ratio = difflib.SequenceMatcher(None, previous_output, new_output).ratio()
             print(
-                f"[{step_name}] CoT iteration {cot_i + 1}/{cot_n}: "
+                f"[{step_name}] CoT iteration {cot_i + 1}/{requested_iterations}: "
                 f"similarity={ratio:.3f}"
             )
 
             result = new_result
             execution_error = ""
+            diagnostics["similarities"].append(float(ratio))
+            diagnostics["final_similarity"] = float(ratio)
             helper.set_attributes(
                 span,
                 {
@@ -518,7 +551,9 @@ class SalesDataAgent:
             )
 
             if ratio >= _COT_SIMILARITY_THRESHOLD:
-                if cot_i < cot_n - 1:
+                diagnostics["early_stop"] = diagnostics["executed_iterations"] < requested_iterations
+                diagnostics["stop_reason"] = "converged"
+                if cot_i < requested_iterations - 1:
                     print(
                         f"[{step_name}] CoT early stop: output converged "
                         f"(similarity={ratio:.3f} >= {_COT_SIMILARITY_THRESHOLD})"
@@ -532,7 +567,7 @@ class SalesDataAgent:
 
             previous_output = new_output
 
-        return result
+        return _with_cot_diagnostics(result)
 
     @staticmethod
     def _run_gt_eval(
@@ -757,6 +792,8 @@ class SalesDataAgent:
                     max_tokens=config.max_tokens,
                     top_p=top_p,
                     top_k=top_k,
+                    repeat_penalty=config.repeat_penalty,
+                    repeat_last_n=config.repeat_last_n,
                     num_beams=config.num_beams,
                     no_repeat_ngram_size=config.no_repeat_ngram_size,
                     callbacks=[_llm_acc],
@@ -895,6 +932,8 @@ class SalesDataAgent:
                     max_tokens=config.max_tokens,
                     top_p=top_p,
                     top_k=top_k,
+                    repeat_penalty=config.repeat_penalty,
+                    repeat_last_n=config.repeat_last_n,
                     num_beams=config.num_beams,
                     no_repeat_ngram_size=config.no_repeat_ngram_size,
                     callbacks=[_llm_acc],

@@ -42,9 +42,68 @@ def _load_manifest(path: str) -> Dict[str, Any]:
         manifest = yaml.safe_load(f)
     if not isinstance(manifest, dict):
         raise ValueError(f"Manifest must be a YAML mapping: {path}")
+    _expand_one_factor_sweeps(manifest)
     if not manifest.get("configs"):
-        raise ValueError("Manifest must contain a non-empty 'configs' list")
+        raise ValueError("Manifest must contain configs or one_factor_sweeps")
     return manifest
+
+
+def _sweep_value_slug(value: Any) -> str:
+    if isinstance(value, float):
+        value = f"{value:g}"
+    return str(value).replace("-", "m").replace(".", "p")
+
+
+def _expand_one_factor_sweeps(manifest: Dict[str, Any]) -> None:
+    """Materialize compact deterministic one-factor manifest sweeps."""
+    sweeps = manifest.get("one_factor_sweeps") or []
+    configs = list(manifest.get("configs") or [])
+
+    for sweep in sweeps:
+        if not isinstance(sweep, dict):
+            raise ValueError("Each one_factor_sweeps item must be a mapping")
+        vary_step = sweep.get("vary_step")
+        name_prefix = sweep.get("name_prefix")
+        parameters = sweep.get("parameters") or {}
+        if vary_step not in STEPS:
+            raise ValueError(f"Unknown one-factor vary_step: {vary_step!r}")
+        if not name_prefix or not isinstance(parameters, dict):
+            raise ValueError("One-factor sweeps require name_prefix and parameters")
+
+        if sweep.get("include_baseline", True):
+            configs.append(
+                {
+                    "name": f"{name_prefix}_baseline",
+                    "vary_step": vary_step,
+                    "axis": "baseline",
+                    "description": f"{name_prefix} baseline",
+                    "steps": {},
+                }
+            )
+
+        for parameter_name, parameter_spec in parameters.items():
+            if not isinstance(parameter_spec, dict):
+                raise ValueError(f"One-factor parameter {parameter_name!r} must be a mapping")
+            values = parameter_spec.get("values") or []
+            fields = parameter_spec.get("fields") or [parameter_name]
+            if not values or not isinstance(fields, list):
+                raise ValueError(f"One-factor parameter {parameter_name!r} requires fields and values")
+            for value in values:
+                override = {field: value for field in fields}
+                configs.append(
+                    {
+                        "name": f"{name_prefix}_{parameter_name}_{_sweep_value_slug(value)}",
+                        "vary_step": vary_step,
+                        "axis": parameter_name,
+                        "description": f"{name_prefix} {parameter_name}={value}",
+                        "steps": {vary_step: override},
+                    }
+                )
+
+    names = [config.get("name") for config in configs]
+    if len(names) != len(set(names)):
+        raise ValueError("Manifest config names must be unique after sweep expansion")
+    manifest["configs"] = configs
 
 
 def _step_from_dict(step_name: str, spec: Dict[str, Any]) -> StepConfig:
@@ -293,14 +352,22 @@ def _write_plots(summary: pd.DataFrame, plots_dir: Path) -> None:
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("Mean score")
     ax.set_title(f"{model_label}: Quality by Config")
-    ax.legend()
+    handles, _ = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend()
     ax.grid(alpha=0.25)
     fig.tight_layout()
     fig.savefig(plots_dir / "quality_by_config.png", dpi=160)
     plt.close(fig)
 
     fig, ax1 = plt.subplots(figsize=(12, 5))
-    ax1.bar(x, plot_df.get("elapsed_sec_mean"), color="#4c78a8", alpha=0.75, label="elapsed_sec_mean")
+    elapsed = (
+        pd.to_numeric(plot_df["elapsed_sec_mean"], errors="coerce")
+        if "elapsed_sec_mean" in plot_df
+        else pd.Series(dtype=float)
+    )
+    if not elapsed.empty and elapsed.notna().any():
+        ax1.bar(x, elapsed, color="#4c78a8", alpha=0.75, label="elapsed_sec_mean")
     ax1.set_ylabel("Mean elapsed seconds")
     ax1.set_xticks(list(x))
     ax1.set_xticklabels(labels, rotation=45, ha="right")
@@ -348,6 +415,10 @@ def run_manifest_benchmark(
     model: str,
     judge_provider: Optional[str],
     judge_model: Optional[str],
+    gt_judge_provider: Optional[str] = None,
+    gt_judge_model: Optional[str] = None,
+    no_gt_judge_provider: Optional[str] = None,
+    no_gt_judge_model: Optional[str] = None,
     ollama_url: str,
     save_dir: str,
     enable_codecarbon: bool,
@@ -359,8 +430,12 @@ def run_manifest_benchmark(
     manifest = _load_manifest(manifest_path)
     save_path = Path(save_dir)
     save_path.mkdir(parents=True, exist_ok=True)
-    effective_judge_provider = judge_provider or provider
-    effective_judge_model = judge_model or model
+    # Older DOE commands use ``--judge-*``. Keep those values as GT judge
+    # aliases while no-GT selection follows the tested model unless overridden.
+    effective_gt_judge_provider = gt_judge_provider or judge_provider or provider
+    effective_gt_judge_model = gt_judge_model or judge_model or model
+    effective_no_gt_judge_provider = no_gt_judge_provider or provider
+    effective_no_gt_judge_model = no_gt_judge_model or model
 
     records: List[Dict[str, Any]] = []
     for config_id, spec in _iter_configs(manifest, max_configs):
@@ -373,8 +448,14 @@ def run_manifest_benchmark(
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
         )
         record = _config_record(config_id, cfg, spec)
-        record["judge_provider"] = effective_judge_provider
-        record["judge_model"] = effective_judge_model
+        # Preserve the old summary fields as GT judge aliases so older report
+        # code can keep reading configs_sampled.json.
+        record["judge_provider"] = effective_gt_judge_provider
+        record["judge_model"] = effective_gt_judge_model
+        record["gt_judge_provider"] = effective_gt_judge_provider
+        record["gt_judge_model"] = effective_gt_judge_model
+        record["no_gt_judge_provider"] = effective_no_gt_judge_provider
+        record["no_gt_judge_model"] = effective_no_gt_judge_model
         records.append(record)
 
     with open(save_path / "configs_sampled.json", "w", encoding="utf-8") as f:
@@ -408,8 +489,10 @@ def run_manifest_benchmark(
         df = run_benchmark(
             dataset_path,
             agent_config=cfg,
-            judge_provider=effective_judge_provider,
-            judge_model=effective_judge_model,
+            gt_judge_provider=effective_gt_judge_provider,
+            gt_judge_model=effective_gt_judge_model,
+            no_gt_judge_provider=effective_no_gt_judge_provider,
+            no_gt_judge_model=effective_no_gt_judge_model,
             save_dir=str(config_dir),
             save_execution_artifacts=True,
             enable_codecarbon=enable_codecarbon,
@@ -432,8 +515,20 @@ def main() -> None:
     parser.add_argument("manifest", help="Path to deterministic DOE YAML manifest")
     parser.add_argument("--provider", default="ollama", help="Agent provider")
     parser.add_argument("--model", default="gemma4:31b", help="Agent model")
-    parser.add_argument("--judge-provider", default=None, help="Recorded judge provider; run_benchmark uses agent provider")
-    parser.add_argument("--judge-model", default=None, help="Recorded judge model; run_benchmark uses agent model")
+    parser.add_argument("--judge-provider", default=None, help="Legacy alias for --gt-judge-provider")
+    parser.add_argument("--judge-model", default=None, help="Legacy alias for --gt-judge-model")
+    parser.add_argument("--gt-judge-provider", default=None, help="GT text/visual judge provider")
+    parser.add_argument("--gt-judge-model", default=None, help="GT text/visual judge model")
+    parser.add_argument(
+        "--no-gt-judge-provider",
+        default=None,
+        help="No-GT selection judge provider (default: tested agent provider)",
+    )
+    parser.add_argument(
+        "--no-gt-judge-model",
+        default=None,
+        help="No-GT selection judge model (default: tested agent model)",
+    )
     parser.add_argument("--ollama-url", default=os.environ.get("OLLAMA_HOST", "http://localhost:11434"))
     parser.add_argument("--save-dir", default="runs/gemma4_thesis_doe_12h")
     parser.add_argument("--max-configs", type=int, default=None)
@@ -450,6 +545,10 @@ def main() -> None:
         model=args.model,
         judge_provider=args.judge_provider,
         judge_model=args.judge_model,
+        gt_judge_provider=args.gt_judge_provider,
+        gt_judge_model=args.gt_judge_model,
+        no_gt_judge_provider=args.no_gt_judge_provider,
+        no_gt_judge_model=args.no_gt_judge_model,
         ollama_url=args.ollama_url,
         save_dir=args.save_dir,
         enable_codecarbon=not args.no_codecarbon,
