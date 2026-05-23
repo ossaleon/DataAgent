@@ -23,7 +23,6 @@ Thinking / reasoning models:
 ```text
 gemma4:e4b
 gemma4:26b
-nemotron-3-nano:4b
 ```
 
 Non-thinking / instruction-oriented controls:
@@ -40,11 +39,6 @@ Use model-card defaults where available and controlled defaults otherwise.
 Gemma 4 models:
   temperature=1.0
   top_p=0.95
-  top_k=64
-
-Nemotron models:
-  temperature=1.0
-  top_p=1.0
   top_k=64
 
 Mistral Small:
@@ -175,7 +169,6 @@ Pull the tested models and export the OpenAI key for the shared GT judge:
 ```bash
 ollama pull gemma4:e4b
 ollama pull gemma4:26b
-ollama pull nemotron-3-nano:4b
 ollama pull mistral-small3.2:24b
 export OPENAI_API_KEY="..."
 ```

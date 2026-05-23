@@ -47,12 +47,6 @@ targeted compute expansion only where it helped
 combined best candidate
 ```
 
-Coverage change:
-
-```text
-nemotron-3-nano:4b should be excluded from Test 05 unless Tests 01-03 are first completed for it.
-```
-
 The currently available evidence supports final confirmation for:
 
 ```text

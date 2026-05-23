@@ -13,7 +13,6 @@ Lower token caps can cause different failures depending on the agent: incomplete
 ```text
 gemma4:e4b
 gemma4:26b
-nemotron-3-nano:4b
 mistral-small3.2:24b
 ```
 
@@ -22,7 +21,6 @@ Model roles:
 ```text
 gemma4:e4b             small thinking model
 gemma4:26b             larger thinking MoE model
-nemotron-3-nano:4b     small thinking model with long-tail runtime risk
 mistral-small3.2:24b   larger non-thinking model
 ```
 
@@ -45,11 +43,6 @@ Sampling baselines:
 Gemma 4 models:
   temperature=1.0
   top_p=0.95
-  top_k=64
-
-Nemotron:
-  temperature=1.0
-  top_p=1.0
   top_k=64
 
 Mistral Small:
@@ -160,7 +153,7 @@ This test supports or refutes the practical recommendation that agent systems sh
 Expected rows:
 
 ```text
-4 models x 3 repeats x 12 token configs x 10 prompts = 1440 benchmark rows
+3 models x 3 repeats x 12 token configs x 10 prompts = 1080 benchmark rows
 ```
 
 ## Code Readiness
@@ -172,7 +165,6 @@ Manifests:
 ```text
 gemma4:e4b             evaluation/thesis_final_run/thesis_test03_gemma4_max_tokens.yaml
 gemma4:26b             evaluation/thesis_final_run/thesis_test03_gemma4_max_tokens.yaml
-nemotron-3-nano:4b     evaluation/thesis_final_run/thesis_test03_nemotron3_nano_max_tokens.yaml
 mistral-small3.2:24b   evaluation/thesis_final_run/thesis_test03_mistral_small32_max_tokens.yaml
 ```
 
@@ -197,7 +189,6 @@ Pull the models:
 ```bash
 ollama pull gemma4:e4b
 ollama pull gemma4:26b
-ollama pull nemotron-3-nano:4b
 ollama pull mistral-small3.2:24b
 ```
 
@@ -233,21 +224,6 @@ for REP in 01 02 03; do
     --gt-judge-provider openai \
     --gt-judge-model gpt-5.4 \
     --save-dir runs/thesis_tests_final/03_max_tokens_agent_ladder/gemma4_26b/rep${REP} \
-    --resume
-
-  docker run --rm --gpus '"device=0"' --network=host \
-    -e OLLAMA_HOST=http://localhost:11434 \
-    -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-    -v "$(pwd)/runs:/app/runs" \
-    data-agent \
-    evaluation/run_manifest_benchmark.py \
-    evaluation/benchmark_dataset_gemma4_thesis_10.json \
-    evaluation/thesis_final_run/thesis_test03_nemotron3_nano_max_tokens.yaml \
-    --provider ollama \
-    --model nemotron-3-nano:4b \
-    --gt-judge-provider openai \
-    --gt-judge-model gpt-5.4 \
-    --save-dir runs/thesis_tests_final/03_max_tokens_agent_ladder/nemotron3_nano_4b/rep${REP} \
     --resume
 
   docker run --rm --gpus '"device=0"' --network=host \

@@ -67,7 +67,6 @@ require_file evaluation/thesis_final_run/thesis_test01_mistral_small32_baseline.
 require_file evaluation/thesis_final_run/thesis_test02_gemma4_sensitivity.yaml
 require_file evaluation/thesis_final_run/thesis_test02_mistral_small32_sensitivity.yaml
 require_file evaluation/thesis_final_run/thesis_test03_gemma4_max_tokens.yaml
-require_file evaluation/thesis_final_run/thesis_test03_nemotron3_nano_max_tokens.yaml
 require_file evaluation/thesis_final_run/thesis_test03_mistral_small32_max_tokens.yaml
 require_file evaluation/thesis_final_run/thesis_test04_gemma4_e4b_compute_expansion.yaml
 require_file evaluation/thesis_final_run/thesis_test04_mistral_small32_compute_expansion.yaml
@@ -202,13 +201,6 @@ run_test03() {
       evaluation/benchmark_dataset_gemma4_thesis_10.json \
       evaluation/thesis_final_run/thesis_test03_gemma4_max_tokens.yaml \
       gemma4:26b \
-      "$rep"
-    run_manifest \
-      03_max_tokens_agent_ladder \
-      nemotron3_nano_4b \
-      evaluation/benchmark_dataset_gemma4_thesis_10.json \
-      evaluation/thesis_final_run/thesis_test03_nemotron3_nano_max_tokens.yaml \
-      nemotron-3-nano:4b \
       "$rep"
     run_manifest \
       03_max_tokens_agent_ladder \

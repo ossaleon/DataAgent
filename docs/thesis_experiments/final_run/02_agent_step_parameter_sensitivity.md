@@ -87,13 +87,6 @@ Gemma 4 models:
   repeat_penalty=1.1
   repeat_last_n=64
 
-Nemotron:
-  temperature=1.0
-  top_p=1.0
-  top_k=64
-  repeat_penalty=1.1
-  repeat_last_n=64
-
 Mistral Small:
   temperature=0.15
   top_p=0.95
