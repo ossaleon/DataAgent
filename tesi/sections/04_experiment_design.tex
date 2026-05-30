@@ -4,128 +4,418 @@
 \section{Experiment Design}
 \label{sec:experimentdesign}
 
-Before executing the tests in the definitive form described below, we first ran
-a lighter version of the same experiments - with fewer repetitions and a smaller
-number of sampled parameter configurations - to explore preliminary results and
-guide the design of the full test suite. For clarity and conciseness, these
-preliminary runs are not reported here, as they constitute a reduced variant of
-the tests described in the following subsections.
-
-\subsection{Test 01 - Baseline Model Comparison}
-\label{subsec:test01}
-
-\subsection{Test 02 - Per-Agent Sensitivity Analysis (OFAT)}
-\label{subsec:test02}
-
-\subsection{Test 03 - \texttt{max\_tokens} Ladder per Agent}
-\label{subsec:test03}
-
-\subsection{Test 04 - Compute Expansion (BoN + CoT)}
-\label{subsec:test04}
-
-\subsection{Test 05 - Final Pareto Confirmation}
-\label{subsec:test05}
-
-%-----------------------------------------------------------------------------
-
-\subsection{Deployment with Docker}
-\label{subsec:docker}
-
-\subsubsection{Container Image}
-
-The Sales Agent is packaged as a Docker container to ensure fully reproducible
-execution across different server environments. The image is based on
-\texttt{python:3.12-slim} and is built in two layers: a dependency layer that
-installs the Python packages from \texttt{requirements.txt} (cached unless the
-file changes), and an application layer that copies the source code, data files,
-and configuration. System-level packages required by Pandas, PyArrow, CodeCarbon,
-and Matplotlib (\texttt{build-essential}, \texttt{curl}, \texttt{git}) are
-installed via \texttt{apt-get} in the dependency layer.
-
-Two environment variables are set at build time:
-\begin{itemize}
-    \item \texttt{MPLBACKEND=Agg} — switches Matplotlib to the non-interactive
-          Agg backend, enabling chart code execution in headless Linux environments
-          without a display server;
-    \item \texttt{OLLAMA\_HOST=http://localhost:11434} — sets the default Ollama
-          endpoint, which can be overridden at runtime via
-          \texttt{-e OLLAMA\_HOST=http://<host-ip>:11434}.
-\end{itemize}
-
-The output directory \texttt{/app/runs} is declared as a Docker volume. Benchmark
-results are persisted on the host by mounting a local path at container startup:
-
-\begin{verbatim}
-docker run --rm --network=host \
-    -v /host/path/runs:/app/runs data-agent \
-    python evaluation/bulk_runner.py ...
-\end{verbatim}
-
-The \texttt{--network=host} flag is used on Linux servers to allow the container
-to reach the Ollama process running on the host at \texttt{localhost:11434}.
-
-\subsubsection{Bulk Runner and Ablation Protocol}
-
-The default container entrypoint runs \texttt{bulk\_runner.py}, which implements a
-structured ablation study over the agent's hyperparameter space. The protocol
-consists of three sequential phases, one per processing step
-(\texttt{lookup\_sales\_data}, \texttt{analyzing\_data},
-\texttt{create\_visualization}). In each phase, only the target step's
-hyperparameters are varied while the other two steps are kept at their default
-configuration ($n=1$, fixed temperature). This one-step-at-a-time design isolates
-the contribution of each step's hyperparameters to the overall agent performance.
-
-In each phase, $N$ configurations are sampled at random from the search space
-defined in \texttt{search\_space.yaml} (with fixed seed 42 for reproducibility),
-and the full 20-item benchmark is executed for each configuration. A configurable
-think time drawn from an exponential distribution is inserted between consecutive
-runs to avoid saturating the LLM API. The full experimental protocol runs
-$3 \times 50 = 150$ configurations.
-
-\subsubsection{Hyperparameter Search Space}
-
-The search space for each step is defined in \texttt{search\_space.yaml} and
-covers the parameters listed in Table~\ref{tab:searchspace}. Parameters are
-specified as fixed scalars, discrete uniform choices, or continuous uniform
-intervals. Provider-specific parameters (top-$k$, beam width,
-\texttt{no\_repeat\_ngram\_size}) are sampled only for Ollama-based runs and
-silently ignored for OpenAI, which does not expose these controls.
+All experiments were conducted on a dedicated Linux server used exclusively for
+inference workloads during the experimental campaign. The server hardware and
+software environment are summarised in Table~\ref{tab:server}. The GPU is the
+primary compute resource: all LLM inference is offloaded to it via Ollama, which
+manages model loading, quantisation, and batching transparently.
 
 \begin{table}[H]
 \centering
 \arrayrulecolor{black}
-\begin{tabular}{|l|l|l|}
+\begin{tabular}{|l|l|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Parameter} & \textbf{Range / choices} & \textbf{Provider} \T\B \\
+\textbf{Component} & \textbf{Specification} \T\B \\
 \hline
-\texttt{n} (BoN candidates)         & $\{1, 2, 3, 4\}$                   & All \T\B \\
+Server model     & \textcolor{red}{\textbf{[???]}} \T\B \\
 \hline
-\texttt{bon\_param}                  & temperature, top-$p$ (, top-$k$)   & All (top-$k$: Ollama) \T\B \\
+GPU model        & \textcolor{red}{\textbf{[???]}} \T\B \\
 \hline
-\texttt{cot\_n}                      & $\{1, 2, 3\}$                      & All \T\B \\
+GPU VRAM         & \textcolor{red}{\textbf{[???]}} GB \T\B \\
 \hline
-\texttt{temp\_min}                   & $[0.1,\, 0.3]$                     & All \T\B \\
+CPU model        & \textcolor{red}{\textbf{[???]}} \T\B \\
 \hline
-\texttt{temp\_max}                   & $[0.3,\, 1.0]$                     & All \T\B \\
+CPU cores / threads & \textcolor{red}{\textbf{[???]}} / \textcolor{red}{\textbf{[???]}} \T\B \\
 \hline
-\texttt{top\_p\_min}                 & $[0.7,\, 1.0]$                     & All \T\B \\
+System RAM       & \textcolor{red}{\textbf{[???]}} GB \T\B \\
 \hline
-\texttt{max\_tokens}                 & $\{1000, 1500, 2000, 3000\}$       & All \T\B \\
+Operating system & \textcolor{red}{\textbf{[???]}} \T\B \\
 \hline
-\texttt{top\_k\_min}                 & $\{$null$, 20, 40, 50\}$           & Ollama only \T\B \\
+Linux kernel     & \textcolor{red}{\textbf{[???]}} \T\B \\
 \hline
-\texttt{num\_beams}                  & $\{1, 2\}$                         & Ollama only \T\B \\
+CUDA / GPU driver & \textcolor{red}{\textbf{[???]}} \T\B \\
 \hline
-\texttt{no\_repeat\_ngram\_size}     & $\{$null$, 2, 3\}$                 & Ollama only \T\B \\
+Docker version   & \textcolor{red}{\textbf{[???]}} \T\B \\
 \hline
 \end{tabular}
-\caption{Hyperparameter search space per step.}
-\label{tab:searchspace}
+\caption{Server hardware and software specifications.}
+\label{tab:server}
 \end{table}
 
-At the end of each phase, \texttt{aggregate\_results.py} consolidates all
-per-configuration \texttt{detail\_combined} CSV files into a single summary,
-computing mean, minimum, and maximum scores across benchmark items and
-configurations. This aggregated output forms the primary dataset for the
-experimental analysis presented in Section~\ref{sec:experiments}.
+Ollama runs as a persistent background service on the host machine, exposing a
+local REST endpoint at \texttt{localhost:11434}. All three models evaluated in
+the thesis --- \texttt{gemma4:e4b}, \texttt{gemma4:26b}, and
+\texttt{mistral-small3.2:24b} --- were downloaded from the Ollama model library
+and served locally, with no external network access during inference. An OpenAI
+API key is required only for the ground-truth judge, which calls
+\texttt{gpt-5.4} to score both the natural-language analysis step and the
+visualization step.
+
+The agent itself runs inside a Docker container built from the repository
+Dockerfile. The image is based on \texttt{python:3.12-slim} and installs all
+Python dependencies from \texttt{requirements.txt}. Two environment variables
+are set at build time: \texttt{MPLBACKEND=Agg} to enable headless chart
+rendering, and \texttt{OLLAMA\_HOST=http://localhost:11434} as the default
+Ollama endpoint. The host \texttt{runs/} directory is mounted as a volume to
+persist experiment results across container restarts. The
+\texttt{--network=host} flag allows the container to reach the Ollama service
+running on the host. The image is built once from the repository root:
+
+\begin{verbatim}
+docker build -t data-agent .
+\end{verbatim}
+
+Before executing the tests in the definitive form described below, a lighter
+version of the same experiments was first run --- with fewer repetitions and a
+smaller number of sampled parameter configurations --- to explore preliminary
+results and guide the design of the full test suite. For clarity and
+conciseness, these preliminary runs are not reported here, as they constitute
+a reduced variant of the tests described in the following subsections.
+
+\subsection{Test 01 - Baseline Model Comparison}
+\label{subsec:test01}
+
+Test 01 establishes the quality and energy baseline for the three candidate
+models evaluated in this thesis: \texttt{gemma4:e4b}, \texttt{gemma4:26b}, and
+\texttt{mistral-small3.2:24b}. Each model runs with a fixed default
+configuration so that any observed differences in output quality, latency, and
+energy consumption are attributable solely to the model itself rather than to
+configuration choices. Rather than choosing these defaults arbitrarily, the
+baseline parameters for each model are taken directly from the recommended
+settings published on the respective Ollama model pages. The resulting
+per-model configurations are summarised in Table~\ref{tab:test01baseline}.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Parameter} & \textbf{gemma4:e4b} & \textbf{gemma4:26b} & \textbf{mistral-small3.2:24b} \T\B \\
+\hline
+Temperature         & 1.0  & 1.0  & 0.15 \T\B \\
+\hline
+top-$p$             & 0.95 & 0.95 & 0.95 \T\B \\
+\hline
+top-$k$             & 64   & 64   & 64   \T\B \\
+\hline
+BoN candidates ($n$)        & 1    & 1    & 1    \T\B \\
+\hline
+CoT iterations (\texttt{cot\_n}) & 1    & 1    & 1    \T\B \\
+\hline
+Beam search (\texttt{num\_beams}) & 1   & 1    & 1    \T\B \\
+\hline
+\texttt{max\_tokens} — lookup       & 5000 & 5000 & 5000 \T\B \\
+\hline
+\texttt{max\_tokens} — analysis     & 7000 & 7000 & 7000 \T\B \\
+\hline
+\texttt{max\_tokens} — visualization & 7000 & 7000 & 7000 \T\B \\
+\hline
+\end{tabular}
+\caption{Baseline hyperparameter configuration for Test 01, taken from the
+         Ollama-recommended settings for each model. The main difference between
+         model families is the temperature: Gemma~4 models adopt the higher value
+         recommended for thinking models, while Mistral~Small uses the lower
+         default suited to non-thinking generation.}
+\label{tab:test01baseline}
+\end{table}
+
+The evaluation is performed on the full 20-prompt benchmark, stratified across
+four SQL difficulty levels. For each prompt, three complementary quality scores
+are recorded: the row-level Intersection-over-Union (\texttt{csv\_iou}) for
+data retrieval accuracy, the LLM-as-judge score (\texttt{text\_score}) for the
+naturalanguage analysis, and the LLM-as-judge score (\texttt{vis\_score}) for
+visualization correctness when a chart is expected. In addition, per-step
+execution time and energy consumption are tracked via CodeCarbon. Each model
+configuration is repeated three times to allow variance estimation.
+
+The results of this test inform the selection of the reference baseline for all
+subsequent tests and provide the first evidence of whether model size, the
+presence of an internal chain-of-thought reasoning mechanism, and the
+mixture-of-experts architecture lead to meaningful accuracy or efficiency
+differences on this agentic workload.
+
+\subsubsection{Deployment with Docker}
+
+Test 01 evaluates all three candidate models on the full 20-prompt benchmark
+with a fixed baseline configuration. Each model is run for three independent
+repeats using the manifest files in \texttt{evaluation/thesis\_final\_run/}.
+The general \texttt{docker run} invocation is:
+
+\begin{verbatim}
+docker run --rm \
+    --gpus "device=0" \
+    --network=host \
+    -e OLLAMA_HOST=http://localhost:11434 \
+    -e OPENAI_API_KEY \
+    -v "$(pwd)/runs:/app/runs" \
+    data-agent \
+    evaluation/run_manifest_benchmark.py \
+    evaluation/benchmark_dataset.json \
+    evaluation/thesis_final_run/thesis_test01_<manifest>.yaml \
+    --provider ollama \
+    --model <model> \
+    --gt-judge-provider openai \
+    --gt-judge-model gpt-5.4 \
+    --save-dir runs/thesis_tests_final/01_model_baseline_comparison/<slug>/repNN \
+    --repetition NN/03 \
+    --resume
+\end{verbatim}
+
+The manifest, model, and output slug triplets are:
+
+\begin{itemize}
+    \item \texttt{thesis\_test01\_gemma4\_baseline.yaml} /
+          \texttt{gemma4:e4b} /
+          \texttt{gemma4\_e4b}
+    \item \texttt{thesis\_test01\_gemma4\_baseline.yaml} /
+          \texttt{gemma4:26b} /
+          \texttt{gemma4\_26b}
+    \item \texttt{thesis\_test01\_mistral\_small32\_baseline.yaml} /
+          \texttt{mistral-small3.2:24b} /
+          \texttt{mistral\_small32\_24b}
+\end{itemize}
+
+Tests 01 through 04 are orchestrated end-to-end by the helper script
+\texttt{evaluation/run\_thesis\_final\_tests\_01\_04\_docker.sh}, which loops
+over all models and repeats sequentially.
+
+\subsection{Test 02 - Per-Agent Sensitivity Analysis (OFAT)}
+\label{subsec:test02}
+
+Test 02 adopts a One-Factor-At-a-Time (OFAT) protocol to quantify how
+individual static sampling hyperparameters affect each agent step in isolation.
+In each phase, only one agent step's parameters are varied while the other two
+steps are kept at the model's baseline configuration. The three phases target,
+in order, the \texttt{lookup\_sales\_data} step (primary metric:
+\texttt{csv\_iou}), the \texttt{analyzing\_data} step (primary metric:
+\texttt{text\_score}), and the \texttt{create\_visualization} step (primary
+metric: \texttt{vis\_score}). In addition to the step-specific metric, the
+full-pipeline \texttt{quality\_mean} is also tracked so that improvements or
+regressions in the varied step can be related to the overall agent output.
+
+The experiment varies five static sampling parameters, one at a time, each
+across ten deterministic values centred around the model-specific baseline:
+
+\begin{itemize}
+    \item \textbf{temperature} — 10 values covering the range below and above
+          the baseline (model-specific: Gemma~4 range $[0.50,\,1.30]$, centred
+          at 1.0; Mistral~Small range $[0.03,\,0.45]$, centred at 0.15);
+    \item \textbf{top-$p$} — 10 values in $[0.70,\,1.00]$, same for all models;
+    \item \textbf{top-$k$} — 10 values in $\{16, 20, 24, 32, 40, 48, 56, 80,
+          96, 128\}$, same for all models;
+    \item \textbf{repeat\_penalty} — 10 values in $[0.90,\,1.30]$, same for
+          all models;
+    \item \textbf{repeat\_last\_n} — 10 values in $\{16, 24, 32, 40, 48, 56,
+          80, 96, 128, 256\}$, same for all models.
+\end{itemize}
+
+No Best-of-$N$ or Chain-of-Thought strategies are included in this test: $n=1$
+and \texttt{cot\_n}$=1$ are fixed throughout, so all configurations differ only
+in their static sampling settings. The grid is fully deterministic: for each
+step, one baseline configuration plus $5 \times 10 = 50$ off-baseline
+configurations are generated, yielding \textbf{51 configurations per step} and
+$51 \times 3 = 153$ total configurations per model. The experiment is run on a
+15-prompt benchmark subset to reduce wall-clock time while retaining enough
+prompt diversity for reliable per-step sensitivity estimates, for three
+independent repeats per model, yielding $153 \times 15 = 2{,}295$ scored prompt
+runs per model per repeat.
+
+The main goal of this test is to identify which static parameters and which
+agent steps offer the most leverage for quality improvement at low computational
+cost, before considering more expensive compute-expansion strategies in Test 04.
+
+\subsubsection{Deployment with Docker}
+
+Test 02 varies one agent step at a time over the sensitivity search space,
+keeping the other two steps at their baseline configuration. It uses a
+15-prompt benchmark subset (\texttt{benchmark\_dataset\_gemma4\_thesis\_15.json})
+to reduce wall-clock time while retaining enough diversity for per-step
+sensitivity estimates. The \texttt{docker run} command follows the same
+template as Test 01 with the following substitutions:
+
+\begin{itemize}
+    \item Dataset:
+          \texttt{evaluation/benchmark\_dataset\_gemma4\_thesis\_15.json}
+    \item Manifests:
+          \texttt{thesis\_test02\_gemma4\_sensitivity.yaml} for
+          \texttt{gemma4:e4b} and \texttt{gemma4:26b};
+          \texttt{thesis\_test02\_mistral\_small32\_sensitivity.yaml} for
+          \texttt{mistral-small3.2:24b}
+    \item Save directory prefix:
+          \texttt{02v2\_agent\_step\_parameter\_sensitivity/<model\_slug>}
+\end{itemize}
+
+\subsection{Test 03 - \texttt{max\_tokens} Ladder per Agent}
+\label{subsec:test03}
+
+Test 03 isolates the effect of the token budget on each agent step by sweeping
+four \texttt{max\_tokens} values for one step at a time, keeping the other two
+steps at generous caps that are unlikely to be binding. The token levels tested
+for each step are:
+
+\begin{itemize}
+    \item \texttt{lookup\_sales\_data}: 2500, 3000, 5000 (baseline), 8000
+    \item \texttt{analyzing\_data}: 4000, 5000, 7000 (baseline), 10000
+    \item \texttt{create\_visualization}: 4000, 5000, 7000 (baseline), 10000
+\end{itemize}
+
+The rationale is that \texttt{max\_tokens} is an upper bound on the number of
+tokens the model can generate in a single call, not a fixed generation length.
+A too-low cap can cause structural failures --- truncated SQL queries, incomplete
+analysis text, or missing chart code --- while a cap that is already non-binding
+adds no measurable cost. The experiment therefore aims to identify the minimum
+safe cap for each step and model, and to verify whether higher caps provide any
+quality benefit beyond that threshold.
+
+The test runs on a 10-prompt benchmark subset across all three models, for three
+repeats each, yielding $12 \times 10 = 120$ scored prompt runs per model per
+repeat. Both step-specific metrics and the full-pipeline \texttt{quality\_mean}
+are reported alongside per-step energy measurements, so that any accuracy
+recovery from a higher cap can be weighed against its compute cost.
+
+\subsubsection{Deployment with Docker}
+
+Test 03 sweeps four \texttt{max\_tokens} levels for each of the three agent
+steps independently, on a 10-prompt benchmark subset
+(\texttt{benchmark\_dataset\_gemma4\_thesis\_10.json}).
+The \texttt{docker run} command follows the same template with:
+
+\begin{itemize}
+    \item Dataset:
+          \texttt{evaluation/benchmark\_dataset\_gemma4\_thesis\_10.json}
+    \item Manifests:
+          \texttt{thesis\_test03\_gemma4\_max\_tokens.yaml} for
+          \texttt{gemma4:e4b} and \texttt{gemma4:26b};
+          \texttt{thesis\_test03\_mistral\_small32\_max\_tokens.yaml} for
+          \texttt{mistral-small3.2:24b}
+    \item Save directory prefix:
+          \texttt{03\_max\_tokens\_agent\_ladder/<model\_slug>}
+\end{itemize}
+
+\subsection{Test 04 - Compute Expansion (BoN + CoT)}
+\label{subsec:test04}
+
+Test 04 investigates whether allocating additional inference-time computation
+--- through Best-of-$N$ (BoN) sampling or Chain-of-Thought (CoT) refinement
+--- can recover the accuracy gaps identified in the previous tests, with a
+primary focus on \texttt{gemma4:e4b} as the most sensitive model. The protocol
+follows the same one-step-at-a-time structure as Test 02, but restricts the
+search to compute-expansion strategies rather than static parameter changes.
+
+The configurations tested per step are:
+
+\begin{itemize}
+    \item \texttt{lookup\_sales\_data}: baseline; BoN with temperature, $n=2$;
+          BoN with temperature, $n=3$; CoT, $n=2$
+    \item \texttt{analyzing\_data}: baseline; BoN with temperature, $n=2$
+    \item \texttt{create\_visualization}: baseline; BoN with top-$k$, $n=2$;
+          BoN with top-$k$, $n=3$; CoT, $n=2$
+\end{itemize}
+
+For Best-of-$N$ runs, multiple candidate outputs are generated for the target
+step and the best one is selected by a scoring function specific to each agent:
+consensus similarity for the lookup step, and LLM-based quality scoring for
+analysis and visualization. For CoT runs, an initial output is generated and
+then refined through a structured feedback loop before being passed to the next
+step.
+
+The experiment runs on the same 10-prompt subset as Test 03, for two repeats,
+yielding $10 \times 10 = 100$ scored prompt runs per repeat. An additional
+follow-up campaign (Test 04b) is also run to disentangle the effect of
+Best-of-$N$ candidate selection from the effect of the temperature range used
+for the first candidate, using eight lookup-only configurations across two
+repeats. The primary cost signal is elapsed time per prompt, complemented by
+energy measurements where available.
+
+\subsubsection{Deployment with Docker}
+
+Test 04 evaluates Best-of-N and Chain-of-Thought compute expansion strategies,
+focusing on \texttt{gemma4:e4b} as the primary target model. It uses the same
+10-prompt benchmark subset as Test 03. The \texttt{docker run} command follows
+the same template with:
+
+\begin{itemize}
+    \item Dataset:
+          \texttt{evaluation/benchmark\_dataset\_gemma4\_thesis\_10.json}
+    \item Manifests:
+          \texttt{thesis\_test04\_gemma4\_e4b\_compute\_expansion.yaml} for
+          \texttt{gemma4:e4b};
+          \texttt{thesis\_test04\_mistral\_small32\_compute\_expansion.yaml} for
+          \texttt{mistral-small3.2:24b}
+    \item Save directory prefix:
+          \texttt{04\_compute\_expansion\_n\_and\_cot/<model\_slug>}
+\end{itemize}
+
+\subsection{Test 05 - Final Pareto Confirmation}
+\label{subsec:test05}
+
+Test 05 is the final evaluation stage. Its purpose is to confirm whether the
+best configurations identified in Tests 02--04 maintain their advantage on the
+full 20-prompt benchmark, and to establish the definitive quality-versus-energy
+Pareto frontier across all models and candidate policies.
+
+Unlike the preceding tests, which vary one hyperparameter dimension at a time,
+Test 05 evaluates complete agent policies: each configuration specifies the
+full set of per-step parameters (sampling settings, token caps, and compute-
+expansion strategy) assembled from the most promising candidates of the
+exploratory phase. Six configurations are evaluated per model:
+
+\begin{itemize}
+    \item \textbf{baseline} --- the fixed default from Test 01, used as
+          the reference point for measuring tuning gains;
+    \item \textbf{efficient\_static} --- the best static-parameter policy
+          that improves quality with minimal energy overhead;
+    \item \textbf{best\_step\_static} --- the per-step best static settings
+          from the OFAT and token-ladder experiments, combined;
+    \item \textbf{max\_tokens\_adjusted} --- a token-cap-only variant to
+          isolate the contribution of the token budget;
+    \item \textbf{lookup\_cot\_n2} --- a compute-expansion policy targeting
+          SQL repair via Chain-of-Thought on the lookup step;
+    \item \textbf{combined\_best\_candidate} --- a combination of the top-
+          performing settings across all steps, as a stress test of whether
+          exploratory gains are additive.
+\end{itemize}
+
+All three models are evaluated on the full 20-prompt benchmark for three
+repeats, yielding $6 \times 20 = 120$ scored prompt runs per model per repeat.
+The primary metrics are \texttt{quality\_mean}, prompt-level end-to-end quality
+(which penalises missing downstream scores caused by upstream failures),
+completion rate, elapsed time, and energy per prompt.
+
+\subsubsection{Deployment with Docker}
+
+Test 05 evaluates the final candidate configurations assembled from Tests
+02--04 on the full 20-prompt benchmark. Each model has a dedicated manifest
+encoding its specific candidate policies. The command for \texttt{gemma4:e4b}
+is:
+
+\begin{verbatim}
+docker run --rm \
+    --gpus "device=0" \
+    --network=host \
+    -e OLLAMA_HOST=http://localhost:11434 \
+    -e OPENAI_API_KEY \
+    -v "$(pwd)/runs:/app/runs" \
+    data-agent \
+    evaluation/run_manifest_benchmark.py \
+    evaluation/benchmark_dataset.json \
+    evaluation/thesis_final_run/thesis_test05_gemma4_e4b_final_pareto.yaml \
+    --provider ollama \
+    --model gemma4:e4b \
+    --gt-judge-provider openai \
+    --gt-judge-model gpt-5.4 \
+    --save-dir runs/thesis_tests_final/05_final_pareto_confirmation/gemma4_e4b/rep01 \
+    --repetition 01/03 \
+    --resume
+\end{verbatim}
+
+The same pattern is repeated for \texttt{gemma4:26b} using
+\texttt{thesis\_test05\_gemma4\_26b\_final\_pareto.yaml}, and for
+\texttt{mistral-small3.2:24b} using
+\texttt{thesis\_test05\_mistral\_small32\_24b\_final\_pareto.yaml}, with
+the corresponding \texttt{--model} and \texttt{--save-dir} arguments updated
+accordingly.
+
+%-----------------------------------------------------------------------------

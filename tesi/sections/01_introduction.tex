@@ -41,11 +41,22 @@ every run, execution time and energy consumption --- tracked per step using
 CodeCarbon~\cite{lottick2019codecarbon} --- are recorded alongside quality scores, providing
 actionable guidance for deploying LLM agents under latency or sustainability constraints.
 
-The document is organised as follows: Section~\ref{sec:stateofart} reviews related work on LLM agents for structured data analysis,
-text-to-SQL generation, local model families and inference-time reasoning strategies,
-evaluation of data-agent outputs, and efficiency-aware benchmarking of local LLM agents;
-Section~\ref{sec:application} describes the architecture of the Sales Agent and the hardware
-infrastructure used for the experiments; Section~\ref{sec:experiments} presents the
-experimental evaluation, with a focus on performance profiling across configurations;
-Section~\ref{sec:conclusions} summarises the findings and outlines directions for future work.
+The document is organised as follows:
+\begin{itemize}
+    \item Section~\ref{sec:stateofart} reviews related work on LLM agents for structured
+          data analysis, text-to-SQL generation, local model families and inference-time
+          reasoning strategies, evaluation of data-agent outputs, and efficiency-aware
+          benchmarking of local LLM agents;
+    \item Section~\ref{sec:application} describes the architecture of the Sales Agent,
+          covering the agent graph, each processing step, the configuration system, and
+          the benchmark dataset;
+    \item Section~\ref{sec:experimentdesign} presents the experimental design, including
+          the server hardware environment, Docker-based deployment, and the specification
+          of the five test campaigns;
+    \item Section~\ref{sec:experiments} presents the experimental results, analysing
+          output quality, energy consumption, and the Pareto trade-offs across models
+          and configurations;
+    \item Section~\ref{sec:conclusions} summarises the findings and outlines directions
+          for future work.
+\end{itemize}
 

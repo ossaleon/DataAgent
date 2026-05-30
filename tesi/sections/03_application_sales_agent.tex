@@ -310,7 +310,7 @@ likely to skip steps or make implicit assumptions, and the output is easier to i
 and validate.
 
 \textcolor{red}{The SQL generation prompt deliberately omits the CoT reasoning section.
-During development, we observed that smaller open-weight models tended to lose track
+During development, smaller open-weight models tended to lose track
 of critical constraints — DuckDB-specific syntax rules, column qualification in JOINs,
 and the required plain-text output format — when required to produce explicit
 step-by-step reasoning before the query. The additional text generation appeared to
