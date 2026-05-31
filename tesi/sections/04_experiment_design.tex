@@ -18,25 +18,25 @@ manages model loading, quantisation, and batching transparently.
 \rowcolor{bluePoli!30}
 \textbf{Component} & \textbf{Specification} \T\B \\
 \hline
-Server model     & \textcolor{red}{\textbf{[???]}} \T\B \\
+Server model     & Dell PowerEdge R760 \T\B \\
 \hline
-GPU model        & \textcolor{red}{\textbf{[???]}} \T\B \\
+GPU model        & NVIDIA L40S \T\B \\
 \hline
-GPU VRAM         & \textcolor{red}{\textbf{[???]}} GB \T\B \\
+GPU VRAM         & 45 GiB \T\B \\
 \hline
-CPU model        & \textcolor{red}{\textbf{[???]}} \T\B \\
+CPU model        & Intel Xeon Gold 6426Y (×2) \T\B \\
 \hline
-CPU cores / threads & \textcolor{red}{\textbf{[???]}} / \textcolor{red}{\textbf{[???]}} \T\B \\
+CPU cores / threads & 32 / 64 \T\B \\
 \hline
-System RAM       & \textcolor{red}{\textbf{[???]}} GB \T\B \\
+System RAM       & 503 GiB \T\B \\
 \hline
-Operating system & \textcolor{red}{\textbf{[???]}} \T\B \\
+Operating system & Ubuntu 24.04.1 LTS \T\B \\
 \hline
-Linux kernel     & \textcolor{red}{\textbf{[???]}} \T\B \\
+Linux kernel     & 6.8.0-117-generic \T\B \\
 \hline
-CUDA / GPU driver & \textcolor{red}{\textbf{[???]}} \T\B \\
+GPU driver       & 580.159.03 \T\B \\
 \hline
-Docker version   & \textcolor{red}{\textbf{[???]}} \T\B \\
+Docker version   & 27.5.1 \T\B \\
 \hline
 \end{tabular}
 \caption{Server hardware and software specifications.}
@@ -65,6 +65,14 @@ running on the host. The image is built once from the repository root:
 \begin{verbatim}
 docker build -t data-agent .
 \end{verbatim}
+
+Tests 01 through 04 are executed via this same container and are fully
+orchestrated by the helper script
+\texttt{evaluation/\allowbreak run\_thesis\_final\_tests\_01\_04\_docker.sh},
+which loops over all model and repeat combinations sequentially. Test 05,
+whose configurations depend on the findings of the preceding tests, is run
+with individual \texttt{docker run} invocations as described in
+Section~\ref{subsec:test05}.
 
 Before executing the tests in the definitive form described below, a lighter
 version of the same experiments was first run --- with fewer repetitions and a
@@ -100,6 +108,10 @@ top-$p$             & 0.95 & 0.95 & 0.95 \T\B \\
 \hline
 top-$k$             & 64   & 64   & 64   \T\B \\
 \hline
+\texttt{repeat\_penalty}    & 1.1  & 1.1  & 1.1  \T\B \\
+\hline
+\texttt{repeat\_last\_n}    & 64   & 64   & 64   \T\B \\
+\hline
 BoN candidates ($n$)        & 1    & 1    & 1    \T\B \\
 \hline
 CoT iterations (\texttt{cot\_n}) & 1    & 1    & 1    \T\B \\
@@ -114,10 +126,7 @@ Beam search (\texttt{num\_beams}) & 1   & 1    & 1    \T\B \\
 \hline
 \end{tabular}
 \caption{Baseline hyperparameter configuration for Test 01, taken from the
-         Ollama-recommended settings for each model. The main difference between
-         model families is the temperature: Gemma~4 models adopt the higher value
-         recommended for thinking models, while Mistral~Small uses the lower
-         default suited to non-thinking generation.}
+         Ollama-recommended settings for each model.}
 \label{tab:test01baseline}
 \end{table}
 
@@ -125,7 +134,7 @@ The evaluation is performed on the full 20-prompt benchmark, stratified across
 four SQL difficulty levels. For each prompt, three complementary quality scores
 are recorded: the row-level Intersection-over-Union (\texttt{csv\_iou}) for
 data retrieval accuracy, the LLM-as-judge score (\texttt{text\_score}) for the
-naturalanguage analysis, and the LLM-as-judge score (\texttt{vis\_score}) for
+natural-language analysis, and the LLM-as-judge score (\texttt{vis\_score}) for
 visualization correctness when a chart is expected. In addition, per-step
 execution time and energy consumption are tracked via CodeCarbon. Each model
 configuration is repeated three times to allow variance estimation.
@@ -138,10 +147,9 @@ differences on this agentic workload.
 
 \subsubsection{Deployment with Docker}
 
-Test 01 evaluates all three candidate models on the full 20-prompt benchmark
-with a fixed baseline configuration. Each model is run for three independent
-repeats using the manifest files in \texttt{evaluation/thesis\_final\_run/}.
-The general \texttt{docker run} invocation is:
+Each model is run for three independent repeats using the manifest files in
+\texttt{evaluation/thesis\_final\_run/}. The general \texttt{docker run}
+invocation is:
 
 \begin{verbatim}
 docker run --rm \
@@ -176,10 +184,6 @@ The manifest, model, and output slug triplets are:
           \texttt{mistral-small3.2:24b} /
           \texttt{mistral\_small32\_24b}
 \end{itemize}
-
-Tests 01 through 04 are orchestrated end-to-end by the helper script
-\texttt{evaluation/run\_thesis\_final\_tests\_01\_04\_docker.sh}, which loops
-over all models and repeats sequentially.
 
 \subsection{Test 02 - Per-Agent Sensitivity Analysis (OFAT)}
 \label{subsec:test02}
@@ -228,23 +232,19 @@ cost, before considering more expensive compute-expansion strategies in Test 04.
 
 \subsubsection{Deployment with Docker}
 
-Test 02 varies one agent step at a time over the sensitivity search space,
-keeping the other two steps at their baseline configuration. It uses a
-15-prompt benchmark subset (\texttt{benchmark\_dataset\_gemma4\_thesis\_15.json})
-to reduce wall-clock time while retaining enough diversity for per-step
-sensitivity estimates. The \texttt{docker run} command follows the same
-template as Test 01 with the following substitutions:
+The \texttt{docker run} command follows the same template as Test 01 with
+the following substitutions:
 
 \begin{itemize}
     \item Dataset:
-          \texttt{evaluation/benchmark\_dataset\_gemma4\_thesis\_15.json}
+          \texttt{evaluation/\allowbreak benchmark\_\allowbreak dataset\_\allowbreak gemma4\_\allowbreak thesis\_15.json}
     \item Manifests:
           \texttt{thesis\_test02\_gemma4\_sensitivity.yaml} for
           \texttt{gemma4:e4b} and \texttt{gemma4:26b};
-          \texttt{thesis\_test02\_mistral\_small32\_sensitivity.yaml} for
+          \texttt{thesis\_\allowbreak test02\_\allowbreak mistral\_\allowbreak small32\_\allowbreak sensitivity.yaml} for
           \texttt{mistral-small3.2:24b}
     \item Save directory prefix:
-          \texttt{02v2\_agent\_step\_parameter\_sensitivity/<model\_slug>}
+          \texttt{02v2\_\allowbreak agent\_\allowbreak step\_\allowbreak parameter\_\allowbreak sensitivity/\allowbreak <model\_slug>}
 \end{itemize}
 
 \subsection{Test 03 - \texttt{max\_tokens} Ladder per Agent}
@@ -277,75 +277,60 @@ recovery from a higher cap can be weighed against its compute cost.
 
 \subsubsection{Deployment with Docker}
 
-Test 03 sweeps four \texttt{max\_tokens} levels for each of the three agent
-steps independently, on a 10-prompt benchmark subset
-(\texttt{benchmark\_dataset\_gemma4\_thesis\_10.json}).
-The \texttt{docker run} command follows the same template with:
+The \texttt{docker run} command follows the same template as Test 01 with
+the following substitutions:
 
 \begin{itemize}
     \item Dataset:
-          \texttt{evaluation/benchmark\_dataset\_gemma4\_thesis\_10.json}
+          \texttt{evaluation/\allowbreak benchmark\_\allowbreak dataset\_\allowbreak gemma4\_\allowbreak thesis\_10.json}
     \item Manifests:
           \texttt{thesis\_test03\_gemma4\_max\_tokens.yaml} for
           \texttt{gemma4:e4b} and \texttt{gemma4:26b};
-          \texttt{thesis\_test03\_mistral\_small32\_max\_tokens.yaml} for
+          \texttt{thesis\_\allowbreak test03\_\allowbreak mistral\_\allowbreak small32\_\allowbreak max\_tokens.yaml} for
           \texttt{mistral-small3.2:24b}
     \item Save directory prefix:
-          \texttt{03\_max\_tokens\_agent\_ladder/<model\_slug>}
+          \texttt{03\_\allowbreak max\_tokens\_\allowbreak agent\_ladder/\allowbreak <model\_slug>}
 \end{itemize}
 
-\subsection{Test 04 - Compute Expansion (BoN + CoT)}
+\subsection{Test 04 - Compute Expansion (CoT Depth Ladder)}
 \label{subsec:test04}
 
-Test 04 investigates whether allocating additional inference-time computation
---- through Best-of-$N$ (BoN) sampling or Chain-of-Thought (CoT) refinement
---- can recover the accuracy gaps identified in the previous tests, with a
-primary focus on \texttt{gemma4:e4b} as the most sensitive model. The protocol
-follows the same one-step-at-a-time structure as Test 02, but restricts the
-search to compute-expansion strategies rather than static parameter changes.
+Test 04 investigates whether Chain-of-Thought (CoT) refinement can improve
+accuracy over the static baselines established in Tests 02--03.
+\texttt{gemma4:26b} is excluded: its main weakness (visualization) was already
+resolved by the token-budget increase in Test 03, its SQL and text steps were
+near saturation, and its high baseline latency made compute expansion
+particularly costly.
 
-The configurations tested per step are:
+Both \texttt{gemma4:e4b} and \texttt{mistral-small3.2:24b} are evaluated with
+the same protocol: a CoT depth ladder varying \texttt{cot\_n} $\in \{1, 2, 3,
+4\}$ on the lookup and visualization steps independently, while the analysis
+step is kept fixed at baseline. This yields 8 configurations per model (4
+lookup $\times$ 2 steps), run on the same 10-prompt subset as Test 03 for
+three repeats.
 
-\begin{itemize}
-    \item \texttt{lookup\_sales\_data}: baseline; BoN with temperature, $n=2$;
-          BoN with temperature, $n=3$; CoT, $n=2$
-    \item \texttt{analyzing\_data}: baseline; BoN with temperature, $n=2$
-    \item \texttt{create\_visualization}: baseline; BoN with top-$k$, $n=2$;
-          BoN with top-$k$, $n=3$; CoT, $n=2$
-\end{itemize}
-
-For Best-of-$N$ runs, multiple candidate outputs are generated for the target
-step and the best one is selected by a scoring function specific to each agent:
-consensus similarity for the lookup step, and LLM-based quality scoring for
-analysis and visualization. For CoT runs, an initial output is generated and
-then refined through a structured feedback loop before being passed to the next
-step.
-
-The experiment runs on the same 10-prompt subset as Test 03, for two repeats,
-yielding $10 \times 10 = 100$ scored prompt runs per repeat. An additional
-follow-up campaign (Test 04b) is also run to disentangle the effect of
-Best-of-$N$ candidate selection from the effect of the temperature range used
-for the first candidate, using eight lookup-only configurations across two
-repeats. The primary cost signal is elapsed time per prompt, complemented by
-energy measurements where available.
+An additional follow-up campaign (Test 04b) is run on \texttt{gemma4:e4b} to
+disentangle whether lookup gains come from CoT refinement or from the
+temperature value of the first generation pass. It compares three static
+temperature settings ($t \in \{0.3, 0.6, 0.8\}$) against three Best-of-2
+temperature ranges (narrow, medium, wide) and a CoT $n=2$ reference, across
+8 lookup-only configurations and two repeats.
 
 \subsubsection{Deployment with Docker}
 
-Test 04 evaluates Best-of-N and Chain-of-Thought compute expansion strategies,
-focusing on \texttt{gemma4:e4b} as the primary target model. It uses the same
-10-prompt benchmark subset as Test 03. The \texttt{docker run} command follows
-the same template with:
+The \texttt{docker run} command follows the same template as Test 01 with
+the following substitutions:
 
 \begin{itemize}
     \item Dataset:
-          \texttt{evaluation/benchmark\_dataset\_gemma4\_thesis\_10.json}
+          \texttt{evaluation/\allowbreak benchmark\_\allowbreak dataset\_\allowbreak gemma4\_\allowbreak thesis\_10.json}
     \item Manifests:
           \texttt{thesis\_test04\_gemma4\_e4b\_compute\_expansion.yaml} for
           \texttt{gemma4:e4b};
-          \texttt{thesis\_test04\_mistral\_small32\_compute\_expansion.yaml} for
+          \texttt{thesis\_\allowbreak test04\_\allowbreak mistral\_\allowbreak small32\_\allowbreak compute\_expansion.yaml} for
           \texttt{mistral-small3.2:24b}
     \item Save directory prefix:
-          \texttt{04\_compute\_expansion\_n\_and\_cot/<model\_slug>}
+          \texttt{04\_\allowbreak compute\_\allowbreak expansion\_\allowbreak n\_and\_cot/\allowbreak <model\_slug>}
 \end{itemize}
 
 \subsection{Test 05 - Final Pareto Confirmation}
@@ -358,9 +343,9 @@ Pareto frontier across all models and candidate policies.
 
 Unlike the preceding tests, which vary one hyperparameter dimension at a time,
 Test 05 evaluates complete agent policies: each configuration specifies the
-full set of per-step parameters (sampling settings, token caps, and compute-
-expansion strategy) assembled from the most promising candidates of the
-exploratory phase. Six configurations are evaluated per model:
+full set of per-step parameters assembled from the most promising candidates of
+the exploratory phase. Six configurations are evaluated per model. Five are
+common to all three models:
 
 \begin{itemize}
     \item \textbf{baseline} --- the fixed default from Test 01, used as
@@ -371,11 +356,22 @@ exploratory phase. Six configurations are evaluated per model:
           from the OFAT and token-ladder experiments, combined;
     \item \textbf{max\_tokens\_adjusted} --- a token-cap-only variant to
           isolate the contribution of the token budget;
-    \item \textbf{lookup\_cot\_n2} --- a compute-expansion policy targeting
-          SQL repair via Chain-of-Thought on the lookup step;
-    \item \textbf{combined\_best\_candidate} --- a combination of the top-
-          performing settings across all steps, as a stress test of whether
-          exploratory gains are additive.
+    \item \textbf{combined\_best\_candidate} --- a combination of the
+          top-performing settings across all steps, as a stress test of
+          whether exploratory gains are additive.
+\end{itemize}
+
+The sixth configuration is model-specific and targets each model's most
+promising compute-expansion or efficiency candidate:
+
+\begin{itemize}
+    \item \texttt{gemma4:e4b} --- \textbf{lookup\_cot\_n2}: SQL repair via
+          Chain-of-Thought on the lookup step;
+    \item \texttt{gemma4:26b} --- \textbf{visualization\_bon\_top\_k\_n2}:
+          Best-of-2 with top-$k$ sampling on the visualization step;
+    \item \texttt{mistral-small3.2:24b} --- \textbf{analysis\_top\_k\_high\_low\_tokens}:
+          analysis top-$k$ tuning combined with reduced token caps across
+          all steps.
 \end{itemize}
 
 All three models are evaluated on the full 20-prompt benchmark for three
@@ -386,10 +382,7 @@ completion rate, elapsed time, and energy per prompt.
 
 \subsubsection{Deployment with Docker}
 
-Test 05 evaluates the final candidate configurations assembled from Tests
-02--04 on the full 20-prompt benchmark. Each model has a dedicated manifest
-encoding its specific candidate policies. The command for \texttt{gemma4:e4b}
-is:
+Each model has a dedicated manifest. The command for \texttt{gemma4:e4b} is:
 
 \begin{verbatim}
 docker run --rm \
@@ -412,9 +405,9 @@ docker run --rm \
 \end{verbatim}
 
 The same pattern is repeated for \texttt{gemma4:26b} using
-\texttt{thesis\_test05\_gemma4\_26b\_final\_pareto.yaml}, and for
+\texttt{thesis\_\allowbreak test05\_\allowbreak gemma4\_\allowbreak 26b\_\allowbreak final\_pareto.yaml}, and for
 \texttt{mistral-small3.2:24b} using
-\texttt{thesis\_test05\_mistral\_small32\_24b\_final\_pareto.yaml}, with
+\texttt{thesis\_\allowbreak test05\_\allowbreak mistral\_\allowbreak small32\_\allowbreak 24b\_\allowbreak final\_pareto.yaml}, with
 the corresponding \texttt{--model} and \texttt{--save-dir} arguments updated
 accordingly.
 

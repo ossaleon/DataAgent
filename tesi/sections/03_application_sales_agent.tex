@@ -50,7 +50,7 @@ analyst, from raw data retrieval to presentation-ready charts.
 \subsection{System Architecture}
 \label{subsec:architecture}
 
-The Sales Agent is implemented as a Python package organised into seven modules,
+The Sales Agent is implemented as a Python package organised into six modules,
 each with a clearly delimited responsibility. Figure~\ref{fig:class_diagram} shows
 the class diagram of the system.
 
@@ -309,7 +309,7 @@ producing the final answer. By externalising intermediate reasoning, the model i
 likely to skip steps or make implicit assumptions, and the output is easier to inspect
 and validate.
 
-\textcolor{red}{The SQL generation prompt deliberately omits the CoT reasoning section.
+The SQL generation prompt deliberately omits the CoT reasoning section.
 During development, smaller open-weight models tended to lose track
 of critical constraints — DuckDB-specific syntax rules, column qualification in JOINs,
 and the required plain-text output format — when required to produce explicit
@@ -320,7 +320,7 @@ block listing wrong/right DuckDB patterns, and a \texttt{\#\# EXAMPLES} block of
 few-shot query pairs, while the \texttt{\#\# OUTPUT FORMAT} section explicitly
 instructs the model to return only the plain SQL with no explanations or markdown.
 This change consistently reduced syntax errors and instruction-following failures
-across the small models tested.}
+across the small models tested.
 
 \subsubsection{Best-of-\texorpdfstring{$N$}{N} Sampling}
 
@@ -385,7 +385,7 @@ also override the global LLM provider and model, enabling heterogeneous deployme
 where, for example, SQL generation uses a larger cloud model while routing uses a
 lightweight local model.
 The default values shown reflect the baseline configurations used in the experiments
-(Section~\ref{sec:experiments}): Gemma~4 models are run at temperature~1.0, which
+(Section~\ref{sec:experimentdesign}): Gemma~4 models are run at temperature~1.0, which
 is the recommended setting for thinking models; Mistral~Small~3.2 is run at
 temperature~0.15, appropriate for an instruction-following model.
 
@@ -408,6 +408,10 @@ temperature~0.15, appropriate for an instruction-following model.
 \hline
 \texttt{num\_beams} & 1 & 1 & Beam search width; 1 = greedy (Ollama only) \T\B \\
 \hline
+\texttt{repeat\_penalty} & 1.1 & 1.1 & Repetition penalty applied to already-seen tokens; $>1$ discourages repetition (Ollama only) \T\B \\
+\hline
+\texttt{repeat\_last\_n} & 64 & 64 & Lookback window (tokens) over which the repetition penalty is applied; 0 disables it (Ollama only) \T\B \\
+\hline
 \texttt{max\_tokens} & 5000 / 7000 & 5000 / 7000 & Maximum tokens per LLM generation (5000 for lookup, 7000 for analysis and visualization) \T\B \\
 \hline
 \texttt{cot\_n} & 1 & 1 & Maximum CoT refinement iterations \T\B \\
@@ -421,7 +425,7 @@ temperature~0.15, appropriate for an instruction-following model.
 
 The \texttt{run.step\_overrides} field allows temporary parameter changes for a
 single execution without modifying the base configuration. For example, setting
-\texttt{analyzing\_data.n: 5} and \texttt{temp\_max: 0.9} increases best-of-$n$
+\texttt{analyzing\_data.n: 3} and \texttt{temp\_max: 1.3} increases best-of-$n$
 sampling for the analysis step in that run only. The \texttt{interactive\_config}
 flag additionally allows the user to be prompted for step parameters at runtime,
 useful for exploratory experiments.
@@ -446,13 +450,14 @@ and their key columns.
 \textbf{Table} & \textbf{Key columns} & \textbf{Description} \T\B \\
 \hline
 \texttt{sales} &
-  \texttt{Store\_Number}, \texttt{SKU\_Coded}, \texttt{Sold\_Date},
-  \texttt{Qty\_Sold}, \texttt{Total\_Sale\_Value}, \texttt{On\_Promo} &
+  \texttt{Store\_Number}, \texttt{SKU\_Coded}, \texttt{Product\_Class\_Code},
+  \texttt{Sold\_Date}, \texttt{Qty\_Sold}, \texttt{Total\_Sale\_Value}, \texttt{On\_Promo} &
   Daily store-level transactions with pricing and promotion data \T\B \\
 \hline
 \texttt{products} &
-  \texttt{SKU\_Coded}, \texttt{category}, \texttt{subcategory},
-  \texttt{brand}, \texttt{unit\_price\_usd}, \texttt{is\_organic},
+  \texttt{SKU\_Coded}, \texttt{Product\_Class\_Code}, \texttt{category},
+  \texttt{subcategory}, \texttt{product\_name}, \texttt{brand},
+  \texttt{unit\_price\_usd}, \texttt{weight\_kg}, \texttt{is\_organic},
   \texttt{country\_of\_origin} &
   Product catalog with category, brand, pricing, and origin details \T\B \\
 \hline
@@ -468,9 +473,11 @@ and their key columns.
 \end{table}
 
 The three tables are linked through two foreign keys: \texttt{Store\_Number}
-connects \texttt{sales} to \texttt{stores}, and \texttt{SKU\_Coded} together with
-\texttt{Product\_Class\_Code} connect \texttt{sales} to \texttt{products}. This
-relational structure allows the agent to answer questions that span multiple
+connects \texttt{sales} to \texttt{stores}, and \texttt{SKU\_Coded} connects
+\texttt{sales} to \texttt{products}. Both tables also carry the
+\texttt{Product\_Class\_Code} column — a category-level classification code shared by
+multiple SKUs — which can be used as an additional grouping dimension alongside the
+join. This relational structure allows the agent to answer questions that span multiple
 dimensions simultaneously — for example, aggregating revenue by product category
 and region, or filtering promotions by store type.
 

@@ -227,9 +227,8 @@ compute converts into measurable quality improvement.
 
 Token budget is a complementary control variable.
 Setting the maximum output length too low can truncate reasoning chains or
-produce incomplete code; \textcolor{red}{setting it too high increases latency and energy per
-call}, particularly for thinking models that may expand their reasoning chain
-to fill the available budget even when the task does not require it.
+produce incomplete code, while a cap that is already non-binding could add no
+measurable cost.
 
 \paragraph{Connection to this work.}
 The thesis uses a LangGraph workflow with four nodes --- tool routing, lookup,
