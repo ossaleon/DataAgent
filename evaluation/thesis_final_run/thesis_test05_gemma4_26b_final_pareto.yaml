@@ -1,7 +1,20 @@
-# Thesis Test 05 final Pareto confirmation for gemma4:26b.
+# Thesis Test 05 incremental Pareto confirmation for gemma4:26b.
 #
 # Use with:
 #   --model gemma4:26b
+#
+# This manifest contains only new full-agent configurations to run.
+# Reuse already measured static and token-cap candidates from Tests 01-03
+# in the final Pareto merge instead of rerunning them here.
+#
+# Existing evidence to merge:
+#   Test 01: baseline
+#   Test 02: visualization_repeat_penalty_1, visualization_repeat_penalty_1p03,
+#            visualization_top_k_20, visualization_top_k_48,
+#            visualization_top_k_128, lookup_repeat_last_n_96,
+#            lookup_repeat_penalty_1p3, analysis_top_k_24
+#   Test 03: lookup_max_tokens_8000, analysis_max_tokens_4000,
+#            visualization_max_tokens_10000
 
 defaults:
   lookup_sales_data:
@@ -18,6 +31,7 @@ defaults:
     num_beams: 1
     no_repeat_ngram_size: null
     use_cache: false
+
   analyzing_data:
     n: 1
     cot_n: 1
@@ -32,6 +46,7 @@ defaults:
     num_beams: 1
     no_repeat_ngram_size: null
     use_cache: false
+
   create_visualization:
     n: 1
     cot_n: 1
@@ -48,47 +63,86 @@ defaults:
     use_cache: false
 
 configs:
-  - name: baseline
+  - name: max_tokens_quality
     vary_step: all_steps
-    axis: baseline
-    description: Gemma 26B MoE baseline from Test 01.
-    steps: {}
-
-  - name: efficient_static
-    vary_step: all_steps
-    axis: efficient_static
-    description: Static visualization fix from Test 02 with no extra inference calls.
+    axis: combined_tokens
+    description: "Combine Test 03 best-quality token caps: lookup=8000, analysis=4000, visualization=10000."
     steps:
-      create_visualization: {top_k_min: 128, top_k_max: 128}
-
-  - name: best_step_static
-    vary_step: all_steps
-    axis: best_step_static
-    description: "Cost-aware visualization repair: top_k_high plus the successful visualization max_tokens=10000 cap from Test 03."
-    steps:
-      create_visualization: {top_k_min: 128, top_k_max: 128, max_tokens: 10000}
-
-  - name: max_tokens_adjusted
-    vary_step: all_steps
-    axis: max_tokens_adjusted
-    description: "Per-agent token caps from Test 03: SQL/text safe lower caps and generous visualization cap."
-    steps:
-      lookup_sales_data: {max_tokens: 3000}
-      analyzing_data: {max_tokens: 5000}
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 4000}
       create_visualization: {max_tokens: 10000}
 
-  - name: visualization_bon_top_k_n2
+  - name: max_tokens_direct_safe
     vary_step: all_steps
-    axis: compute_expansion_candidate
-    description: Visualization Best-of-2 top-k candidate from Test 02.
+    axis: combined_tokens
+    description: "Safer token-cap candidate: lookup=8000, analysis baseline=7000, visualization=10000."
     steps:
-      create_visualization: {n: 2, bon_param: top_k, top_k_min: 20, top_k_max: 128}
+      lookup_sales_data: {max_tokens: 8000}
+      create_visualization: {max_tokens: 10000}
 
-  - name: combined_best_candidate
+  - name: combined_visualization_rp1_tokens
     vary_step: all_steps
-    axis: combined_best_candidate
-    description: "Combined high-quality MoE candidate: safe SQL/text caps plus static visualization repair and max_tokens=10000."
+    axis: combined_visualization_tokens
+    description: "Best visualization repeat-penalty candidate plus Test 03 token caps."
     steps:
-      lookup_sales_data: {max_tokens: 3000}
-      analyzing_data: {max_tokens: 5000}
-      create_visualization: {top_k_min: 128, top_k_max: 128, max_tokens: 10000}
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 4000}
+      create_visualization: {repeat_penalty: 1.0, repeat_last_n: 64, max_tokens: 10000}
+
+  - name: combined_visualization_topk20_tokens
+    vary_step: all_steps
+    axis: combined_visualization_tokens
+    description: "Best visualization top-k candidate plus Test 03 token caps."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 4000}
+      create_visualization: {top_k_min: 20, top_k_max: 20, max_tokens: 10000}
+
+  - name: combined_static_direct
+    vary_step: all_steps
+    axis: combined_static
+    description: "Combine strongest static direct-agent settings without token-cap changes."
+    steps:
+      lookup_sales_data: {repeat_penalty: 1.3, repeat_last_n: 64}
+      analyzing_data: {top_k_min: 24, top_k_max: 24}
+      create_visualization: {repeat_penalty: 1.0, repeat_last_n: 64}
+
+  - name: combined_all_best_static
+    vary_step: all_steps
+    axis: combined_static_tokens
+    description: "Full static Gemma 26B candidate: lookup SQL fix, analysis top-k, visualization repeat-penalty, and Test 03 token caps."
+    steps:
+      lookup_sales_data: {repeat_penalty: 1.3, repeat_last_n: 64, max_tokens: 8000}
+      analyzing_data: {top_k_min: 24, top_k_max: 24, max_tokens: 4000}
+      create_visualization: {repeat_penalty: 1.0, repeat_last_n: 64, max_tokens: 10000}
+
+  - name: lookup_cot_n2
+    vary_step: all_steps
+    axis: lookup_cot
+    description: "New Gemma 26B lookup CoT check; included because CoT helped E4B and may repair hard SQL cases."
+    steps:
+      lookup_sales_data: {cot_n: 2}
+
+  - name: lookup_cot_n3
+    vary_step: all_steps
+    axis: lookup_cot
+    description: "Second Gemma 26B lookup CoT depth check."
+    steps:
+      lookup_sales_data: {cot_n: 3}
+
+  - name: lookup_cot_n2_visualization_rp1
+    vary_step: all_steps
+    axis: combined_cot_visualization
+    description: "Lookup CoT n=2 plus the strongest visualization repair."
+    steps:
+      lookup_sales_data: {cot_n: 2}
+      create_visualization: {repeat_penalty: 1.0, repeat_last_n: 64}
+
+  - name: lookup_cot_n2_combined_all_best
+    vary_step: all_steps
+    axis: combined_cot_accuracy
+    description: "High-accuracy candidate: lookup CoT n=2 plus the full static/token candidate."
+    steps:
+      lookup_sales_data: {cot_n: 2, repeat_penalty: 1.3, repeat_last_n: 64, max_tokens: 8000}
+      analyzing_data: {top_k_min: 24, top_k_max: 24, max_tokens: 4000}
+      create_visualization: {repeat_penalty: 1.0, repeat_last_n: 64, max_tokens: 10000}

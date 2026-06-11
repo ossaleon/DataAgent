@@ -1,7 +1,20 @@
-# Thesis Test 05 final Pareto confirmation for mistral-small3.2:24b.
+# Thesis Test 05 incremental Pareto confirmation for mistral-small3.2:24b.
 #
 # Use with:
 #   --model mistral-small3.2:24b
+#
+# This manifest contains only new full-agent configurations to run.
+# Reuse already measured baseline, static, token-cap, and lookup-CoT
+# candidates from Tests 01-04 in the final Pareto merge instead of
+# rerunning them here.
+#
+# Existing evidence to merge:
+#   Test 01: baseline
+#   Test 02: analysis_top_k_56, lookup_repeat_penalty_1p3,
+#            visualization_repeat_last_n_56
+#   Test 03: lookup_max_tokens_3000, analysis_max_tokens_5000,
+#            visualization_max_tokens_5000
+#   Test 04: lookup_cot_n2, lookup_cot_n3, lookup_cot_n4
 
 defaults:
   lookup_sales_data:
@@ -18,6 +31,7 @@ defaults:
     num_beams: 1
     no_repeat_ngram_size: null
     use_cache: false
+
   analyzing_data:
     n: 1
     cot_n: 1
@@ -32,6 +46,7 @@ defaults:
     num_beams: 1
     no_repeat_ngram_size: null
     use_cache: false
+
   create_visualization:
     n: 1
     cot_n: 1
@@ -48,51 +63,73 @@ defaults:
     use_cache: false
 
 configs:
-  - name: baseline
+  - name: max_tokens_efficient
     vary_step: all_steps
-    axis: baseline
-    description: Mistral Small 3.2 baseline from Test 01.
-    steps: {}
-
-  - name: efficient_static
-    vary_step: all_steps
-    axis: efficient_static
-    description: Aggressive low-token candidate from Test 03 for the already-stable Mistral pipeline.
+    axis: combined_tokens
+    description: "Combine Test 03 efficient caps: lookup=3000, analysis=5000, visualization=5000."
     steps:
       lookup_sales_data: {max_tokens: 3000}
       analyzing_data: {max_tokens: 5000}
       create_visualization: {max_tokens: 5000}
 
-  - name: best_step_static
+  - name: max_tokens_quality
     vary_step: all_steps
-    axis: best_step_static
-    description: "Best cheap static quality signal from Test 02: lookup top_k_high."
+    axis: combined_tokens
+    description: "Quality-preserving token candidate: analysis=5000 and visualization=5000 with lookup at baseline."
     steps:
-      lookup_sales_data: {top_k_min: 128, top_k_max: 128}
-
-  - name: max_tokens_adjusted
-    vary_step: all_steps
-    axis: max_tokens_adjusted
-    description: "Conservative low-token candidate: lower lookup and visualization caps while keeping analysis at baseline."
-    steps:
-      lookup_sales_data: {max_tokens: 3000}
-      analyzing_data: {max_tokens: 7000}
+      analyzing_data: {max_tokens: 5000}
       create_visualization: {max_tokens: 5000}
 
-  - name: analysis_top_k_high_low_tokens
+  - name: lookup_cot_n2_efficient_tokens
     vary_step: all_steps
-    axis: efficient_static_variant
-    description: "Extra static Mistral candidate replacing compute expansion: analysis top_k_high with safe low token caps."
+    axis: combined_cot_tokens
+    description: "Lower-cost lookup CoT candidate with efficient token caps."
     steps:
-      lookup_sales_data: {max_tokens: 3000}
-      analyzing_data: {top_k_min: 128, top_k_max: 128, max_tokens: 5000}
+      lookup_sales_data: {cot_n: 2, max_tokens: 3000}
+      analyzing_data: {max_tokens: 5000}
       create_visualization: {max_tokens: 5000}
 
-  - name: combined_best_candidate
+  - name: lookup_cot_n3_efficient_tokens
     vary_step: all_steps
-    axis: combined_best_candidate
-    description: "Combined Mistral Pareto candidate: cheap lookup/analysis top-k tuning and low safe token caps."
+    axis: combined_cot_tokens
+    description: "Best Test 04 lookup CoT depth with efficient token caps."
     steps:
-      lookup_sales_data: {top_k_min: 128, top_k_max: 128, max_tokens: 3000}
-      analyzing_data: {top_k_min: 128, top_k_max: 128, max_tokens: 5000}
+      lookup_sales_data: {cot_n: 3, max_tokens: 3000}
+      analyzing_data: {max_tokens: 5000}
       create_visualization: {max_tokens: 5000}
+
+  - name: combined_static_best
+    vary_step: all_steps
+    axis: combined_static
+    description: "Combine the small positive static signals from Test 02."
+    steps:
+      lookup_sales_data: {repeat_penalty: 1.3, repeat_last_n: 64}
+      analyzing_data: {top_k_min: 56, top_k_max: 56}
+      create_visualization: {repeat_penalty: 1.1, repeat_last_n: 56}
+
+  - name: combined_static_best_efficient_tokens
+    vary_step: all_steps
+    axis: combined_static_tokens
+    description: "Static best candidate plus efficient token caps."
+    steps:
+      lookup_sales_data: {repeat_penalty: 1.3, repeat_last_n: 64, max_tokens: 3000}
+      analyzing_data: {top_k_min: 56, top_k_max: 56, max_tokens: 5000}
+      create_visualization: {repeat_penalty: 1.1, repeat_last_n: 56, max_tokens: 5000}
+
+  - name: combined_cot_static
+    vary_step: all_steps
+    axis: combined_cot_static
+    description: "Best lookup CoT depth plus the small positive static signals."
+    steps:
+      lookup_sales_data: {cot_n: 3, repeat_penalty: 1.3, repeat_last_n: 64}
+      analyzing_data: {top_k_min: 56, top_k_max: 56}
+      create_visualization: {repeat_penalty: 1.1, repeat_last_n: 56}
+
+  - name: combined_cot_static_tokens
+    vary_step: all_steps
+    axis: combined_cot_accuracy
+    description: "Final Mistral candidate: lookup CoT n=3, efficient token caps, and best static analysis/visualization settings."
+    steps:
+      lookup_sales_data: {cot_n: 3, repeat_penalty: 1.3, repeat_last_n: 64, max_tokens: 3000}
+      analyzing_data: {top_k_min: 56, top_k_max: 56, max_tokens: 5000}
+      create_visualization: {repeat_penalty: 1.1, repeat_last_n: 56, max_tokens: 5000}

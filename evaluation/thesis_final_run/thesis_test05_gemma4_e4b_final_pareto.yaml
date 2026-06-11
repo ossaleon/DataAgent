@@ -1,7 +1,17 @@
-# Thesis Test 05 final Pareto confirmation for gemma4:e4b.
+# Thesis Test 05 incremental Pareto confirmation for gemma4:e4b.
 #
 # Use with:
 #   --model gemma4:e4b
+#
+# This manifest contains only new full-agent configurations to run.
+# Reuse already measured candidates from Tests 01, 03, 04, and 04b in the
+# final Pareto merge instead of rerunning them here.
+#
+# Existing evidence to merge:
+#   Test 01: baseline
+#   Test 03: analysis/visualization max_tokens single-agent ladders
+#   Test 04: lookup_cot_n2, lookup_cot_n4
+#   Test 04b: lookup_temp_0p3, lookup_temp_0p8, lookup_cot_n2
 
 defaults:
   lookup_sales_data:
@@ -18,6 +28,7 @@ defaults:
     num_beams: 1
     no_repeat_ngram_size: null
     use_cache: false
+
   analyzing_data:
     n: 1
     cot_n: 1
@@ -32,6 +43,7 @@ defaults:
     num_beams: 1
     no_repeat_ngram_size: null
     use_cache: false
+
   create_visualization:
     n: 1
     cot_n: 1
@@ -48,50 +60,69 @@ defaults:
     use_cache: false
 
 configs:
-  - name: baseline
+  - name: max_tokens_low_cost
     vary_step: all_steps
-    axis: baseline
-    description: Gemma E4B baseline from Test 01.
-    steps: {}
-
-  - name: efficient_static
-    vary_step: all_steps
-    axis: efficient_static
-    description: "Static low-cost candidate: keep lookup conservative, raise analysis/visualization token caps, and use visualization top_k_low."
+    axis: combined_tokens
+    description: "Combine Test 03 low-cost caps: analysis=5000 and visualization=4000."
     steps:
-      lookup_sales_data: {max_tokens: 5000}
-      analyzing_data: {max_tokens: 10000}
-      create_visualization: {max_tokens: 10000, top_k_min: 20, top_k_max: 20}
+      analyzing_data: {max_tokens: 5000}
+      create_visualization: {max_tokens: 4000}
 
-  - name: best_step_static
+  - name: lookup_temp_0p8_low_cost_tokens
     vary_step: all_steps
-    axis: best_step_static
-    description: "Static accuracy candidate from Test 02: analysis temperature_high plus visualization top_k_low."
+    axis: combined_static_tokens
+    description: "Best 04b static lookup temperature with low-cost downstream token caps."
     steps:
-      analyzing_data: {temp_min: 1.3, temp_max: 1.3}
-      create_visualization: {top_k_min: 20, top_k_max: 20}
+      lookup_sales_data: {temp_min: 0.8, temp_max: 0.8}
+      analyzing_data: {max_tokens: 5000}
+      create_visualization: {max_tokens: 4000}
 
-  - name: max_tokens_adjusted
+  - name: lookup_cot_n2_temp_0p8
     vary_step: all_steps
-    axis: max_tokens_adjusted
-    description: Per-agent token caps from Test 03 without sampling or compute-expansion changes.
+    axis: combined_lookup
+    description: "Lookup CoT n=2 plus the best static lookup temperature from 04b."
     steps:
-      lookup_sales_data: {max_tokens: 5000}
-      analyzing_data: {max_tokens: 10000}
-      create_visualization: {max_tokens: 10000}
+      lookup_sales_data: {cot_n: 2, temp_min: 0.8, temp_max: 0.8}
 
-  - name: lookup_cot_n2
+  - name: lookup_cot_n4_temp_0p8
     vary_step: all_steps
-    axis: compute_expansion_candidate
-    description: Targeted SQL feedback loop from Test 04.
+    axis: combined_lookup
+    description: "High-accuracy lookup repair: CoT n=4 plus static lookup temperature 0.8."
+    steps:
+      lookup_sales_data: {cot_n: 4, temp_min: 0.8, temp_max: 0.8}
+
+  - name: lookup_cot_n2_low_cost_tokens
+    vary_step: all_steps
+    axis: combined_cot_tokens
+    description: "Cost-aware lookup CoT n=2 with low-cost downstream token caps."
     steps:
       lookup_sales_data: {cot_n: 2}
+      analyzing_data: {max_tokens: 5000}
+      create_visualization: {max_tokens: 4000}
 
-  - name: combined_best_candidate
+  - name: lookup_cot_n4_low_cost_tokens
     vary_step: all_steps
-    axis: combined_best_candidate
-    description: "Combined high-quality candidate: lookup CoT, analysis temperature_high, visualization top_k_low, and generous analysis/visualization token caps."
+    axis: combined_cot_tokens
+    description: "Higher-depth lookup CoT n=4 with low-cost downstream token caps."
     steps:
-      lookup_sales_data: {cot_n: 2, max_tokens: 5000}
-      analyzing_data: {temp_min: 1.3, temp_max: 1.3, max_tokens: 10000}
-      create_visualization: {top_k_min: 20, top_k_max: 20, max_tokens: 10000}
+      lookup_sales_data: {cot_n: 4}
+      analyzing_data: {max_tokens: 5000}
+      create_visualization: {max_tokens: 4000}
+
+  - name: lookup_cot_n2_temp_0p8_low_cost_tokens
+    vary_step: all_steps
+    axis: combined_accuracy_cost
+    description: "Best cost-aware E4B candidate: lookup CoT n=2, temperature 0.8, and low-cost downstream caps."
+    steps:
+      lookup_sales_data: {cot_n: 2, temp_min: 0.8, temp_max: 0.8}
+      analyzing_data: {max_tokens: 5000}
+      create_visualization: {max_tokens: 4000}
+
+  - name: lookup_cot_n4_temp_0p8_low_cost_tokens
+    vary_step: all_steps
+    axis: combined_accuracy
+    description: "Highest-accuracy E4B candidate: lookup CoT n=4, temperature 0.8, and low-cost downstream caps."
+    steps:
+      lookup_sales_data: {cot_n: 4, temp_min: 0.8, temp_max: 0.8}
+      analyzing_data: {max_tokens: 5000}
+      create_visualization: {max_tokens: 4000}

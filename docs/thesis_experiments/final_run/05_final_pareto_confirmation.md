@@ -1,53 +1,42 @@
-# Test 05: Final Pareto Confirmation (Final Rerun)
+# Test 05: Incremental Final Pareto Confirmation
 
 ## Objective
 
-Confirm final model/config choices on a larger benchmark after the step-isolated experiments identify candidate settings.
+Build the final Pareto comparison without rerunning configurations that are already available from Tests 01-04.
 
-## Hypothesis
-
-The final thesis should show not only the highest-quality configuration, but also the most energy-efficient configuration that preserves nearly the same quality.
-
-## Evidence From Tests 01-04
-
-The final confirmation should be changed based on the completed exploratory tests.
-
-Important findings:
+The objective is no longer parameter exploration. Test 05 should run only new whole-agent configurations that are likely to be competitive after the previous step-isolated tests. The final analysis then merges:
 
 ```text
-Test 01:
-  mistral-small3.2:24b is the strongest baseline Pareto point.
-  gemma4:26b has the best SQL reliability but weaker visualization and higher cost.
-  gemma4:e4b is promising but has hard-prompt SQL fragility.
-
-Test 02:
-  parameter sensitivity is agent-specific.
-  mistral-small3.2:24b is mostly insensitive to tuning.
-  gemma4:e4b benefits most from analysis and visualization tuning.
-  gemma4:26b benefits most from visualization tuning.
-
-Test 03:
-  max_tokens should be set per agent, not globally.
-  gemma4:26b visualization strongly benefits from max_tokens=10000.
-  mistral-small3.2:24b does not need generous token caps in this range.
-
-Test 04:
-  gemma4:e4b lookup_cot_n2 and lookup_bon_temperature_n2 are worth confirming.
-  visualization best-of-n with n=2 is useful; n=3 is not.
-  visualization CoT is not useful in the current implementation.
+previously measured strong candidates
+new Test 05 combined candidates
 ```
 
-Therefore Test 05 should not simply re-run the generic best config from each previous axis. It should confirm a small set of interpretable Pareto candidates:
+This keeps the run small enough to execute quickly while still giving the final thesis plots enough non-dominated configurations.
+
+## Dataset And Repetitions
+
+New Test 05 runs use the full benchmark:
 
 ```text
-baseline
-cost-aware static tuning
-accuracy-oriented static tuning
-targeted compute expansion only where it helped
-combined best candidate
+evaluation/benchmark_dataset.json
 ```
 
-The currently available evidence supports final confirmation for:
+Full dataset size:
+
+```text
+20 prompts
+```
+
+Run only two repetitions:
+
+```text
+rep01
+rep02
+```
+
+Reason: Tests 02-04 already showed that the broad energy/latency conclusions are stable enough with two complete repetitions. With limited time, the budget is better spent on more useful Pareto candidates than on a third repeat.
+
+## Models
 
 ```text
 gemma4:e4b
@@ -55,220 +44,290 @@ gemma4:26b
 mistral-small3.2:24b
 ```
 
-## Test Logic
+## Design Rule
 
-This test must use the full benchmark dataset and three repeats. The manifests should be generated from the evidence gathered in Tests 01-04.
-
-For each completed model, run six configurations:
+Do not rerun configurations already measured in previous tests. Instead:
 
 ```text
-baseline
-efficient_static
-best_step_static
-max_tokens_adjusted
-compute_expansion_candidate
-combined_best_candidate
+Use previous tests for single-axis candidates.
+Use Test 05 only for combined high-performance candidates.
 ```
 
-This keeps the final experiment small enough to run on the full dataset while still testing the main thesis tradeoffs:
+This means Test 05 manifests intentionally do not include baseline rows or simple single-agent variants that already exist in Tests 01-04.
 
-```text
-model type vs accuracy/energy
-agent-specific parameter sensitivity
-max_tokens as a low-cost usability lever
-extra compute vs accuracy gain
-```
+## Candidate Pool
 
-## Candidate Configuration Design
+The main final Pareto pool should have about 15 candidate configurations per model after merging selected previous-test candidates with the new Test 05 runs.
+
+| Model | Priority existing candidates | New Test 05 configs | Main merged pool |
+| --- | ---: | ---: | ---: |
+| `gemma4:e4b` | 7 | 8 | 15 |
+| `gemma4:26b` | 5 | 10 | 15 |
+| `mistral-small3.2:24b` | 7 | 8 | 15 |
+
+Additional previous-test configs can still be kept in appendix tables, but they should not crowd the main Pareto plot unless they become non-dominated after normalization.
+
+## Existing Configurations To Reuse
 
 ### Gemma E4B
 
-Purpose:
+Reuse:
 
 ```text
-small thinking model; test whether targeted extra compute repairs SQL fragility
+Test 01:
+  baseline
+
+Test 03:
+  analysis_max_tokens_5000
+  visualization_max_tokens_4000
+
+Test 04:
+  lookup_cot_n2
+  lookup_cot_n4
+
+Test 04b:
+  lookup_temp_0p3
+  lookup_temp_0p8
 ```
 
-Configs:
-
-| Config | Intended parameters | Objective |
-|---|---|---|
-| `baseline` | current Gemma E4B baseline | Reference point. |
-| `efficient_static` | lookup max_tokens `3000` or `5000`, analysis max_tokens `10000`, visualization max_tokens `10000`, visualization `top_k_low` | Low-cost static improvement from Tests 02-03. |
-| `best_step_static` | analysis static tuning from Test 02 plus visualization `top_k_low` | Confirm static tuning against compute expansion. |
-| `max_tokens_adjusted` | lookup not above `5000`, analysis `10000`, visualization `10000` | Confirm that per-agent token caps improve usability. |
-| `compute_expansion_candidate` | `lookup_cot_n2` | Confirm the best Test 04 quality-cost signal. |
-| `combined_best_candidate` | `lookup_cot_n2` plus strongest static analysis/visualization settings, with per-agent max_tokens | Test the high-quality final candidate. |
-
-Do not include:
-
-```text
-lookup_bon_temperature_n3
-visualization_bon_top_k_n3
-visualization_cot_n2
-```
-
-Reason: Test 04 showed that `n=3` is dominated and visualization CoT is negative.
+Do not reuse E4B Test 02 because the final-run data is incomplete.
 
 ### Gemma 26B MoE
 
-Purpose:
+Reuse:
 
 ```text
-larger thinking MoE; test whether visualization repair makes its high SQL accuracy Pareto-competitive
+Test 01:
+  baseline
+
+Test 02:
+  visualization_repeat_penalty_1
+  visualization_top_k_20
+  lookup_repeat_penalty_1p3
+
+Test 03:
+  visualization_max_tokens_10000
 ```
 
-Configs:
-
-| Config | Intended parameters | Objective |
-|---|---|---|
-| `baseline` | current Gemma 26B baseline | Reference point. |
-| `efficient_static` | lookup max_tokens `3000` or `5000`, analysis max_tokens `5000`, visualization max_tokens `10000` | Keep SQL/text strong while removing unnecessary token budget. |
-| `best_step_static` | visualization `top_k_high` with visualization max_tokens `10000` | Confirm the cost-aware visualization fix from Test 02 plus Test 03. |
-| `max_tokens_adjusted` | visualization max_tokens `10000`, other agents at safe lower caps | Confirm the large visualization token effect from Test 03. |
-| `compute_expansion_candidate` | visualization Best-of-N `top_k`, `n=2` | Confirm the strongest visualization repair from Test 02. |
-| `combined_best_candidate` | visualization max_tokens `10000` plus best static visualization setting; optional lookup/analysis static improvements only if they do not hurt step metrics | Test high-quality MoE candidate. |
-
-Do not include:
-
-```text
-analysis_temperature_low
-analysis_cot_n2
-visualization_temperature_low
-```
-
-Reason: these were harmful or large runtime/energy outliers.
+Other previous Gemma 26B candidates such as `visualization_repeat_penalty_1p03`, `visualization_top_k_48`, `visualization_top_k_128`, `lookup_repeat_last_n_96`, `lookup_max_tokens_8000`, and `analysis_max_tokens_4000` can be retained for appendix analysis, but the five above are the priority points for the main Pareto plot.
 
 ### Mistral Small 3.2 24B
 
-Purpose:
+Reuse:
 
 ```text
-larger non-thinking baseline; confirm that the best Pareto model remains strong with lightweight tuning
+Test 01:
+  baseline
+
+Test 02:
+  analysis_top_k_56
+  lookup_repeat_penalty_1p3
+  visualization_repeat_last_n_56
+
+Test 04:
+  lookup_cot_n2
+  lookup_cot_n3
+  lookup_cot_n4
 ```
 
-Configs:
+The single-agent max-token rows from Test 03 are useful supporting evidence, but the main Mistral Pareto plot should use the new combined token-cap configs from Test 05.
 
-| Config | Intended parameters | Objective |
-|---|---|---|
-| `baseline` | current Mistral Small baseline | Reference point and likely Pareto anchor. |
-| `efficient_static` | lookup max_tokens `3000`, analysis max_tokens `5000` or `7000`, visualization max_tokens `5000` or `7000` | Confirm lower token caps preserve quality. |
-| `best_step_static` | analysis `top_k_high` or lookup `top_k_high`, selected from Test 02 | Confirm the only small static gains observed. |
-| `max_tokens_adjusted` | lower safe token caps from Test 03 | Test whether efficiency improves without accuracy loss. |
-| `analysis_top_k_high_low_tokens` | analysis `top_k_high` with low safe token caps | Extra efficient static variant replacing compute expansion. |
-| `combined_best_candidate` | efficient token caps plus the best cheap static parameter | Confirm the final Mistral Pareto candidate. |
+## New Test 05 Configurations
 
-Do not include Best-of-N or CoT unless there is a new result showing a large gain. Tests 02-03 suggest Mistral is already near its local optimum.
+### Gemma E4B
 
-## Selection Rules
-
-Best step config:
-
-```text
-highest step-relevant score
-tie-break by lower energy
-```
-
-Best overall quality config:
-
-```text
-highest quality_mean
-tie-break by lower energy
-```
-
-Best energy-efficient config:
-
-```text
-lowest energy among configs within 0.02 quality_mean of the best available quality
-```
-
-Additional final selection rule:
-
-```text
-Prefer n=1 static settings unless Best-of-N or CoT improves quality by at least 0.03 on the full benchmark.
-```
-
-Reason: extra calls increase time and energy by construction. Test 04 showed that only selected compute-expansion settings are worth confirming.
-
-## Metrics
-
-Primary:
-
-```text
-quality_mean
-prompt_quality
-csv_iou
-text_score
-vis_score
-energy_consumed_kwh
-gpu_energy_kwh
-elapsed_sec
-```
-
-Report:
-
-```text
-mean
-median
-standard deviation
-timeout rate
-completion rate
-accuracy_per_kwh
-prompt_quality_per_kwh
-```
-
-Metric note:
-
-```text
-prompt_quality should be reported alongside quality_mean.
-```
-
-Reason: Test 01 showed that `quality_mean` can hide full-pipeline failures when SQL errors prevent downstream text or visualization scores from being produced.
-
-## Thesis Objective
-
-This test produces the final tables and Pareto plots for the thesis discussion.
-
-## Completeness Check
-
-Expected rows:
-
-```text
-3 models x 3 repeats x 6 configs x full dataset size
-```
-
-## Code Readiness
-
-Ready to execute after rebuilding the Docker image from this branch.
-
-The final manifests have been generated and contain exactly six configs each.
-The manifest runner also writes the final-report metrics needed by this test:
-
-```text
-prompt_quality_mean
-completion_rate
-full_completion_rate
-quality_per_kwh
-prompt_quality_per_kwh
-```
-
-Expected final manifests:
+Manifest:
 
 ```text
 evaluation/thesis_final_run/thesis_test05_gemma4_e4b_final_pareto.yaml
+```
+
+Configs to run:
+
+| Config | Objective |
+| --- | --- |
+| `max_tokens_low_cost` | Combine the two best low-cost token-cap directions. |
+| `lookup_temp_0p8_low_cost_tokens` | Static lookup repair plus low-cost downstream caps. |
+| `lookup_cot_n2_temp_0p8` | Test interaction between useful lookup CoT and static lookup temperature. |
+| `lookup_cot_n4_temp_0p8` | Higher-depth lookup repair with the best static temperature. |
+| `lookup_cot_n2_low_cost_tokens` | Cost-aware CoT candidate. |
+| `lookup_cot_n4_low_cost_tokens` | Higher-depth CoT with cheaper downstream stages. |
+| `lookup_cot_n2_temp_0p8_low_cost_tokens` | Main E4B Pareto candidate. |
+| `lookup_cot_n4_temp_0p8_low_cost_tokens` | Highest-accuracy E4B candidate. |
+
+### Gemma 26B MoE
+
+Manifest:
+
+```text
 evaluation/thesis_final_run/thesis_test05_gemma4_26b_final_pareto.yaml
+```
+
+Configs to run:
+
+| Config | Objective |
+| --- | --- |
+| `max_tokens_quality` | Combine the best per-agent token caps from Test 03. |
+| `max_tokens_direct_safe` | Safer token-cap variant that keeps analysis at the baseline cap. |
+| `combined_visualization_rp1_tokens` | Strongest visualization repair plus token caps. |
+| `combined_visualization_topk20_tokens` | Alternative visualization repair plus token caps. |
+| `combined_static_direct` | Combine the strongest static direct-agent settings. |
+| `combined_all_best_static` | Full static/token high-accuracy candidate. |
+| `lookup_cot_n2` | New Gemma 26B CoT check inspired by E4B lookup gains. |
+| `lookup_cot_n3` | Second Gemma 26B CoT depth check. |
+| `lookup_cot_n2_visualization_rp1` | Lookup CoT plus strongest visualization repair. |
+| `lookup_cot_n2_combined_all_best` | Highest-accuracy Gemma 26B candidate. |
+
+### Mistral Small 3.2 24B
+
+Manifest:
+
+```text
 evaluation/thesis_final_run/thesis_test05_mistral_small32_24b_final_pareto.yaml
 ```
 
-Each final manifest should contain exactly six configs:
+Configs to run:
+
+| Config | Objective |
+| --- | --- |
+| `max_tokens_efficient` | Combine efficient token caps that were tested separately in Test 03. |
+| `max_tokens_quality` | Token candidate that keeps lookup at the safer baseline cap. |
+| `lookup_cot_n2_efficient_tokens` | Lower-cost lookup CoT with efficient token caps. |
+| `lookup_cot_n3_efficient_tokens` | Best lookup CoT depth with efficient token caps. |
+| `combined_static_best` | Combine small positive static signals from Test 02. |
+| `combined_static_best_efficient_tokens` | Static best candidate plus efficient token caps. |
+| `combined_cot_static` | Best lookup CoT depth plus static settings. |
+| `combined_cot_static_tokens` | Final Mistral high-performance candidate. |
+
+## Expected New Rows
+
+Only the new Test 05 runs are counted here:
+
+| Model | New configs | Repeats | Full-dataset prompts | Expected new rows |
+| --- | ---: | ---: | ---: | ---: |
+| `gemma4:e4b` | 8 | 2 | 20 | 320 |
+| `gemma4:26b` | 10 | 2 | 20 | 400 |
+| `mistral-small3.2:24b` | 8 | 2 | 20 | 320 |
+
+Total expected new prompt rows:
 
 ```text
-baseline
-efficient_static
-best_step_static
-max_tokens_adjusted
-compute_expansion_candidate or efficient_static_variant
-combined_best_candidate
+1040
+```
+
+## Merge Protocol
+
+The final Test 05 report should be built from a merged table with one row per:
+
+```text
+model
+config_name
+source_test
+source_dataset
+repeat
+```
+
+Recommended source labels:
+
+```text
+test01_full_baseline
+test02_static_sensitivity
+test03_max_tokens
+test04_lookup_cot
+test04b_lookup_temperature
+test05_incremental_pareto
+```
+
+For every source, keep these columns:
+
+```text
+model
+config_name
+source_test
+source_dataset
+repeat
+n_prompts
+quality_mean_strict
+csv_iou_mean
+text_score_mean
+vis_score_mean
+completion_rate
+full_completion_rate
+elapsed_sec_mean
+energy_consumed_kwh_mean
+gpu_energy_kwh_mean
+emissions_kg_co2_mean
+```
+
+Important accuracy rule:
+
+```text
+Expected missing GT score slots count as 0.
+```
+
+Do not drop failed prompt rows from the mean. A failed SQL query, missing text answer, or missing visualization is part of accuracy.
+
+## Pareto Reporting Rules
+
+Use two Pareto views:
+
+```text
+1. Full-dataset confirmation Pareto
+2. Screening-supported Pareto
+```
+
+Full-dataset confirmation Pareto:
+
+```text
+Use Test 01 baselines plus the new Test 05 runs only.
+```
+
+Reason: these are evaluated on the same full 20-prompt dataset.
+
+Screening-supported Pareto:
+
+```text
+Use Tests 02-04b plus Test 05, but mark source_dataset clearly.
+```
+
+Reason: Tests 02-04b were run on smaller fixed subsets. They are valid evidence for selecting candidates and understanding behavior, but they should not be visually indistinguishable from full-dataset confirmation points.
+
+Main thesis plot recommendation:
+
+```text
+Show full-dataset points as filled markers.
+Show reused screening points as hollow or lighter markers.
+Label only non-dominated full-dataset points.
+```
+
+This avoids pretending that a 10-prompt screening run and a 20-prompt final run have exactly the same evidential weight.
+
+## Selection Criteria
+
+Best quality:
+
+```text
+highest strict quality_mean
+tie-break by lower energy
+```
+
+Best efficient candidate:
+
+```text
+lowest energy among configs within 0.02 quality of the best model-specific full-dataset quality
+```
+
+Compute expansion acceptance:
+
+```text
+Keep lookup CoT only if it improves full-dataset quality by at least 0.03
+or fixes a clear SQL failure class at acceptable energy cost.
+```
+
+Final thesis recommendation:
+
+```text
+Prefer n=1 static/token settings unless lookup CoT gives a clear full-dataset accuracy gain.
 ```
 
 ## Remote Docker Commands
@@ -295,10 +354,16 @@ ollama pull gemma4:26b
 ollama pull mistral-small3.2:24b
 ```
 
-Run the three final measured repeats sequentially on one GPU:
+Export the shared GT judge key:
 
 ```bash
-for REP in 01 02 03; do
+export OPENAI_API_KEY="..."
+```
+
+Run the two final measured repeats sequentially on one GPU:
+
+```bash
+for REP in 01 02; do
   docker run --rm --gpus '"device=0"' --network=host \
     -e OLLAMA_HOST=http://localhost:11434 \
     -e OPENAI_API_KEY="$OPENAI_API_KEY" \
@@ -312,6 +377,7 @@ for REP in 01 02 03; do
     --gt-judge-provider openai \
     --gt-judge-model gpt-5.4 \
     --save-dir runs/thesis_tests_final/05_final_pareto_confirmation/gemma4_e4b/rep${REP} \
+    --repetition ${REP}/02 \
     --resume
 
   docker run --rm --gpus '"device=0"' --network=host \
@@ -327,6 +393,7 @@ for REP in 01 02 03; do
     --gt-judge-provider openai \
     --gt-judge-model gpt-5.4 \
     --save-dir runs/thesis_tests_final/05_final_pareto_confirmation/gemma4_26b/rep${REP} \
+    --repetition ${REP}/02 \
     --resume
 
   docker run --rm --gpus '"device=0"' --network=host \
@@ -342,6 +409,31 @@ for REP in 01 02 03; do
     --gt-judge-provider openai \
     --gt-judge-model gpt-5.4 \
     --save-dir runs/thesis_tests_final/05_final_pareto_confirmation/mistral_small32_24b/rep${REP} \
+    --repetition ${REP}/02 \
     --resume
 done
+```
+
+## Smoke Test
+
+Before launching the full run:
+
+```bash
+docker run --rm --gpus '"device=0"' --network=host \
+  -e OLLAMA_HOST=http://localhost:11434 \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -v "$(pwd)/runs:/app/runs" \
+  data-agent \
+  evaluation/run_manifest_benchmark.py \
+  evaluation/benchmark_dataset.json \
+  evaluation/thesis_final_run/thesis_test05_gemma4_e4b_final_pareto.yaml \
+  --provider ollama \
+  --model gemma4:e4b \
+  --gt-judge-provider openai \
+  --gt-judge-model gpt-5.4 \
+  --save-dir runs/smoke/05_final_pareto_confirmation/gemma4_e4b \
+  --max-configs 2 \
+  --max-prompts 1 \
+  --no-codecarbon \
+  --resume
 ```
