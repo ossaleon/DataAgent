@@ -662,8 +662,8 @@ casts; date strings are further normalised to treat \texttt{YYYY-MM} and
 
 \paragraph{Text Score (\texttt{text\_score}).}
 The quality of the natural language analysis is evaluated using an LLM-as-judge
-approach~\cite{zheng2023judging}. A separate LLM call (temperature 0, \texttt{gpt-4o-mini}
-by default) receives the generated analysis alongside the ground-truth reference text
+approach~\cite{zheng2023judging}. A separate LLM call (temperature 0, \texttt{gpt-5.4})
+receives the generated analysis alongside the ground-truth reference text
 and rates two criteria on a 1--5 scale:
 
 \begin{itemize}
@@ -683,7 +683,7 @@ $[1, 5]$ to $[0, 1]$:
 \end{equation}
 
 \paragraph{Visualisation Score (\texttt{vis\_score}).}
-The quality of the generated chart is evaluated by a second LLM judge that receives
+The quality of the generated chart is evaluated by a second LLM judge (\texttt{gpt-5.4}, temperature 0) that receives
 the agent's chart configuration dictionary, the corresponding Matplotlib code, the
 ground-truth equivalents, and any explicit styling requirements attached to the
 benchmark item. The judge rates four criteria on a 1--5 scale:

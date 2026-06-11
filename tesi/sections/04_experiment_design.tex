@@ -4,11 +4,24 @@
 \section{Experiment Design}
 \label{sec:experimentdesign}
 
-All experiments were conducted on a dedicated Linux server used exclusively for
-inference workloads during the experimental campaign. The server hardware and
-software environment are summarised in Table~\ref{tab:server}. The GPU is the
-primary compute resource: all LLM inference is offloaded to it via Ollama, which
-manages model loading, quantisation, and batching transparently.
+The experimental campaign was carried out across two hardware environments.
+Tests 01, 02, and 05 were conducted on a dedicated remote Linux server used
+exclusively for inference workloads; its hardware and software specifications
+are reported in Table~\ref{tab:server}. Tests 03, 04, and 04b were instead
+executed on a separate Linux server whose specifications are reported in
+Table~\ref{tab:server_local}; this split was adopted to run the two groups
+of experiments in parallel and shorten the overall data-collection time.
+In both environments the GPU is the primary compute resource: all LLM
+inference is offloaded to it via Ollama.
+The difference in hardware does not affect the validity of the conclusions
+drawn from Tests 03, 04, and 04b, because those tests measure only
+\emph{relative} effects: each sweep varies a single parameter across a
+fixed set of configurations that are all executed on the same machine,
+under identical software and model conditions. Absolute latency and energy
+figures are therefore not directly comparable across the two servers, but
+the rankings, sensitivity trends, and relative improvements that those
+tests are designed to capture remain unaffected by the hardware on which
+they are run.
 
 \begin{table}[H]
 \centering
@@ -39,8 +52,41 @@ GPU driver       & 580.159.03 \T\B \\
 Docker version   & 27.5.1 \T\B \\
 \hline
 \end{tabular}
-\caption{Server hardware and software specifications.}
+\caption{Remote server hardware and software specifications (Tests 01, 02, 05).}
 \label{tab:server}
+\end{table}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\begin{tabular}{|l|l|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Component} & \textbf{Specification} \T\B \\
+\hline
+Machine model    & Supermicro SYS-120GQ-TNRT \T\B \\
+\hline
+GPU model        & NVIDIA A40 (×2) \T\B \\
+\hline
+GPU VRAM         & 45 GiB (×2) \T\B \\
+\hline
+CPU model        & Intel Xeon Gold 5317 @ 3.00\,GHz (×2) \T\B \\
+\hline
+CPU cores / threads & 24 / 48 \T\B \\
+\hline
+System RAM       & 1.0 TiB \T\B \\
+\hline
+Operating system & Rocky Linux 8.10 (Green Obsidian) \T\B \\
+\hline
+Linux kernel     & 4.18.0-553.8.1.el8\_10.x86\_64 \T\B \\
+\hline
+GPU driver       & 555.42.02 \T\B \\
+\hline
+Docker version   & 26.1.3 \T\B \\
+\hline
+\end{tabular}
+\caption{Secondary server hardware and software specifications (Tests 03, 04, 04b).}
+\label{tab:server_local}
 \end{table}
 
 Ollama runs as a persistent background service on the host machine, exposing a
