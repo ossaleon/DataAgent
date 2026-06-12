@@ -7,14 +7,1385 @@
 \subsection{Test 01 - Baseline Model Comparison}
 \label{subsec:res01}
 
+Test~01 establishes the quality and efficiency baseline for the three
+candidate models before any parameter tuning is applied. The experimental
+design is described in Section~\ref{subsec:test01}: each model runs with its
+Ollama-recommended sampling defaults over all 20 benchmark prompts, with no
+agent step varied. One complete run per model was collected as a first-pass
+baseline; the planned additional repeats would allow variance estimation
+but do not alter the qualitative findings reported here.
+
+\subsubsection{Quality Metrics and End-to-End Interpretation}
+
+The benchmark runner reports a standard \texttt{quality\_mean} defined as the
+arithmetic mean of the three component score means:
+\begin{equation}
+\texttt{quality\_mean} = \frac{1}{3}\bigl(\overline{\texttt{csv\_iou}} +
+                                           \overline{\texttt{text\_score}} +
+                                           \overline{\texttt{vis\_score}}\bigr)
+\label{eq:quality_mean}
+\end{equation}
+where the averages are taken over the subset of prompts that produced a
+scorable output for each component. This definition is consistent across
+all tests and is used for continuity, but it can mask pipeline failures:
+when the lookup step returns an empty or erroneous SQL result, the text
+and visualization agents are never reached, so the resulting missing
+scores are simply excluded from the denominators of the text and
+visualization means, leaving the official \texttt{quality\_mean}
+artificially high.
+
+To address this, two additional quality views are used throughout this test:
+
+\begin{itemize}
+    \item \textbf{Component E2E quality} — the same three-component mean,
+          but any expected score absent due to an upstream pipeline failure
+          is counted as~$0.0$ rather than excluded. This is the primary
+          accuracy metric for comparisons in this section.
+    \item \textbf{Prompt E2E quality} — the per-prompt mean of the expected
+          component scores, with missing expected outputs counted as~$0.0$.
+          This view penalises each failed prompt as a single unit,
+          regardless of how many components were expected from it.
+\end{itemize}
+
+\subsubsection{Aggregate Results}
+
+Table~\ref{tab:test01aggregate} summarises the key metrics for the three
+models. By official quality all three are effectively tied, separated by
+less than 0.5 percentage points. The separation becomes evident when
+end-to-end quality is considered: \texttt{gemma4:e4b} drops from an
+official score of 0.9222 to a component E2E score of 0.8460 because the
+two SQL failures it incurs on difficulty-4 prompts propagate downstream
+and zero out the expected text and visualization scores for those prompts.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Official} & \textbf{Comp.~E2E} & \textbf{Prompt~E2E} & \textbf{csv E2E} & \textbf{text E2E} & \textbf{vis E2E} & \textbf{Mean sec} & \textbf{Mean kWh} \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 0.9265 & 0.9265 & 0.9206 & 0.9758 & 0.8313 & 0.9724 & 112.5 & 0.00705 \T\B \\
+\hline
+\texttt{gemma4:26b}           & 0.9259 & 0.9259 & 0.9423 & 0.9987 & 0.9438 & 0.8352 & 228.3 & 0.01113 \T\B \\
+\hline
+\texttt{gemma4:e4b}           & 0.9222 & 0.8460 & 0.8556 & 0.8987 & 0.8000 & 0.8393 & 135.3 & 0.00855 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~01 aggregate results per model (missing pipeline outputs counted as zero).}
+\label{tab:test01aggregate}
+\end{table}
+
+Figure~\ref{fig:test01_acc_energy} maps component E2E quality against mean
+energy consumption per prompt. The plot reveals a clear Pareto structure:
+\texttt{mistral-small3.2:24b} achieves the highest component E2E quality at
+the lowest energy cost, occupying the top-left corner of the space. The
+larger thinking MoE model \texttt{gemma4:26b} reaches a comparable component
+E2E quality (0.9259 vs.\ 0.9265) but consumes 1.58$\times$ the energy.
+The small thinking model \texttt{gemma4:e4b} falls below both competitors on
+quality while sitting at an intermediate energy cost, making it
+Pareto-dominated at baseline configuration.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.80\textwidth]{Images/test01_accuracy_vs_energy.png}
+    \caption{Test~01: component E2E quality vs.\ mean energy per prompt (Pareto).}
+    \label{fig:test01_acc_energy}
+\end{figure}
+
+\subsubsection{Pipeline Completion and Reliability}
+
+Figure~\ref{fig:test01_completion} shows the pipeline completion rate for each
+model along two dimensions: \emph{expected score slots} (the fraction of all
+component scores that were expected and actually produced) and \emph{full
+prompts} (the fraction of prompts for which the entire pipeline completed
+without failure).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.80\textwidth]{Images/test01_completion_rates.png}
+    \caption{Test~01: pipeline completion rate by model and output type.}
+    \label{fig:test01_completion}
+\end{figure}
+
+\texttt{mistral-small3.2:24b} and \texttt{gemma4:26b} achieve a full-prompt
+completion rate of 1.0: every prompt produces all expected outputs without
+exception. \texttt{gemma4:e4b} completes 18 of 20 prompts (0.90 rate),
+losing two to SQL generation failures on difficulty-4 queries that require
+nested monthly aggregation. Because the text and visualization agents depend
+on the structured CSV output from the lookup step, these two SQL failures
+also suppress all downstream outputs for the affected prompts, reducing the
+expected-slot completion rate to approximately~0.92. The raw output counts
+are detailed in Table~\ref{tab:test01completeness}.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Rows} & \textbf{csv scores} & \textbf{text scores} & \textbf{vis scores} & \textbf{Timeouts} \T\B \\
+\hline
+\texttt{gemma4:e4b}           & 20 & 20 & 18 & 12 & 0 \T\B \\
+\hline
+\texttt{gemma4:26b}           & 20 & 20 & 20 & 14 & 0 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 20 & 20 & 20 & 14 & 0 \T\B \\
+\hline
+\end{tabular}
+\caption{Test~01: pipeline output counts per model.}
+\label{tab:test01completeness}
+\end{table}
+
+\subsubsection{Per-Agent Accuracy Breakdown}
+
+Figure~\ref{fig:test01_per_agent_acc} decomposes the component E2E quality
+into the three pipeline stages: CSV (data retrieval), Text (natural-language
+analysis), and Visualization. Missing expected scores are counted as zero in
+all bars, so the values reflect true end-to-end reliability rather than
+conditional-on-success accuracy.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Images/test01_per_agent_accuracy.png}
+    \caption{Test~01: per-agent E2E accuracy by model (missing outputs counted as zero).}
+    \label{fig:test01_per_agent_acc}
+\end{figure}
+
+The figure reveals distinct failure modes across the three models:
+
+\begin{itemize}
+    \item \texttt{gemma4:26b} achieves near-perfect CSV accuracy
+          (\texttt{csv\_iou}~$\approx 0.999$) and the highest text score
+          (0.944), confirming its strength in structured data retrieval and
+          natural-language reasoning. However, its visualization score (0.835)
+          is the lowest of the three, and two visualization prompts produced
+          either no chart or a semantically incorrect one.
+
+    \item \texttt{mistral-small3.2:24b} produces the best visualization score
+          (0.972) and a strong CSV score (0.976), but its text analysis is
+          the weakest (0.831). Several prompts received partial text scores
+          due to incomplete analytical coverage or mismatched output schemas
+          rather than outright errors.
+
+    \item \texttt{gemma4:e4b} ranks lowest on CSV (0.899) because of the two
+          complete SQL failures. On the prompts it does complete, its text
+          and visualization scores are competitive, indicating that the quality
+          deficit is concentrated in the lookup step rather than being a
+          general model weakness.
+\end{itemize}
+
+\subsubsection{Accuracy by Prompt Difficulty}
+
+The benchmark is stratified across four SQL difficulty levels.
+Table~\ref{tab:test01difficulty} and Figure~\ref{fig:test01_by_difficulty}
+report the prompt E2E quality per difficulty tier, counting missing expected
+outputs as zero.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Difficulty} & \textbf{\texttt{gemma4:e4b}} & \textbf{\texttt{gemma4:26b}} & \textbf{\texttt{mistral-small3.2:24b}} \T\B \\
+\hline
+1 & 0.9958 & 0.9708 & 0.9583 \T\B \\
+\hline
+2 & 0.9350 & 0.8900 & 0.9303 \T\B \\
+\hline
+3 & 0.9397 & 0.9484 & 0.9024 \T\B \\
+\hline
+4 & 0.4688 & 0.9688 & 0.9029 \T\B \\
+\hline
+\end{tabular}
+\caption{Prompt E2E quality per SQL difficulty level in Test~01.}
+\label{tab:test01difficulty}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Images/test01_accuracy_by_difficulty.png}
+    \caption{Test~01: prompt E2E quality by SQL difficulty level.}
+    \label{fig:test01_by_difficulty}
+\end{figure}
+
+At difficulties~1 through~3 the three models are closely clustered, all
+remaining above~0.88. The critical divergence occurs at difficulty~4: while
+\texttt{gemma4:26b} and \texttt{mistral-small3.2:24b} maintain a prompt E2E
+quality above~0.90, \texttt{gemma4:e4b} drops to~0.47. The drop is entirely
+attributable to two complete SQL failures on difficulty-4 prompts that require
+nested monthly revenue aggregation across multiple years. The generated queries
+attempt the correct aggregation logic but reference incorrect column aliases or
+date fields in the outer subquery, causing the lookup step to return empty
+results. This pattern motivates the lookup-step targeted interventions explored
+in Tests~02 and~04: the small thinking model does not underperform globally,
+but its SQL generation is brittle on complex temporal aggregations.
+
+\subsubsection{Step-Level Latency and Energy}
+
+Figures~\ref{fig:test01_latency} and~\ref{fig:test01_energy} break down the
+mean LLM call time and energy per prompt by agent step. Numerical values are
+reported in Tables~\ref{tab:test01latency} and~\ref{tab:test01energy}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/test01_per_agent_latency_breakdown.png}
+    \caption{Test~01: mean LLM call time per prompt by agent step.}
+    \label{fig:test01_latency}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Lookup (s)} & \textbf{Analysis (s)} & \textbf{Visualization (s)} & \textbf{Dominant step} \T\B \\
+\hline
+\texttt{gemma4:e4b}           & 15.1 & 36.5 & 40.0 & visualization \T\B \\
+\hline
+\texttt{gemma4:26b}           & 29.6 & 56.8 & 95.0 & visualization \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 16.0 & 25.8 & 35.3 & visualization \T\B \\
+\hline
+\end{tabular}
+\caption{Mean LLM call time per prompt by agent step for Test~01.}
+\label{tab:test01latency}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/test01_per_agent_energy_breakdown.png}
+    \caption{Test~01: mean LLM energy per prompt by agent step (51--64\,\% in visualization).}
+    \label{fig:test01_energy}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Lookup (kWh)} & \textbf{Analysis (kWh)} & \textbf{Visualization (kWh)} & \textbf{Vis.\ share} \T\B \\
+\hline
+\texttt{gemma4:e4b}           & 0.000482 & 0.000739 & 0.001683 & 57.9\,\% \T\B \\
+\hline
+\texttt{gemma4:26b}           & 0.000997 & 0.001267 & 0.003996 & 63.8\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 0.000560 & 0.000474 & 0.001066 & 50.7\,\% \T\B \\
+\hline
+\end{tabular}
+\caption{Test~01: mean LLM energy per prompt by agent step with visualization share.}
+\label{tab:test01energy}
+\end{table}
+
+Visualization is the single dominant cost centre across all three models,
+accounting for 51--64\,\% of total per-prompt LLM energy and consistently
+representing the longest individual agent step. This finding is most
+pronounced for \texttt{gemma4:26b}, whose visualization step alone consumes
+0.004~kWh per prompt and takes a mean of~95~seconds --- more than the
+combined lookup and analysis time of \texttt{mistral-small3.2:24b}.
+The high visualization cost of the large Gemma model is particularly
+counterproductive given that its visualization quality (0.835) is the
+lowest of the three, suggesting that the additional computation is being
+spent on generation without corresponding accuracy gains.
+\texttt{mistral-small3.2:24b} benefits from a uniformly efficient profile:
+it spends less time on analysis (25.8~s vs.\ 36.5~s and 56.8~s for the
+two Gemma models) and achieves the lowest visualization energy (0.00107~kWh)
+while maintaining the best visualization quality.
+
+Table~\ref{tab:test01relativecost} quantifies the efficiency gap relative
+to \texttt{mistral-small3.2:24b} as the reference:
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Relative prompt quality} & \textbf{Relative time} & \textbf{Relative energy} \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 1.000 & 1.000 & 1.000 \T\B \\
+\hline
+\texttt{gemma4:e4b}           & 0.929 & 1.202 & 1.213 \T\B \\
+\hline
+\texttt{gemma4:26b}           & 1.024 & 2.028 & 1.578 \T\B \\
+\hline
+\end{tabular}
+\caption{Test~01: relative efficiency, normalised to \texttt{mistral-small3.2:24b}.}
+\label{tab:test01relativecost}
+\end{table}
+
+\texttt{gemma4:26b} improves prompt E2E quality by only 2.4\,\% relative to
+Mistral Small while taking 2.0$\times$ as long and consuming 1.6$\times$ the
+energy. \texttt{gemma4:e4b} is both slower and less reliable than Mistral at
+baseline, making \texttt{mistral-small3.2:24b} the clear Pareto-optimal
+choice in this test.
+
+\subsubsection{Per-Model Error Analysis}
+\label{subsubsec:test01errors}
+
+\paragraph{\texttt{gemma4:e4b}.}
+The two hard failures occur on prompts~4 and~17, both requiring a comparison
+of average monthly revenue across different store segmentation dimensions over
+2022 and~2023. The generated SQL queries attempt the correct nested monthly
+aggregation logic but reference incorrect column aliases or date fields in the
+outer subquery, causing the lookup step to return empty results
+(\texttt{csv\_iou}~$= 0.0$). No text or visualization output is produced for
+either prompt as a result.
+
+A third partial failure occurs on prompt~14 (top brands by average
+selling price): the CSV similarity remains high (\texttt{csv\_iou}~$= 0.973$)
+but the analysis agent transposes the average selling price and total unit
+count values in its narrative, yielding \texttt{text\_score}~$= 0.5$.
+Both failure types suggest that this model requires lookup-step targeted
+improvements for complex temporal aggregations, motivating the Best-of-$N$
+and Chain-of-Thought strategies evaluated in Test~04.
+
+\paragraph{\texttt{gemma4:26b}.}
+The model completes all SQL and text steps without failure. Its main
+weakness is concentrated in the visualization agent:
+
+\begin{itemize}
+    \item \textbf{Prompt~10} (monthly revenue for a specific product class
+          as a line chart): perfect data retrieval (\texttt{csv\_iou}~$= 1.0$)
+          and a high text score, but \texttt{vis\_score}~$= 0.0$ because no
+          chart code was produced at all.
+    \item \textbf{Prompt~16} (grouped bar chart for organic vs.\ non-organic
+          revenue by region): near-perfect SQL (\texttt{csv\_iou}~$= 0.974$)
+          and good text (\texttt{text\_score}~$= 0.875$), but weak
+          visualization (\texttt{vis\_score}~$= 0.592$) because the organic
+          flag was treated as a numerical $y$-axis value rather than a grouping
+          variable.
+\end{itemize}
+
+These failures suggest that the larger Gemma model's visualization step is
+the primary target for parameter tuning, as explored in Tests~02 and~03.
+
+\paragraph{\texttt{mistral-small3.2:24b}.}
+The model completes all prompts without SQL errors. Its main weakness is
+analytical completeness: on prompts~7, 8, and~16, the CSV output is correct
+or near-correct but the natural-language analysis omits relevant comparisons,
+leading to partial text scores. Prompt~18 (promo revenue share by product
+category) illustrates a schema adherence issue: the model returns a
+semantically correct table but with extra columns and a percentage-formatted
+column name that does not match the expected compact schema
+(\texttt{csv\_iou}~$= 0.546$, \texttt{vis\_score}~$= 0.664$, despite a
+high text score of~0.875). Analysis wording completeness and strict output
+schema adherence are the likely tuning targets for this model.
+
+\subsubsection{Summary}
+
+The main findings of Test~01 can be summarised as follows:
+
+\begin{enumerate}
+    \item \textbf{Mistral Small dominates at baseline.}
+          \texttt{mistral-small3.2:24b} achieves the best component E2E
+          quality (0.9265), the lowest latency (112.5~s/prompt), and the
+          lowest energy consumption (0.00705~kWh/prompt). It serves as the
+          primary efficiency reference for all subsequent tests.
+
+    \item \textbf{Gemma~26B improves SQL and text reliability at high cost.}
+          \texttt{gemma4:26b} achieves near-perfect SQL accuracy
+          (\texttt{csv\_iou}~$= 0.999$) and the highest text score (0.944),
+          but requires 2.0$\times$ the time and 1.6$\times$ the energy of
+          Mistral for only a 2.4\,\% gain in prompt E2E quality. Its
+          visualization step is unexpectedly both weak and expensive.
+
+    \item \textbf{Gemma~E4B is brittle on hard SQL.}
+          The small thinking model is competitive at difficulties~1 through~3
+          but collapses at difficulty~4, where two nested monthly aggregation
+          queries trigger complete SQL failures. This motivates the
+          lookup-step targeted interventions in Tests~02 and~04.
+
+    \item \textbf{Visualization is the dominant energy lever.}
+          The visualization step accounts for 51--64\,\% of per-prompt LLM
+          energy across all models and is the agent step with the greatest
+          potential for efficiency improvement through parameter tuning.
+\end{enumerate}
+
 \subsection{Test 02 - Per-Agent Sensitivity Analysis (OFAT)}
 \label{subsec:res02}
+
+Test~02 applies a One-Factor-At-a-Time (OFAT) protocol to quantify how
+individual static sampling hyperparameters affect each agent step in
+isolation. The experimental design is described in
+Section~\ref{subsec:test02}: each of the five parameters
+(\texttt{temperature}, \texttt{top\_p}, \texttt{top\_k},
+\texttt{repeat\_penalty}, \texttt{repeat\_last\_n}) is swept
+individually across ten values per step, producing 153 configurations
+per model. Each configuration is repeated twice over the full 20-prompt
+benchmark.
+
+\subsubsection{Data Completeness}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Repeats} & \textbf{Expected configs} & \textbf{Completed configs} & \textbf{Status} \T\B \\
+\hline
+\texttt{gemma4:26b}           & 2 & 153 & 153 & included \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 2 & 153 & 153 & included \T\B \\
+\hline
+\texttt{gemma4:e4b}           & 2 & 153 & 39 / 14 & {\color{red}\textbf{excluded — run incomplete}} \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~02: run completeness per model (\texttt{gemma4:e4b} excluded --- run incomplete).}
+\label{tab:test02completeness}
+\end{table}
+
+{\color{red}\textbf{[PLACEHOLDER — \texttt{gemma4:e4b} Test~02 run
+incomplete. When the run finishes, add: (i) sensitivity range row in
+Table~\ref{tab:test02range}; (ii) \texttt{gemma4:e4b} column in the
+quality delta and direct metric heatmaps; (iii) best/worst config rows
+in Table~\ref{tab:test02bestworst}; (iv) a dedicated paragraph in the
+per-model analysis sub-section.]}}
+
+\subsubsection{Overall Resource Use}
+
+Table~\ref{tab:test02overall} reports the aggregate statistics averaged
+across all 153 configurations and both repeats. The gap from Test~01
+persists: \texttt{mistral-small3.2:24b} runs at 67.2~s and 0.00416~kWh
+per prompt while \texttt{gemma4:26b} requires 189.0~s and 0.01189~kWh.
+Note that the mean quality values here are lower than Test~01 because
+they average over all OFAT configurations — including suboptimal
+off-baseline settings — rather than reflecting only the best or baseline
+performance.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Repeats} & \textbf{Rows} & \textbf{Mean quality} & \textbf{Mean sec/prompt} & \textbf{Mean kWh/prompt} \T\B \\
+\hline
+\texttt{gemma4:26b}           & 2 & 4{,}590 & 0.8325 & 189.0 & 0.01189 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 2 & 4{,}590 & 0.8783 & \phantom{0}67.2 & 0.00416 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~02: aggregate resource use averaged across all 153 OFAT configurations.}
+\label{tab:test02overall}
+\end{table}
+
+\subsubsection{Repeat Stability}
+\label{subsubsec:test02stability}
+
+Before interpreting configuration rankings, it is important to assess
+how reproducible the measurements are across the two repeats. A high
+inter-repeat quality variance would mean that small deltas between
+configurations could be noise rather than signal.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Images/test02v2_repeat_stability.png}
+    \caption{Test~02: mean quality and energy across repeats per model.}
+    \label{fig:test02_stability}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Quality rep01} & \textbf{Quality rep02} & \textbf{Mean $|\Delta$ qual|} & \textbf{Median $|\Delta$ qual|} & \textbf{P90 $|\Delta$ qual|} & \textbf{Mean $|\Delta$ sec|} \T\B \\
+\hline
+\texttt{gemma4:26b}           & 0.8332 & 0.8318 & 0.0408 & 0.0319 & 0.0858 & 22.4 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 0.8781 & 0.8786 & 0.0156 & 0.0083 & 0.0473 & \phantom{0}2.6 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~02: inter-repeat quality and latency stability per model.}
+\label{tab:test02stability}
+\end{table}
+
+\texttt{mistral-small3.2:24b} is highly stable: the per-configuration
+mean quality difference across repeats is only 0.016, with a median of
+0.008 and a P90 of 0.047. The latency jitter is just 2.6~s, and the
+energy difference between the two repeats is a negligible 0.0001~kWh.
+This stability validates the use of a single repeat for directional
+conclusions with Mistral.
+
+\texttt{gemma4:26b} shows more inter-repeat variance: the mean
+per-configuration quality difference is 0.041, the median is 0.032, and
+the P90 reaches 0.086. This is not unexpected given that its baseline
+temperature is~1.0, which introduces more stochastic variation in
+output generation. As a consequence, quality deltas smaller than roughly
+$\pm 0.05$ for \texttt{gemma4:26b} should be interpreted cautiously
+rather than as definitive rankings.
+
+\subsubsection{Sensitivity Range by Agent Step}
+
+Figure~\ref{fig:test02_range} reports the best-minus-worst quality delta
+(``sensitivity range'') for each agent step and each model, summarising
+how much the choice of sampling parameters can move overall pipeline
+quality when varying a single step.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/test02v2_sensitivity_range_by_step.png}
+    \caption{Test~02: sensitivity range (best-minus-worst quality delta) by step and model.}
+    \label{fig:test02_range}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|c|c|c|l|l|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Step} & \textbf{Baseline} & \textbf{Best $\Delta$} & \textbf{Worst $\Delta$} & \textbf{Range} & \textbf{Best config} \T\B \\
+\hline
+\texttt{gemma4:26b} & Lookup       & 0.8480 & $+$0.0319 & $-$0.1229 & 0.155 & \texttt{repeat\_last\_n\_96} \T\B \\
+\hline
+\texttt{gemma4:26b} & Analysis     & 0.8675 & $+$0.0065 & $-$0.1111 & 0.118 & \texttt{top\_k\_24} \T\B \\
+\hline
+\texttt{gemma4:26b} & Visualization & 0.8116 & $+$0.0684 & $-$0.0337 & 0.102 & \texttt{repeat\_penalty\_1} \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Analysis     & 0.8861 & $+$0.0069 & $-$0.0986 & 0.106 & \texttt{top\_k\_56} \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Lookup       & 0.8861 & $+$0.0042 & $-$0.0362 & 0.040 & \texttt{repeat\_penalty\_1p3} \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 0.8889 & $+$0.0014 & $-$0.0401 & 0.042 & \texttt{repeat\_last\_n\_56} \T\B \\
+\hline
+{\color{red}\textit{gemma4:e4b}} & {\color{red}\textit{all steps}} & \multicolumn{5}{c|}{\color{red}\textit{[PLACEHOLDER — data missing]}} \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~02: sensitivity range and best/worst quality cap per (model, step).}
+\label{tab:test02range}
+\end{table}
+
+The most striking result visible in both the figure and the table is the
+model-level asymmetry. For \texttt{gemma4:26b}, the lookup step has a
+sensitivity range of~0.155 — meaning the gap between its best and worst
+parameter choice can swing overall pipeline quality by more than 15
+percentage points. The visualization step offers the largest upside
+(best $\Delta = +0.068$) while the analysis step carries the largest
+downside risk (worst $\Delta = -0.111$). For
+\texttt{mistral-small3.2:24b}, by contrast, the lookup and visualization
+ranges are just~0.040 and~0.042: the model is almost entirely insensitive
+to sampling parameter changes at these steps. The only step where
+Mistral shows meaningful sensitivity is analysis, where
+\texttt{repeat\_penalty\_1.2} causes a catastrophic quality drop
+($-0.099$) driven by a $-0.171$ text-score collapse alongside a
+large latency penalty ($+90.4$~s/prompt) — an important
+misconfiguration to avoid but not a target for improvement.
+
+\subsubsection{Quality Delta Heatmap by Parameter Family}
+\label{subsubsec:test02qualityheatmap}
+
+Figure~\ref{fig:test02_quality_heatmap} shows, for each (step,
+parameter) pair, the best quality delta achieved over all tested values
+of that parameter, relative to the phase baseline. Green cells indicate
+that at least one value of that parameter improved pipeline quality;
+red cells indicate that the best achievable value still degraded it.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/test02v2_quality_delta_heatmap.png}
+    \caption{Test~02: best quality delta per (step, parameter) pair for both models.}
+    \label{fig:test02_quality_heatmap}
+\end{figure}
+
+The visualization block for \texttt{gemma4:26b} deserves particular
+attention. All five parameter families yield positive best deltas,
+ranging from $+0.043$ (\texttt{top\_p}) to $+0.068$
+(\texttt{repeat\_penalty}). This is directly consistent with the Test~01
+finding that Gemma~26B's visualization step was its primary weakness:
+the step is not only weak at baseline but also the most responsive to
+tuning. The best visualization configurations and their quality gains are
+listed in Table~\ref{tab:test02bestworst}.
+
+The red cell at Analysis/\texttt{temperature} for \texttt{gemma4:26b}
+reveals an important asymmetry: reducing temperature below~1.0 hurts the
+analysis agent's text generation more than it helps it. The model's
+thinking mechanism appears to rely on a degree of sampling diversity that
+is lost when temperature is lowered, a behaviour that does not apply to
+the non-thinking \texttt{mistral-small3.2:24b}.
+
+\subsubsection{Direct Step-Metric Delta Heatmap}
+
+Figure~\ref{fig:test02_metric_heatmap} shows the same structure as the
+quality heatmap but reports the best delta in the \emph{direct} step
+metric (\texttt{csv\_iou} for lookup, \texttt{text\_score} for analysis,
+\texttt{vis\_score} for visualization) rather than in overall pipeline
+quality. This separates the effect on the targeted step from any
+propagation into downstream steps.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/test02v2_step_metric_delta_heatmap.png}
+    \caption{Test~02: best direct step-metric delta per (step, parameter) pair.}
+    \label{fig:test02_metric_heatmap}
+\end{figure}
+
+Comparing Figures~\ref{fig:test02_quality_heatmap}
+and~\ref{fig:test02_metric_heatmap} reveals an important nuance for the
+\texttt{gemma4:26b} analysis step. In the quality heatmap the analysis
+block is largely neutral to slightly positive, but in the direct metric
+heatmap the analysis/temperature cell turns red ($-0.029$
+\texttt{text\_score}). This means that temperature changes at the
+analysis step do not just propagate losses forward — they degrade the
+text generation itself. Conversely, the positive deltas in analysis
+\texttt{top\_k} ($+0.006$ quality, $-0.004$ text score) indicate small
+quality improvements driven not by better text but by changes in how
+the analysis output interacts with the downstream visualization step.
+
+\subsubsection{Quality-Energy Trade-off Across Configurations}
+
+Figure~\ref{fig:test02_pareto} plots every tested configuration as a
+point in the $(\Delta \text{energy}, \Delta \text{quality})$ plane,
+providing a simultaneous view of whether quality-improving configurations
+also save or cost energy.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/test02v2_quality_energy_delta_pareto.png}
+    \caption{Test~02: quality delta vs.\ energy delta per OFAT configuration.}
+    \label{fig:test02_pareto}
+\end{figure}
+
+The scatter also reveals the danger zone for \texttt{gemma4:26b}: the
+lower-right quadrant (quality loss with energy increase) contains
+several lookup and analysis configurations, including the worst-case
+\texttt{lookup\_top\_k\_56} ($-0.123$ quality, $+0.00157$~kWh) and
+\texttt{analysis\_repeat\_penalty\_1p2} for Mistral ($-0.099$ quality,
+$+0.00337$~kWh). These are configurations to actively avoid in
+production deployment.
+
+\subsubsection{Energy Delta Distribution by Agent Step}
+
+Figure~\ref{fig:test02_energy_dist} shows the distribution of per-prompt
+energy deltas for each agent step via box plots, making the scale of
+energy variation explicit.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/test02v2_resource_delta_by_step.png}
+    \caption{Test~02: energy delta distribution by agent step for both models.}
+    \label{fig:test02_energy_dist}
+\end{figure}
+
+\subsubsection{Best and Worst Configurations}
+
+Table~\ref{tab:test02bestworst} lists the top quality-improving and
+top quality-degrading configurations across both models and all steps,
+along with the corresponding direct step-metric delta, energy delta,
+and latency delta.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|l|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Step} & \textbf{Config} & \textbf{$\Delta$ quality} & \textbf{$\Delta$ metric} & \textbf{$\Delta$ kWh} & \textbf{$\Delta$ sec} \T\B \\
+\hline
+\multicolumn{7}{|l|}{\cellcolor{bluePoli!10}\textit{Top quality improvements}} \T\B \\
+\hline
+\texttt{gemma4:26b} & Vis. & \texttt{repeat\_penalty\_1}    & $+$0.0684 & $+$0.0521 & $+$0.00128 & $+$23.5 \T\B \\
+\hline
+\texttt{gemma4:26b} & Vis. & \texttt{top\_k\_20}             & $+$0.0663 & $+$0.0443 & $+$0.00107 & $+$21.0 \T\B \\
+\hline
+\texttt{gemma4:26b} & Vis. & \texttt{top\_k\_48}             & $+$0.0593 & $+$0.0234 & $+$0.00083 & $+$17.8 \T\B \\
+\hline
+\texttt{gemma4:26b} & Vis. & \texttt{top\_k\_128}            & $+$0.0559 & $+$0.0052 & $+$0.00070 & $+$15.6 \T\B \\
+\hline
+\texttt{gemma4:26b} & Vis. & \texttt{repeat\_penalty\_1p03}  & $+$0.0517 & $+$0.0521 & $+$0.00057 & $+$12.9 \T\B \\
+\hline
+\multicolumn{7}{|l|}{\cellcolor{bluePoli!10}\textit{Largest quality losses}} \T\B \\
+\hline
+\texttt{gemma4:26b}           & Lookup  & \texttt{top\_k\_56}           & $-$0.1229 & \phantom{$-$}0.0000 & $+$0.00157 & $+$34.4 \T\B \\
+\hline
+\texttt{gemma4:26b}           & Analysis & \texttt{top\_p\_0.75}         & $-$0.1111 & $-$0.1375 & $-$0.00000 & $-$1.5 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Analysis & \texttt{repeat\_penalty\_1.2} & $-$0.0986 & $-$0.1708 & $+$0.00337 & $+$90.4 \T\B \\
+\hline
+\texttt{gemma4:26b}           & Analysis & \texttt{top\_p\_0.88}         & $-$0.0896 & $-$0.1125 & $-$0.00028 & $-$5.6 \T\B \\
+\hline
+{\color{red}\textit{gemma4:e4b}} & {\color{red}\textit{all}} & \multicolumn{5}{c|}{\color{red}\textit{[PLACEHOLDER — data missing]}} \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~02: top quality-improving and quality-degrading OFAT configurations.}
+\label{tab:test02bestworst}
+\end{table}
+
+A notable feature of the improvement list is its homogeneity: all five
+top configurations target the \texttt{gemma4:26b} visualization step.
+This directly validates the Test~01 finding that visualization was
+simultaneously the weakest and most energy-intensive step for that
+model. The best single configuration, \texttt{visualization\_repeat\_penalty\_1}
+(disabling the repetition penalty), improves overall pipeline quality
+by~$+0.068$ and the direct \texttt{vis\_score} by~$+0.052$, at a cost
+of only $+0.00128$~kWh and about~24 additional seconds per prompt —
+a highly favourable trade-off.
+
+On the loss side, the Mistral \texttt{analysis\_repeat\_penalty\_1.2}
+configuration stands out: it is the only Mistral configuration that
+causes a large degradation ($-0.099$ quality, $-0.171$ text score)
+and it simultaneously inflates latency by~$+90$~s and energy by
+$+0.00337$~kWh, making it the most counterproductive single setting
+across the entire experiment. This is likely caused by the repetition
+penalty forcing the model to avoid reusing vocabulary, which for an
+analytical summarisation task that inherently must repeat column names
+and numerical values breaks coherent output generation.
+
+\subsubsection{Per-Model Analysis}
+
+\paragraph{\texttt{gemma4:26b}.}
+
+The sensitivity profile of \texttt{gemma4:26b} is strongly step-specific
+and consistently asymmetric. The visualization step is unambiguously the
+highest-leverage target: every parameter family improves it, and the
+gains are large enough (up to $+6.8\%$ quality, $+5.2\%$
+\texttt{vis\_score}) to be practically meaningful and to more than
+offset the inter-repeat noise floor characterised in
+Section~\ref{subsubsec:test02stability}. The lookup step shows
+meaningful positive potential ($+3.2\%$ quality via
+\texttt{repeat\_last\_n\_96}) but also a very steep downside risk: a
+single bad \texttt{top\_k} value can collapse quality by~$-12.3\%$,
+likely by disrupting the structured SQL generation. The analysis step is
+the most fragile: temperature changes in particular push the model into
+degenerate outputs, and the safe operating window for this step is
+narrow around the baseline.
+
+\paragraph{\texttt{mistral-small3.2:24b}.}
+
+\texttt{mistral-small3.2:24b} is almost entirely insensitive to the
+parameters tested. The best achievable quality delta at any step is
+$+0.007$, which is within the inter-repeat noise range. The model's
+low baseline temperature (0.15) and the non-thinking architecture
+appear to make its output distribution far less responsive to sampling
+parameter perturbations than the thinking model. The practical
+implication is that static parameter tuning offers negligible quality
+improvement for Mistral, and that pursuing efficiency gains for this
+model requires structural changes rather than hyperparameter search.
+The sole exception is the \texttt{analysis\_repeat\_penalty\_1.2}
+misconfiguration described above, which serves as a warning against
+assuming that insensitivity to improvement implies insensitivity to
+regression.
+
+\paragraph{{\color{red}\texttt{gemma4:e4b} — placeholder.}}
+{\color{red}\textbf{[PLACEHOLDER — insert per-model analysis for
+\texttt{gemma4:e4b} once the Test~02 run completes. Expected content:
+sensitivity range per step, dominant tuning directions, comparison of
+lookup fragility vs.\ \texttt{gemma4:26b}, and whether the visualization
+step shows the same universal positive response to parameter tuning
+seen in the larger model.]}}
+
+\subsubsection{Summary}
+
+Test~02 establishes that sensitivity to static sampling parameter tuning
+is a model-level property, not a step-level one:
+
+\begin{enumerate}
+    \item \textbf{\texttt{gemma4:26b} is highly tunable but fragile.}
+          Sensitivity ranges reach~0.155 for lookup and~0.118 for analysis.
+          The visualization step is the most rewarding target: all parameter
+          families improve it, with the best configurations delivering up
+          to~$+6.8\%$ quality at near-zero energy overhead.
+
+    \item \textbf{\texttt{mistral-small3.2:24b} is insensitive.}
+          No parameter at any step moves quality by more than $+0.007$,
+          confirming that this model's efficiency advantage from Test~01
+          is robust to misconfiguration but also leaves little room for
+          improvement through static hyperparameter tuning.
+
+    \item \textbf{The top-5 quality improvements all target Gemma~26B
+          visualization.} This directly follows from the Test~01
+          diagnosis: the step that was weakest and most costly at baseline
+          is also the most responsive to tuning.
+
+    \item \textbf{Temperature reduction hurts Gemma~26B analysis.}
+          The thinking model's analysis quality degrades when temperature
+          is lowered below the baseline of~1.0, suggesting that the
+          chain-of-thought generation benefits from sampling diversity.
+
+    \item \textbf{\texttt{gemma4:e4b} results pending.}
+          {\color{red}[PLACEHOLDER — update when run completes.]}
+\end{enumerate}
 
 \subsection{Test 03 - \texttt{max\_tokens} Ladder per Agent}
 \label{subsec:res03}
 
-\subsection{Test 04 - Compute Expansion (BoN + CoT)}
+Test~03 sweeps the \texttt{max\_tokens} parameter for each agent step
+in isolation, using four discrete values per step. Unlike the sampling
+parameters tested in Test~02, \texttt{max\_tokens} acts as a hard
+output-length ceiling: the model is forced to stop generating once the
+budget is exhausted, potentially truncating incomplete SQL queries,
+analysis paragraphs, or visualization code. All three models have
+complete data for this test (3~repeats $\times$ 12~configs $\times$
+20~prompts = 360~rows each).
+
+\subsubsection{Token Caps Tested}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\begin{tabular}{|l|l|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Agent step} & \textbf{\texttt{max\_tokens} values (baseline underlined)} \T\B \\
+\hline
+\texttt{lookup\_sales\_data}    & 2500 — 3000 — \underline{5000} — 8000 \T\B \\
+\hline
+\texttt{analyzing\_data}        & 4000 — 5000 — \underline{7000} — 10000 \T\B \\
+\hline
+\texttt{create\_visualization}  & 4000 — 5000 — \underline{7000} — 10000 \T\B \\
+\hline
+\end{tabular}
+\caption{Test~03: \texttt{max\_tokens} values tested per agent step (baseline underlined).}
+\label{tab:test03caps}
+\end{table}
+
+\subsubsection{Quality Ladder by Model and Step}
+
+Figure~\ref{fig:test03_quality_ladder} shows how overall pipeline quality
+responds as the token cap increases for each (model, step) combination.
+The three panels reveal three qualitatively different response profiles.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/test03v2_quality_ladder_by_model.png}
+    \caption{Test~03: pipeline quality vs.\ \texttt{max\_tokens} by model and agent step.}
+    \label{fig:test03_quality_ladder}
+\end{figure}
+
+The most striking feature of the Gemma~E4B panel is the visualization
+line: quality improves from~4000 to~7000 and then falls from~0.75
+to~0.69 at~10000. An analogous but less dramatic non-monotonicity
+appears in the lookup line, which peaks at~5000 (0.83) and decreases
+to~0.76 at~8000. These patterns suggest that beyond a certain budget the
+model shifts towards longer, more complex outputs that are harder to
+evaluate or that introduce structural errors.
+
+The Gemma~26B analysis line shows the opposite direction: quality at the
+baseline 7000-token cap (0.880) is lower than at the tightest cap
+of~4000 (0.900), indicating that the model's analysis generation
+benefits from the compression imposed by a shorter budget. This is the
+only (step, model) combination in the entire experiment where reducing
+the cap below the baseline yields a positive quality effect.
+
+\subsubsection{Direct Step-Metric Ladder}
+
+Figure~\ref{fig:test03_metric_ladder} isolates the effect on the direct
+agent metric (\texttt{csv\_iou}, \texttt{text\_score}, or
+\texttt{vis\_score}) rather than on overall pipeline quality.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/test03v2_agent_metric_ladder.png}
+    \caption{Test~03: direct step metric vs.\ \texttt{max\_tokens} by model and agent step.}
+    \label{fig:test03_metric_ladder}
+\end{figure}
+
+The Gemma~26B visualization result is the most actionable finding of
+this test. Increasing the visualization budget from the baseline 7000 to
+10000 tokens yields a \texttt{vis\_score} gain of~$+0.054$ and an
+overall quality gain of~$+0.022$ at essentially zero additional energy
+cost (see Table~\ref{tab:test03bestcaps}). For Gemma~26B, this cap
+increase is a straightforward free improvement.
+
+For Gemma~E4B, the collapse at 10000 tokens in visualization --- visible
+both in the quality and the direct metric --- is a safety-relevant
+finding: using the configuration that offers the most output space
+actually produces the worst chart code. The model appears to ramble or
+abandon its output structure when given excessive budget.
+
+\subsubsection{Completion Ladder}
+
+Figure~\ref{fig:test03_completion} shows how the pipeline completion
+rate changes with the token cap.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/test03v2_completion_ladder.png}
+    \caption{Test~03: full-pipeline completion rate vs.\ \texttt{max\_tokens} by model.}
+    \label{fig:test03_completion}
+\end{figure}
+
+The Gemma~26B lookup result has a direct mechanistic interpretation: at
+2500~tokens the model is being cut off mid-SQL on some prompts, which
+produces syntactically incomplete queries that the database cannot
+execute. Raising the cap to 5000~tokens eliminates these truncations
+entirely. The baseline cap of 5000 for lookup is therefore not just
+optimal but necessary for this model.
+
+\subsubsection{Marginal Quality Gain Between Adjacent Caps}
+
+Figure~\ref{fig:test03_marginal} decomposes the quality ladder into
+adjacent step changes, making the per-interval gain or loss explicit.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/test03v2_marginal_quality_gain.png}
+    \caption{Test~03: marginal quality gain between adjacent \texttt{max\_tokens} levels.}
+    \label{fig:test03_marginal}
+\end{figure}
+
+\subsubsection{Quality-Energy Trade-off}
+
+Figure~\ref{fig:test03_qe_delta} shows each cap configuration as a
+point in the $(\Delta\,\text{energy}, \Delta\,\text{quality})$ plane,
+relative to each model's step baseline.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/test03v2_quality_energy_delta.png}
+    \caption{Test~03: quality delta vs.\ energy delta relative to per-step baseline cap.}
+    \label{fig:test03_qe_delta}
+\end{figure}
+
+\subsubsection{Sensitivity Range and Best Caps}
+
+Tables~\ref{tab:test03range} and~\ref{tab:test03bestcaps} summarise the
+per-step sensitivity range and the best-performing cap for each
+(model, step) pair.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|c|c|c|l|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Step} & \textbf{Quality range} & \textbf{Metric range} & \textbf{Best quality cap} & \textbf{Worst cap} \T\B \\
+\hline
+\texttt{gemma4:e4b}           & Lookup        & 0.125 & 0.157 & 5{,}000  & 3{,}000 \T\B \\
+\hline
+\texttt{gemma4:e4b}           & Visualization & 0.075 & 0.253 & 4{,}000  & 10{,}000 \T\B \\
+\hline
+\texttt{gemma4:e4b}           & Analysis      & 0.025 & 0.021 & 5{,}000  & 4{,}000 \T\B \\
+\hline
+\texttt{gemma4:26b}           & Lookup        & 0.071 & 0.078 & 8{,}000  & 2{,}500 \T\B \\
+\hline
+\texttt{gemma4:26b}           & Visualization & 0.066 & 0.149 & 10{,}000 & 5{,}000 \T\B \\
+\hline
+\texttt{gemma4:26b}           & Analysis      & 0.027 & 0.021 & 4{,}000  & 5{,}000 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 0.010 & 0.021 & 5{,}000  & 10{,}000 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Analysis      & 0.025 & 0.063 & 5{,}000  & 4{,}000 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Lookup        & 0.015 & 0.000 & 5{,}000  & 2{,}500 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~03: sensitivity range and best quality cap per (model, step).}
+\label{tab:test03range}
+\end{table}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Step} & \textbf{Baseline cap} & \textbf{Baseline quality} & \textbf{Best cap} & \textbf{$\Delta$ quality} & \textbf{$\Delta$ metric} \T\B \\
+\hline
+\texttt{gemma4:26b} & Analysis      & 7{,}000 & 0.8796 & \textbf{4{,}000}  & $+$0.020 & \phantom{$+$}0.000 \T\B \\
+\hline
+\texttt{gemma4:26b} & Visualization & 7{,}000 & 0.8901 & \textbf{10{,}000} & $+$0.022 & $+$0.054 \T\B \\
+\hline
+\texttt{gemma4:26b} & Lookup        & 5{,}000 & 0.8818 & \textbf{8{,}000}  & $+$0.007 & $+$0.021 \T\B \\
+\hline
+\texttt{gemma4:e4b} & Visualization & 7{,}000 & 0.7491 & \textbf{4{,}000}  & $+$0.009 & \phantom{$+$}0.000 \T\B \\
+\hline
+\texttt{gemma4:e4b} & Lookup        & 5{,}000 & 0.8292 & \textbf{5{,}000}  & \phantom{$+$}0.000 & \phantom{$+$}0.000 \T\B \\
+\hline
+\texttt{gemma4:e4b} & Analysis      & 7{,}000 & 0.7251 & \textbf{5{,}000}  & $+$0.001 & $+$0.017 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Analysis      & 7{,}000 & 0.8611 & \textbf{5{,}000}  & $+$0.004 & $+$0.004 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 7{,}000 & 0.8555 & \textbf{5{,}000}  & $+$0.006 & \phantom{$+$}0.000 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Lookup        & 5{,}000 & 0.8625 & \textbf{5{,}000}  & \phantom{$+$}0.000 & \phantom{$+$}0.000 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~03: best \texttt{max\_tokens} cap per (model, step) (bold = differs from baseline).}
+\label{tab:test03bestcaps}
+\end{table}
+
+\subsubsection{Summary}
+
+\begin{enumerate}
+    \item \textbf{\texttt{max\_tokens} is a per-agent safety bound,
+          not a universal accuracy knob.} For the majority of
+          (model, step) pairs the optimal cap is either the baseline or
+          one step away, and quality changes are small. The exceptions
+          are structural: where low caps cause truncation-induced
+          failures, raising the budget has a large discrete effect.
+
+    \item \textbf{Gemma~26B visualization is genuinely token-constrained.}
+          Raising the cap from 7000 to 10000 yields a $+0.054$
+          \texttt{vis\_score} gain with negligible energy change. This
+          is the clearest actionable finding of Test~03.
+
+    \item \textbf{Gemma~26B analysis benefits from a tighter cap.}
+          The 4000-token cap outperforms the 7000-token baseline by
+          $+0.020$ quality. The compression forces the model to
+          produce a more concise, less diffuse analysis response.
+
+    \item \textbf{Gemma~E4B is non-monotone at both lookup and visualization.}
+          Higher caps beyond 5000 (lookup) and 7000 (visualization)
+          cause quality regressions, with the 10000-token visualization
+          cap producing the worst \texttt{vis\_score} ($0.51$) of any
+          configuration in the test.
+
+    \item \textbf{Mistral is insensitive to \texttt{max\_tokens}.}
+          The quality range does not exceed~0.025 at any step, and the
+          baseline cap is optimal or tied-optimal at all three steps.
+\end{enumerate}
+
+%-----------------------------------------------------------------------------
+\subsection{Test 04 - Compute Expansion via Chain-of-Thought}
 \label{subsec:res04}
+
+Test~04 evaluates Chain-of-Thought (CoT) iterations as a compute
+expansion strategy for the lookup and visualization steps. Each
+configuration requests \texttt{cot\_n}~$\in \{1, 2, 3, 4\}$ refinement
+iterations, where \texttt{cot\_n}~$= 1$ is the single-call baseline. An
+early-stop mechanism halts the loop when the model signals that the
+previous output is already satisfactory, so the executed depth can be
+lower than the requested depth. The test was run on
+\texttt{gemma4:e4b} and \texttt{mistral-small3.2:24b} only
+(3~repeats $\times$ 8~configs $\times$ 20~prompts = 240~rows each).
+
+\subsubsection{Aggregate Results}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|c|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Config} & \textbf{Step} & \textbf{cot\_n} & \textbf{Quality} & \textbf{$\Delta$ quality} & \textbf{$\Delta$ metric} & \textbf{kWh/prompt} \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n1}  & Lookup & 1 & 0.6939 & \phantom{$+$}0.0000 & \phantom{$+$}0.0000 & 0.00251 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2}  & Lookup & 2 & 0.8795 & $+$0.1856 & $+$0.1968 & 0.00346 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n3}  & Lookup & 3 & 0.8594 & $+$0.1655 & $+$0.1860 & 0.00356 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4}  & Lookup & 4 & 0.8972 & $+$0.2033 & $+$0.2261 & 0.00444 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{vis\_cot\_n1}     & Vis.   & 1 & 0.7565 & \phantom{$+$}0.0000 & \phantom{$+$}0.0000 & 0.00280 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{vis\_cot\_n2}     & Vis.   & 2 & 0.7149 & $-$0.0417 & $-$0.1131 & 0.00310 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{vis\_cot\_n3}     & Vis.   & 3 & 0.6413 & $-$0.1152 & $-$0.1607 & 0.00500 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{vis\_cot\_n4}     & Vis.   & 4 & 0.7438 & $-$0.0128 & $-$0.0536 & 0.00339 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n1} & Lookup & 1 & 0.8562 & \phantom{$+$}0.0000 & \phantom{$+$}0.0000 & 0.00236 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2} & Lookup & 2 & 0.8958 & $+$0.0396 & $+$0.0333 & 0.00271 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n3} & Lookup & 3 & 0.9188 & $+$0.0626 & $+$0.0898 & 0.00293 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n4} & Lookup & 4 & 0.8944 & $+$0.0382 & $+$0.0333 & 0.00279 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{vis\_cot\_n1}    & Vis.   & 1 & 0.8597 & \phantom{$+$}0.0000 & \phantom{$+$}0.0000 & 0.00262 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{vis\_cot\_n2}    & Vis.   & 2 & 0.8542 & $-$0.0056 & $-$0.0119 & 0.00267 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{vis\_cot\_n3}    & Vis.   & 3 & 0.8401 & $-$0.0196 & $-$0.0060 & 0.00274 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{vis\_cot\_n4}    & Vis.   & 4 & 0.8264 & $-$0.0333 & $-$0.0060 & 0.00280 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~04: CoT aggregate results per (model, step, depth).}
+\label{tab:test04results}
+\end{table}
+
+\subsubsection{Accuracy vs.\ Requested CoT Depth}
+
+Figure~\ref{fig:test04_cot_depth} plots overall pipeline quality against
+the requested \texttt{cot\_n} value for both steps and both models.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/test04v2_accuracy_vs_cot_depth.png}
+    \caption{Test~04: pipeline quality as a function of requested \texttt{cot\_n}.}
+    \label{fig:test04_cot_depth}
+\end{figure}
+
+The Gemma~E4B lookup curve deserves particular attention: the gain from
+\texttt{cot\_n=1} to \texttt{cot\_n=2} ($+18.6$ quality points) is the
+largest single-step improvement observed across all four tests for any
+configuration change on this model. This directly addresses the
+SQL-generation fragility diagnosed in Test~01: iterative refinement
+allows the model to correct erroneous SQL constructs through
+self-criticism, achieving a \texttt{csv\_iou} of~0.954 at
+\texttt{cot\_n=2} compared to~0.757 at baseline.
+
+\subsubsection{Quality-Energy Pareto of CoT Configurations}
+
+Figure~\ref{fig:test04_pareto} maps all configurations into the
+$(\Delta\,\text{energy}, \Delta\,\text{quality})$ plane.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Images/test04v2_compute_expansion_pareto.png}
+    \caption{Test~04: quality delta vs.\ energy delta per CoT configuration.}
+    \label{fig:test04_pareto}
+\end{figure}
+
+\subsubsection{Direct Step-Metric Gain vs.\ Extra Energy}
+
+Figure~\ref{fig:test04_metric_cost} disaggregates the result to show
+direct step-metric change (\texttt{csv\_iou} or \texttt{vis\_score})
+against the energy overhead.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Images/test04v2_agent_metric_gain_cost.png}
+    \caption{Test~04: direct step-metric delta vs.\ energy delta per CoT configuration.}
+    \label{fig:test04_metric_cost}
+\end{figure}
+
+\subsubsection{Cost Multiplier}
+
+Figure~\ref{fig:test04_cost} shows the time and energy multipliers
+relative to the \texttt{cot\_n=1} baseline as a function of requested
+depth.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/test04v2_cost_multiplier.png}
+    \caption{Test~04: time and energy multiplier vs.\ requested \texttt{cot\_n} (baseline $= 1\times$).}
+    \label{fig:test04_cost}
+\end{figure}
+
+\subsubsection{CoT Execution Depth and Early Stops}
+
+Figure~\ref{fig:test04_earlystop} separates the \emph{requested} depth
+from the \emph{executed} depth, and reports the early-stop rate.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/test04v2_cot_execution_depth.png}
+    \caption{Test~04: mean executed iterations and early-stop rate vs.\ requested \texttt{cot\_n}.}
+    \label{fig:test04_earlystop}
+\end{figure}
+
+The early-stop behaviour has an important practical implication: for
+both models and the lookup step, \texttt{cot\_n=3} and \texttt{cot\_n=4}
+often reduce to \texttt{cot\_n=2} in practice. The quality difference
+between \texttt{cot\_n=2} and \texttt{cot\_n=4} for Gemma~E4B lookup
+($+0.185$ vs.\ $+0.203$) is therefore partially a noise effect rather
+than a genuine depth benefit. The early stop is also the mechanism that
+explains why \texttt{vis\_cot\_n4} partially recovers from the catastrophic
+result of \texttt{vis\_cot\_n3}: at requested depth~4, more runs exit
+early and avoid the harmful third iteration.
+
+Table~\ref{tab:test04earlystop} summarises the execution diagnostics.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Step} & \textbf{Requested} & \textbf{Executed mean} & \textbf{Early-stop rate} \T\B \\
+\hline
+\texttt{gemma4:e4b}           & Lookup & 2 & 2.00 & \phantom{0}0.0\,\% \T\B \\
+\hline
+\texttt{gemma4:e4b}           & Lookup & 3 & 2.53 & 46.7\,\% \T\B \\
+\hline
+\texttt{gemma4:e4b}           & Lookup & 4 & 2.50 & 86.7\,\% \T\B \\
+\hline
+\texttt{gemma4:e4b}           & Visualization & 2 & 2.00 & \phantom{0}0.0\,\% \T\B \\
+\hline
+\texttt{gemma4:e4b}           & Visualization & 3 & 2.57 & 23.3\,\% \T\B \\
+\hline
+\texttt{gemma4:e4b}           & Visualization & 4 & 2.69 & 40.0\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Lookup & 2 & 2.00 & \phantom{0}0.0\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Lookup & 3 & 2.17 & 83.3\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Lookup & 4 & 2.27 & 90.0\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 2 & 2.00 & \phantom{0}0.0\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 3 & 2.17 & 50.0\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 4 & 2.33 & 50.0\,\% \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~04: CoT execution diagnostics (requested vs.\ executed depth and early-stop rate).}
+\label{tab:test04earlystop}
+\end{table}
+
+\subsubsection{Summary}
+
+\begin{enumerate}
+    \item \textbf{Lookup CoT is the most effective single intervention
+          found for \texttt{gemma4:e4b}.} \texttt{cot\_n=2} raises
+          quality by~$+18.6$ points and \texttt{csv\_iou} by~$+19.7$
+          points at a cost multiplier of~$1.38\times$. This directly
+          addresses the SQL-generation brittleness identified in Test~01.
+
+    \item \textbf{Lookup CoT also benefits Mistral, modestly.}
+          \texttt{cot\_n=3} yields the best Mistral result ($+6.3$
+          quality points, $+9.0$ \texttt{csv\_iou} points), though the
+          gain is three times smaller than for Gemma~E4B.
+
+    \item \textbf{Visualization CoT is harmful for both models.}
+          Every depth above~1 degrades \texttt{vis\_score}, with
+          Gemma~E4B \texttt{cot\_n=3} causing a $-16.1$ point direct
+          metric regression. Visualization CoT should not be used.
+
+    \item \textbf{The effective CoT depth saturates near~2.} The
+          early-stop mechanism makes \texttt{cot\_n=3} and
+          \texttt{cot\_n=4} behave similarly to \texttt{cot\_n=2} for
+          the lookup step. Requesting depth~2 is therefore the most
+          cost-efficient choice for both models.
+\end{enumerate}
+
+%-----------------------------------------------------------------------------
+\subsection{Test 04b - Lookup Best-of-N Range Check}
+\label{subsec:res04b}
+
+Test~04b is a targeted follow-up to Test~04, run exclusively on
+\texttt{gemma4:e4b}. It compares three lookup strategies: static
+temperature settings, Best-of-2 temperature ranges (BoN), and
+\texttt{lookup\_cot\_n2} (included as the reference from Test~04).
+The goal is to determine whether Best-of-N with temperature diversity
+offers advantages over simpler single-sample temperature tuning
+(3~repeats $\times$ 8~configs $\times$ 20~prompts = 240~rows).
+
+\subsubsection{Aggregate Results}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Config} & \textbf{Type} & \textbf{Quality} & \textbf{$\Delta$ quality} & \textbf{csv\_iou} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
+\hline
+\texttt{lookup\_baseline}       & baseline    & 0.707 & \phantom{$+$}0.000 & 0.792 & 86.4\,\% & 0.00639 \T\B \\
+\hline
+\texttt{lookup\_temp\_0.3}      & static temp & 0.749 & $+$0.042 & 0.807 & 87.7\,\% & 0.00647 \T\B \\
+\hline
+\texttt{lookup\_temp\_0.6}      & static temp & 0.673 & $-$0.034 & 0.731 & 82.7\,\% & 0.00580 \T\B \\
+\hline
+\texttt{lookup\_temp\_0.8}      & static temp & 0.778 & $+$0.071 & 0.848 & 95.1\,\% & 0.00727 \T\B \\
+\hline
+\texttt{bon\_temp\_n2\_narrow}  & BoN range   & 0.737 & $+$0.030 & 0.785 & 90.1\,\% & 0.00774 \T\B \\
+\hline
+\texttt{bon\_temp\_n2\_medium}  & BoN range   & 0.758 & $+$0.051 & 0.824 & 90.1\,\% & 0.00817 \T\B \\
+\hline
+\texttt{bon\_temp\_n2\_wide}    & BoN range   & 0.738 & $+$0.031 & 0.818 & 87.7\,\% & 0.00778 \T\B \\
+\hline
+\texttt{lookup\_cot\_n2}        & CoT depth   & 0.854 & $+$0.147 & 0.930 & 97.5\,\% & 0.00858 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~04b: aggregate results per lookup strategy, \texttt{gemma4:e4b}.}
+\label{tab:test04bresults}
+\end{table}
+
+\subsubsection{Quality Comparison Across Strategies}
+
+Figure~\ref{fig:test04b_quality} shows the absolute quality for all
+eight configurations side by side, with the baseline marked as a
+reference line.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/test04b_v2_lookup_bon_range_quality.png}
+    \caption{Test~04b: lookup quality for all strategies, \texttt{gemma4:e4b}.}
+    \label{fig:test04b_quality}
+\end{figure}
+
+\subsubsection{Quality-Energy Trade-off}
+
+Figure~\ref{fig:test04b_pareto} places each configuration in the
+quality-energy plane, making the efficiency gap between strategies
+explicit.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/test04b_v2_lookup_bon_range_pareto.png}
+    \caption{Test~04b: quality delta vs.\ energy delta per lookup strategy.}
+    \label{fig:test04b_pareto}
+\end{figure}
+
+\subsubsection{Best-of-N Selection Behaviour}
+
+Figure~\ref{fig:test04b_selection} reports how often the BoN selector
+chose the second candidate over the first across all three temperature
+ranges.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/test04b_v2_lookup_bon_selection.png}
+    \caption{Test~04b: non-first candidate selection rate for BoN configurations (0/30 for all).}
+    \label{fig:test04b_selection}
+\end{figure}
+
+The selection failure is the central result of Test~04b. It implies
+that the current BoN selector for the lookup step cannot reliably
+distinguish a correct SQL query from an incorrect one purely from
+the query text --- it is effectively random or systematically biased
+towards the first output. Until a more reliable selector is available
+(for example, one that executes both queries and compares row counts),
+Best-of-N for the lookup step doubles the computation with no selection
+benefit.
+
+\subsubsection{Summary}
+
+\begin{enumerate}
+    \item \textbf{Static temperature tuning outperforms BoN at the
+          same energy cost.} \texttt{lookup\_temp\_0.8} achieves the
+          best quality among non-CoT strategies ($+0.071$) at a fraction
+          of the energy required by the BoN variants.
+
+    \item \textbf{The BoN selector never uses the second candidate.}
+          All three temperature ranges yield 0/30 non-first selections.
+          BoN gains are entirely a temperature effect, not a selection
+          effect, making the strategy a pure compute waste compared to
+          direct temperature tuning.
+
+    \item \textbf{\texttt{lookup\_cot\_n2} remains the quality ceiling.}
+          With a $+0.147$ quality gain, CoT depth~2 is the most
+          effective lookup intervention by a large margin, at the cost
+          of $+0.0022$~kWh per prompt.
+
+    \item \textbf{Best-of-N for lookup should not be recommended}
+          in the final configuration unless a more reliable selection
+          criterion --- such as query execution verification --- is
+          implemented.
+\end{enumerate}
 
 \subsection{Test 05 - Final Pareto Confirmation}
 \label{subsec:res05}
