@@ -417,8 +417,11 @@ Section~\ref{subsec:test02}: each of the five parameters
 (\texttt{temperature}, \texttt{top\_p}, \texttt{top\_k},
 \texttt{repeat\_penalty}, \texttt{repeat\_last\_n}) is swept
 individually across ten values per step, producing 153 configurations
-per model. Each configuration is repeated twice over the full 20-prompt
-benchmark.
+per model. Each configuration is repeated twice over a 15-prompt subset
+of the benchmark, reduced from the full 20-prompt set to limit total
+run time while preserving the original difficulty distribution across
+all four SQL complexity levels (difficulty~1: 3~prompts, difficulty~2:
+4~prompts, difficulty~3: 5~prompts, difficulty~4: 3~prompts).
 
 \subsubsection{Data Completeness}
 
@@ -464,18 +467,16 @@ performance.
 \begin{table}[H]
 \centering
 \arrayrulecolor{black}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|c|c|c|c|c|}
+\begin{tabular}{|l|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Repeats} & \textbf{Rows} & \textbf{Mean quality} & \textbf{Mean sec/prompt} & \textbf{Mean kWh/prompt} \T\B \\
+\textbf{Model} & \textbf{Mean quality} & \textbf{Mean sec/prompt} & \textbf{Mean kWh/prompt} \T\B \\
 \hline
-\texttt{gemma4:26b}           & 2 & 4{,}590 & 0.8325 & 189.0 & 0.01189 \T\B \\
+\texttt{gemma4:26b}           & 0.8325 & 189.0 & 0.01189 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 2 & 4{,}590 & 0.8783 & \phantom{0}67.2 & 0.00416 \T\B \\
+\texttt{mistral-small3.2:24b} & 0.8783 & \phantom{0}67.2 & 0.00416 \T\B \\
 \hline
-\end{tabular}%
-}
+\end{tabular}
 \caption{Test~02: aggregate resource use averaged across all 153 OFAT configurations.}
 \label{tab:test02overall}
 \end{table}
@@ -644,9 +645,11 @@ heatmap the analysis/temperature cell turns red ($-0.029$
 \texttt{text\_score}). This means that temperature changes at the
 analysis step do not just propagate losses forward — they degrade the
 text generation itself. Conversely, the positive deltas in analysis
-\texttt{top\_k} ($+0.006$ quality, $-0.004$ text score) indicate small
-quality improvements driven not by better text but by changes in how
-the analysis output interacts with the downstream visualization step.
+\texttt{top\_k} ($+0.006$ quality, $-0.004$ text score) are within the
+noise floor observed in the repeat-stability analysis and should not be
+over-interpreted as a structural gain: the analysis step output is not
+propagated to the visualization step, so neither sub-score is affected
+by the other.
 
 \subsubsection{Quality-Energy Trade-off Across Configurations}
 
@@ -662,13 +665,44 @@ also save or cost energy.
     \label{fig:test02_pareto}
 \end{figure}
 
-The scatter also reveals the danger zone for \texttt{gemma4:26b}: the
-lower-right quadrant (quality loss with energy increase) contains
-several lookup and analysis configurations, including the worst-case
-\texttt{lookup\_top\_k\_56} ($-0.123$ quality, $+0.00157$~kWh) and
-\texttt{analysis\_repeat\_penalty\_1p2} for Mistral ($-0.099$ quality,
-$+0.00337$~kWh). These are configurations to actively avoid in
-production deployment.
+The two models occupy structurally different regions of the plot.
+\texttt{mistral-small3.2:24b} configurations form a narrow vertical
+band near $\Delta E = 0$: quality varies across parameter choices but
+energy consumption remains nearly constant, reflecting the model's
+efficient architecture.
+The only clear outlier is \texttt{analysis\_repeat\_penalty\_1p2}
+($-0.099$ quality, $+0.00337$~kWh, $+90.4$~s), which simultaneously
+degrades text quality and inflates latency — an anomalous combination
+that suggests repeat-penalty settings interact poorly with Mistral's
+internal sampling at the analysis step.
+For Mistral, parameter tuning is therefore primarily a quality concern;
+energy cost is largely insensitive to the chosen value.
+
+\texttt{gemma4:26b} shows the opposite profile.
+Its configurations are scattered across a wide energy range, and the
+upper half of the scatter — quality-improving configurations — is
+dominated almost exclusively by visualization-step variants.
+All ten top-quality improvements belong to \texttt{gemma4:26b}
+visualization, clustered in the upper-right quadrant (quality gain with
+a moderate energy increase).
+The best absolute improvement, \texttt{visualization\_repeat\_penalty\_1},
+delivers $+0.068$ quality and $+0.052$ vis\_score at a cost of
+$+0.00128$~kWh and $+23.5$~s per prompt.
+A more energy-conscious option is
+\texttt{visualization\_repeat\_penalty\_1p03}: it yields $+0.052$
+quality and equal vis\_score gain for only $+0.00057$~kWh and
+$+12.9$~s — roughly half the energy overhead of the best-quality
+setting.
+These results indicate that the visualization step is the primary tuning
+lever for \texttt{gemma4:26b}: modest parameter changes here produce the
+largest and most consistent quality returns across the entire test.
+
+The lower-right quadrant — quality loss with energy increase, the worst
+possible outcome — is populated by \texttt{gemma4:26b} lookup and
+analysis configurations, most notably \texttt{lookup\_top\_k\_56}
+($-0.123$ quality, $+0.00157$~kWh) and
+\texttt{lookup\_top\_k\_48} ($-0.083$ quality, $+0.00471$~kWh).
+These represent configurations to actively avoid in production deployment.
 
 \subsubsection{Energy Delta Distribution by Agent Step}
 
@@ -682,6 +716,19 @@ energy variation explicit.
     \caption{Test~02: energy delta distribution by agent step for both models.}
     \label{fig:test02_energy_dist}
 \end{figure}
+
+For \texttt{mistral-small3.2:24b} all three boxes are narrow and centred
+near zero, confirming that parameter choices have negligible energy
+consequences regardless of the step being tuned.
+For \texttt{gemma4:26b} the picture is more articulated: the analysis
+step shows a distribution skewed towards negative deltas — lower
+temperatures and tighter sampling constraints reduce output length and
+therefore consume less energy than the baseline — while the lookup step
+has the widest spread and the largest positive outliers, driven by
+configurations that trigger longer SQL-generation chains.
+The visualization step sits in between: its distribution is
+consistently above zero, reflecting the moderate but predictable energy
+overhead seen in the top quality-improving configurations.
 
 \subsubsection{Best and Worst Configurations}
 
@@ -885,6 +932,16 @@ benefits from the compression imposed by a shorter budget. This is the
 only (step, model) combination in the entire experiment where reducing
 the cap below the baseline yields a positive quality effect.
 
+\texttt{mistral-small3.2:24b} shows a flat, plateau-like profile across
+all three steps: the total quality range is $0.025$ for analysis,
+$0.015$ for lookup, and only $0.010$ for visualization, all within or
+near the noise floor established by the repeat-stability analysis.
+The model appears to generate complete, well-formed outputs even at
+moderate token caps, so additional headroom does not translate into
+measurable quality gains.
+This is a practically useful property: the cap can be set conservatively
+to limit resource use without risking quality regression.
+
 \subsubsection{Direct Step-Metric Ladder}
 
 Figure~\ref{fig:test03_metric_ladder} isolates the effect on the direct
@@ -911,6 +968,11 @@ finding: using the configuration that offers the most output space
 actually produces the worst chart code. The model appears to ramble or
 abandon its output structure when given excessive budget.
 
+The direct metrics of \texttt{mistral-small3.2:24b} mirror the quality
+plateau: \texttt{csv\_iou} is virtually constant across all lookup caps
+(range~$0.0002$), and \texttt{vis\_score} varies by at most~$0.021$.
+The token budget is simply not a binding constraint for this model.
+
 \subsubsection{Completion Ladder}
 
 Figure~\ref{fig:test03_completion} shows how the pipeline completion
@@ -930,17 +992,19 @@ execute. Raising the cap to 5000~tokens eliminates these truncations
 entirely. The baseline cap of 5000 for lookup is therefore not just
 optimal but necessary for this model.
 
-\subsubsection{Marginal Quality Gain Between Adjacent Caps}
+For \texttt{gemma4:e4b}, the completion ladder reflects the same
+instability seen in the quality curves: the model achieves the lowest
+overall completion rate of the three ($89.4\%$), and the visualization
+step is the main source of failures — the same step where the quality
+collapse at 10000~tokens was observed. A tight cap does not necessarily
+help either, since low budgets can trigger truncated chart code that
+fails at execution. The model sits in a narrow feasible window.
 
-Figure~\ref{fig:test03_marginal} decomposes the quality ladder into
-adjacent step changes, making the per-interval gain or loss explicit.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{Images/test03v2_marginal_quality_gain.png}
-    \caption{Test~03: marginal quality gain between adjacent \texttt{max\_tokens} levels.}
-    \label{fig:test03_marginal}
-\end{figure}
+\texttt{mistral-small3.2:24b} maintains a stable completion rate across
+all tested caps ($92.6\%$ overall), with no step or cap value producing
+a notable drop. This further confirms that the model is robust to token
+budget choices and does not require careful cap tuning to avoid
+structural failures.
 
 \subsubsection{Quality-Energy Trade-off}
 
@@ -954,6 +1018,27 @@ relative to each model's step baseline.
     \caption{Test~03: quality delta vs.\ energy delta relative to per-step baseline cap.}
     \label{fig:test03_qe_delta}
 \end{figure}
+
+The most notable feature of the scatter is that almost all points
+cluster near $\Delta E = 0$, regardless of model or step.
+Unlike sampling parameters (Test~02), token caps do not directly drive
+energy consumption: the model generates until its output is complete
+and the cap only becomes binding when the budget is too tight to finish.
+As a consequence, the available quality improvements are largely
+cost-free.
+
+The clearest example is \texttt{gemma4:26b} visualization: raising the
+cap from 7000 to 10000 tokens yields $+0.022$ quality and $+0.054$
+\texttt{vis\_score} at $\Delta E \approx 0$.
+The same model's analysis step moves in the opposite direction on the
+quality axis when the cap is raised, with a slight energy saving at
+lower caps — consistent with the compression effect discussed earlier.
+
+The lower quadrants are populated by configurations where a cap that
+is too restrictive causes truncated or structurally broken outputs,
+particularly for \texttt{gemma4:e4b} at the visualization step.
+These are the only points where energy and quality move together
+downward, because a truncated generation is both shorter and useless.
 
 \subsubsection{Sensitivity Range and Best Caps}
 
@@ -1176,7 +1261,7 @@ depth.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.88\textwidth]{Images/test04v2_cost_multiplier.png}
-    \caption{Test~04: time and energy multiplier vs.\ requested \texttt{cot\_n} (baseline $= 1\times$).}
+    \caption{\color{red}Test~04: time and energy multiplier vs.\ requested \texttt{cot\_n} (baseline $= 1\times$).}
     \label{fig:test04_cost}
 \end{figure}
 
