@@ -11,9 +11,8 @@ Test~01 establishes the quality and efficiency baseline for the three
 candidate models before any parameter tuning is applied. The experimental
 design is described in Section~\ref{subsec:test01}: each model runs with its
 Ollama-recommended sampling defaults over all 20 benchmark prompts, with no
-agent step varied. One complete run per model was collected as a first-pass
-baseline; the planned additional repeats would allow variance estimation
-but do not alter the qualitative findings reported here.
+agent step varied. Three repeats per model were collected, yielding
+3~models $\times$ 3~repeats $\times$ 20~prompts $= 180$ benchmark rows.
 
 \subsubsection{Quality Metrics and End-to-End Interpretation}
 
@@ -49,13 +48,13 @@ To address this, two additional quality views are used throughout this test:
 
 \subsubsection{Aggregate Results}
 
-Table~\ref{tab:test01aggregate} summarises the key metrics for the three
-models. By official quality all three are effectively tied, separated by
-less than 0.5 percentage points. The separation becomes evident when
-end-to-end quality is considered: \texttt{gemma4:e4b} drops from an
-official score of 0.9222 to a component E2E score of 0.8460 because the
-two SQL failures it incurs on difficulty-4 prompts propagate downstream
-and zero out the expected text and visualization scores for those prompts.
+Table~\ref{tab:test01aggregate} summarises the key metrics averaged over the
+three repeats. By official quality \texttt{mistral-small3.2:24b} leads (0.900)
+with \texttt{gemma4:e4b} close behind (0.867), while \texttt{gemma4:26b}
+scores notably lower (0.792) due to a weak visualization component. The
+component E2E metric, which counts missing expected scores as zero, narrows
+the gap between the two leading models: Mistral reaches~0.827 and Gemma~E4B
+reaches~0.821, while Gemma~26B trails at~0.772.
 
 \begin{table}[H]
 \centering
@@ -66,59 +65,96 @@ and zero out the expected text and visualization scores for those prompts.
 \rowcolor{bluePoli!30}
 \textbf{Model} & \textbf{Official} & \textbf{Comp.~E2E} & \textbf{Prompt~E2E} & \textbf{csv E2E} & \textbf{text E2E} & \textbf{vis E2E} & \textbf{Mean sec} & \textbf{Mean kWh} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 0.9265 & 0.9265 & 0.9206 & 0.9758 & 0.8313 & 0.9724 & 112.5 & 0.00705 \T\B \\
+\texttt{mistral-small3.2:24b} & 0.900 & 0.827 & 0.844 & 0.899 & 0.800 & 0.783 & 48.9 & 0.00601 \T\B \\
 \hline
-\texttt{gemma4:26b}           & 0.9259 & 0.9259 & 0.9423 & 0.9987 & 0.9438 & 0.8352 & 228.3 & 0.01113 \T\B \\
+\texttt{gemma4:e4b}           & 0.867 & 0.821 & 0.835 & 0.903 & 0.792 & 0.769 & 75.4 & 0.00883 \T\B \\
 \hline
-\texttt{gemma4:e4b}           & 0.9222 & 0.8460 & 0.8556 & 0.8987 & 0.8000 & 0.8393 & 135.3 & 0.00855 \T\B \\
+\texttt{gemma4:26b}           & 0.792 & 0.772 & 0.814 & 0.928 & 0.890 & 0.500 & 136.0 & 0.01667 \T\B \\
 \hline
 \end{tabular}%
 }
-\caption{Test~01 aggregate results per model (missing pipeline outputs counted as zero).}
+\caption{Test~01 aggregate results per model averaged over three repeats (missing pipeline outputs counted as zero).}
 \label{tab:test01aggregate}
 \end{table}
 
 Figure~\ref{fig:test01_acc_energy} maps component E2E quality against mean
-energy consumption per prompt. The plot reveals a clear Pareto structure:
-\texttt{mistral-small3.2:24b} achieves the highest component E2E quality at
-the lowest energy cost, occupying the top-left corner of the space. The
-larger thinking MoE model \texttt{gemma4:26b} reaches a comparable component
-E2E quality (0.9259 vs.\ 0.9265) but consumes 1.58$\times$ the energy.
-The small thinking model \texttt{gemma4:e4b} falls below both competitors on
-quality while sitting at an intermediate energy cost, making it
-Pareto-dominated at baseline configuration.
+energy consumption per prompt. \texttt{mistral-small3.2:24b} occupies the
+top-left Pareto corner: it achieves the highest strict quality at the lowest
+energy cost. \texttt{gemma4:e4b} reaches a nearly identical component E2E
+quality (0.821 vs.\ 0.827) but at 1.47$\times$ the energy and 1.54$\times$
+the latency. \texttt{gemma4:26b} is Pareto-dominated by both competitors: it
+records the lowest strict quality while consuming 2.77$\times$ the energy of
+Mistral, with its visualization score (0.500) being the primary drag.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.80\textwidth]{Images/test01_accuracy_vs_energy.png}
+    \includegraphics[width=0.80\textwidth]{Images/test01_final_accuracy_vs_energy.png}
     \caption{Test~01: component E2E quality vs.\ mean energy per prompt (Pareto).}
     \label{fig:test01_acc_energy}
 \end{figure}
 
-\subsubsection{Pipeline Completion and Reliability}
+\subsubsection{Repeat Stability}
 
-Figure~\ref{fig:test01_completion} shows the pipeline completion rate for each
-model along two dimensions: \emph{expected score slots} (the fraction of all
-component scores that were expected and actually produced) and \emph{full
-prompts} (the fraction of prompts for which the entire pipeline completed
-without failure).
+Figure~\ref{fig:test01_repeat_stability} and Table~\ref{tab:test01repeatstability}
+report the per-repeat metrics. Repeat variance is low enough for the
+model-level ranking to be stable: the largest quality range across repeats
+belongs to \texttt{gemma4:e4b} (0.077), while Mistral shows the tightest
+spread (range~0.021). Energy and latency are slightly more variable than
+scores because they depend on generated-token length and GPU runtime state.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.80\textwidth]{Images/test01_completion_rates.png}
+    \includegraphics[width=0.85\textwidth]{Images/test01_final_repeat_stability.png}
+    \caption{Test~01: component E2E quality per repeat by model.}
+    \label{fig:test01_repeat_stability}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Repeat} & \textbf{Comp.~E2E} & \textbf{Prompt~E2E} & \textbf{Mean kWh} & \textbf{Mean sec} \T\B \\
+\hline
+\texttt{gemma4:e4b}           & rep~01 & 0.856 & 0.865 & 0.008899 & 76.7 \T\B \\
+\hline
+\texttt{gemma4:e4b}           & rep~02 & 0.780 & 0.804 & 0.008573 & 72.9 \T\B \\
+\hline
+\texttt{gemma4:e4b}           & rep~03 & 0.828 & 0.835 & 0.009015 & 76.5 \T\B \\
+\hline
+\texttt{gemma4:26b}           & rep~01 & 0.776 & 0.815 & 0.016366 & 134.0 \T\B \\
+\hline
+\texttt{gemma4:26b}           & rep~02 & 0.784 & 0.840 & 0.017449 & 142.0 \T\B \\
+\hline
+\texttt{gemma4:26b}           & rep~03 & 0.757 & 0.787 & 0.016185 & 131.9 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & rep~01 & 0.823 & 0.839 & 0.006016 & 49.0 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & rep~02 & 0.819 & 0.834 & 0.006039 & 49.0 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & rep~03 & 0.839 & 0.859 & 0.005973 & 48.6 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~01: per-repeat component E2E quality, prompt E2E quality, energy, and latency.}
+\label{tab:test01repeatstability}
+\end{table}
+
+\subsubsection{Pipeline Completion and Reliability}
+
+Figure~\ref{fig:test01_completion} shows the pipeline completion rate for each
+model. Across three repeats, all models produce complete CSV outputs for every
+prompt, but both text and visualization steps produce some missing expected
+scores concentrated on a small number of difficult prompts.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.80\textwidth]{Images/test01_final_completion_rates.png}
     \caption{Test~01: pipeline completion rate by model and output type.}
     \label{fig:test01_completion}
 \end{figure}
-
-\texttt{mistral-small3.2:24b} and \texttt{gemma4:26b} achieve a full-prompt
-completion rate of 1.0: every prompt produces all expected outputs without
-exception. \texttt{gemma4:e4b} completes 18 of 20 prompts (0.90 rate),
-losing two to SQL generation failures on difficulty-4 queries that require
-nested monthly aggregation. Because the text and visualization agents depend
-on the structured CSV output from the lookup step, these two SQL failures
-also suppress all downstream outputs for the affected prompts, reducing the
-expected-slot completion rate to approximately~0.92. The raw output counts
-are detailed in Table~\ref{tab:test01completeness}.
 
 \begin{table}[H]
 \centering
@@ -126,30 +162,37 @@ are detailed in Table~\ref{tab:test01completeness}.
 \begin{tabular}{|l|c|c|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Rows} & \textbf{csv scores} & \textbf{text scores} & \textbf{vis scores} & \textbf{Timeouts} \T\B \\
+\textbf{Model} & \textbf{Rows} & \textbf{csv complete} & \textbf{text complete} & \textbf{vis complete} & \textbf{Timeouts} \T\B \\
 \hline
-\texttt{gemma4:e4b}           & 20 & 20 & 18 & 12 & 0 \T\B \\
+\texttt{gemma4:e4b}           & 60 & 60 & 56 & 38 & 0 \T\B \\
 \hline
-\texttt{gemma4:26b}           & 20 & 20 & 20 & 14 & 0 \T\B \\
+\texttt{gemma4:26b}           & 60 & 60 & 58 & 40 & 0 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 20 & 20 & 20 & 14 & 0 \T\B \\
+\texttt{mistral-small3.2:24b} & 60 & 60 & 54 & 36 & 0 \T\B \\
 \hline
 \end{tabular}
-\caption{Test~01: pipeline output counts per model.}
+\caption{Test~01: pipeline output counts per model over three repeats (42 visualization slots expected per model).}
 \label{tab:test01completeness}
 \end{table}
+
+Of the 42~visualization slots expected per model (14~per repeat), completion
+ranges from 85.7\,\% for \texttt{mistral-small3.2:24b} (36 of 42) to
+95.2\,\% for \texttt{gemma4:26b} (40 of 42). Missing expected score slots
+are concentrated on difficulty-4 prompts: \texttt{mistral-small3.2:24b}
+incurs 12~missing slots on prompts~4 and~17 (6~each, both scoring 0.000
+across all repeats), while \texttt{gemma4:e4b} incurs 8~missing slots across
+prompts~17, 4, and~9.
 
 \subsubsection{Per-Agent Accuracy Breakdown}
 
 Figure~\ref{fig:test01_per_agent_acc} decomposes the component E2E quality
 into the three pipeline stages: CSV (data retrieval), Text (natural-language
 analysis), and Visualization. Missing expected scores are counted as zero in
-all bars, so the values reflect true end-to-end reliability rather than
-conditional-on-success accuracy.
+all bars.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{Images/test01_per_agent_accuracy.png}
+    \includegraphics[width=0.85\textwidth]{Images/test01_final_per_agent_accuracy.png}
     \caption{Test~01: per-agent E2E accuracy by model (missing outputs counted as zero).}
     \label{fig:test01_per_agent_acc}
 \end{figure}
@@ -157,24 +200,21 @@ conditional-on-success accuracy.
 The figure reveals distinct failure modes across the three models:
 
 \begin{itemize}
-    \item \texttt{gemma4:26b} achieves near-perfect CSV accuracy
-          (\texttt{csv\_iou}~$\approx 0.999$) and the highest text score
-          (0.944), confirming its strength in structured data retrieval and
-          natural-language reasoning. However, its visualization score (0.835)
-          is the lowest of the three, and two visualization prompts produced
-          either no chart or a semantically incorrect one.
+    \item \texttt{gemma4:26b} achieves the highest CSV accuracy (0.928) and
+          the strongest text score (0.890), confirming its strength in
+          structured data retrieval and natural-language reasoning. However,
+          its visualization E2E score (0.500) is by far the lowest of the
+          three, making visualization the primary drag on its aggregate quality.
 
-    \item \texttt{mistral-small3.2:24b} produces the best visualization score
-          (0.972) and a strong CSV score (0.976), but its text analysis is
-          the weakest (0.831). Several prompts received partial text scores
-          due to incomplete analytical coverage or mismatched output schemas
-          rather than outright errors.
+    \item \texttt{mistral-small3.2:24b} achieves the best visualization score
+          (0.783) and a solid text score (0.800), but its CSV accuracy (0.899)
+          reflects complete SQL failures on difficulty-4 prompts that recur
+          deterministically across all three repeats.
 
-    \item \texttt{gemma4:e4b} ranks lowest on CSV (0.899) because of the two
-          complete SQL failures. On the prompts it does complete, its text
-          and visualization scores are competitive, indicating that the quality
-          deficit is concentrated in the lookup step rather than being a
-          general model weakness.
+    \item \texttt{gemma4:e4b} shows the most balanced component profile:
+          CSV (0.903), text (0.792), and visualization (0.769) are all within
+          a similar range, with SQL failures on the same difficulty-4 prompts
+          being the main source of quality loss.
 \end{itemize}
 
 \subsubsection{Accuracy by Prompt Difficulty}
@@ -192,37 +232,39 @@ outputs as zero.
 \rowcolor{bluePoli!30}
 \textbf{Difficulty} & \textbf{\texttt{gemma4:e4b}} & \textbf{\texttt{gemma4:26b}} & \textbf{\texttt{mistral-small3.2:24b}} \T\B \\
 \hline
-1 & 0.9958 & 0.9708 & 0.9583 \T\B \\
+1 & 0.895 & 0.695 & 0.976 \T\B \\
 \hline
-2 & 0.9350 & 0.8900 & 0.9303 \T\B \\
+2 & 0.929 & 0.772 & 0.940 \T\B \\
 \hline
-3 & 0.9397 & 0.9484 & 0.9024 \T\B \\
+3 & 0.848 & 0.858 & 0.911 \T\B \\
 \hline
-4 & 0.4688 & 0.9688 & 0.9029 \T\B \\
+4 & 0.634 & 0.910 & 0.474 \T\B \\
 \hline
 \end{tabular}
-\caption{Prompt E2E quality per SQL difficulty level in Test~01.}
+\caption{Prompt E2E quality per SQL difficulty level in Test~01 (averaged over three repeats).}
 \label{tab:test01difficulty}
 \end{table}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{Images/test01_accuracy_by_difficulty.png}
+    \includegraphics[width=0.85\textwidth]{Images/test01_final_accuracy_by_difficulty.png}
     \caption{Test~01: prompt E2E quality by SQL difficulty level.}
     \label{fig:test01_by_difficulty}
 \end{figure}
 
-At difficulties~1 through~3 the three models are closely clustered, all
-remaining above~0.88. The critical divergence occurs at difficulty~4: while
-\texttt{gemma4:26b} and \texttt{mistral-small3.2:24b} maintain a prompt E2E
-quality above~0.90, \texttt{gemma4:e4b} drops to~0.47. The drop is entirely
-attributable to two complete SQL failures on difficulty-4 prompts that require
-nested monthly revenue aggregation across multiple years. The generated queries
-attempt the correct aggregation logic but reference incorrect column aliases or
-date fields in the outer subquery, causing the lookup step to return empty
-results. This pattern motivates the lookup-step targeted interventions explored
-in Tests~02 and~04: the small thinking model does not underperform globally,
-but its SQL generation is brittle on complex temporal aggregations.
+The difficulty split reveals that no model dominates uniformly. At
+difficulties~1 through~3, \texttt{mistral-small3.2:24b} is the strongest
+or co-strongest model (0.911--0.976). The critical divergence occurs at
+difficulty~4: \texttt{gemma4:26b} rises to~0.910 --- the best score on the
+hardest prompts --- while both \texttt{mistral-small3.2:24b} (0.474) and
+\texttt{gemma4:e4b} (0.634) fall sharply. Both models fail consistently on
+difficulty-4 prompts requiring nested monthly revenue aggregation across
+multiple years, generating queries with incorrect column aliases or date
+fields in outer subqueries. \texttt{gemma4:26b}'s advantage on hard SQL
+comes at the cost of lower performance on the more frequent difficulty-1
+and~2 prompts (0.695 and 0.772), which is the main reason its aggregate
+quality ranks last. This pattern motivates the lookup-step targeted
+interventions explored in Tests~02 and~04.
 
 \subsubsection{Step-Level Latency and Energy}
 
@@ -232,7 +274,7 @@ reported in Tables~\ref{tab:test01latency} and~\ref{tab:test01energy}.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.82\textwidth]{Images/test01_per_agent_latency_breakdown.png}
+    \includegraphics[width=0.82\textwidth]{Images/test01_final_per_agent_latency_breakdown.png}
     \caption{Test~01: mean LLM call time per prompt by agent step.}
     \label{fig:test01_latency}
 \end{figure}
@@ -245,11 +287,11 @@ reported in Tables~\ref{tab:test01latency} and~\ref{tab:test01energy}.
 \rowcolor{bluePoli!30}
 \textbf{Model} & \textbf{Lookup (s)} & \textbf{Analysis (s)} & \textbf{Visualization (s)} & \textbf{Dominant step} \T\B \\
 \hline
-\texttt{gemma4:e4b}           & 15.1 & 36.5 & 40.0 & visualization \T\B \\
+\texttt{gemma4:e4b}           & 7.5 & 20.9 & 21.1 & visualization \T\B \\
 \hline
-\texttt{gemma4:26b}           & 29.6 & 56.8 & 95.0 & visualization \T\B \\
+\texttt{gemma4:26b}           & 19.6 & 35.3 & 53.1 & visualization \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 16.0 & 25.8 & 35.3 & visualization \T\B \\
+\texttt{mistral-small3.2:24b} & 6.9 & 12.4 & 13.0 & visualization \T\B \\
 \hline
 \end{tabular}
 \caption{Mean LLM call time per prompt by agent step for Test~01.}
@@ -258,8 +300,8 @@ reported in Tables~\ref{tab:test01latency} and~\ref{tab:test01energy}.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.82\textwidth]{Images/test01_per_agent_energy_breakdown.png}
-    \caption{Test~01: mean LLM energy per prompt by agent step (51--64\,\% in visualization).}
+    \includegraphics[width=0.82\textwidth]{Images/test01_final_per_agent_energy_breakdown.png}
+    \caption{Test~01: mean LLM energy per prompt by agent step (52--60\,\% in visualization).}
     \label{fig:test01_energy}
 \end{figure}
 
@@ -271,31 +313,26 @@ reported in Tables~\ref{tab:test01latency} and~\ref{tab:test01energy}.
 \rowcolor{bluePoli!30}
 \textbf{Model} & \textbf{Lookup (kWh)} & \textbf{Analysis (kWh)} & \textbf{Visualization (kWh)} & \textbf{Vis.\ share} \T\B \\
 \hline
-\texttt{gemma4:e4b}           & 0.000482 & 0.000739 & 0.001683 & 57.9\,\% \T\B \\
+\texttt{gemma4:e4b}           & 0.000572 & 0.002102 & 0.003130 & 53.9\,\% \T\B \\
 \hline
-\texttt{gemma4:26b}           & 0.000997 & 0.001267 & 0.003996 & 63.8\,\% \T\B \\
+\texttt{gemma4:26b}           & 0.002147 & 0.003918 & 0.009205 & 60.3\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 0.000560 & 0.000474 & 0.001066 & 50.7\,\% \T\B \\
+\texttt{mistral-small3.2:24b} & 0.000595 & 0.001181 & 0.001957 & 52.4\,\% \T\B \\
 \hline
 \end{tabular}
 \caption{Test~01: mean LLM energy per prompt by agent step with visualization share.}
 \label{tab:test01energy}
 \end{table}
 
-Visualization is the single dominant cost centre across all three models,
-accounting for 51--64\,\% of total per-prompt LLM energy and consistently
-representing the longest individual agent step. This finding is most
-pronounced for \texttt{gemma4:26b}, whose visualization step alone consumes
-0.004~kWh per prompt and takes a mean of~95~seconds --- more than the
-combined lookup and analysis time of \texttt{mistral-small3.2:24b}.
-The high visualization cost of the large Gemma model is particularly
-counterproductive given that its visualization quality (0.835) is the
-lowest of the three, suggesting that the additional computation is being
-spent on generation without corresponding accuracy gains.
-\texttt{mistral-small3.2:24b} benefits from a uniformly efficient profile:
-it spends less time on analysis (25.8~s vs.\ 36.5~s and 56.8~s for the
-two Gemma models) and achieves the lowest visualization energy (0.00107~kWh)
-while maintaining the best visualization quality.
+Visualization is the dominant cost centre across all three models, accounting
+for 52--60\,\% of total per-prompt LLM energy. This is most pronounced for
+\texttt{gemma4:26b}, whose visualization step alone consumes 0.0092~kWh per
+prompt and takes a mean of~53~seconds --- exceeding the entire per-prompt
+time of \texttt{mistral-small3.2:24b} (48.9~s). The high visualization cost
+of the large Gemma model is particularly counterproductive given that its
+visualization E2E score (0.500) is the weakest of the three.
+\texttt{mistral-small3.2:24b} shows the most efficient profile across all
+three steps, with total per-prompt energy of 0.00601~kWh.
 
 Table~\ref{tab:test01relativecost} quantifies the efficiency gap relative
 to \texttt{mistral-small3.2:24b} as the reference:
@@ -303,106 +340,94 @@ to \texttt{mistral-small3.2:24b} as the reference:
 \begin{table}[H]
 \centering
 \arrayrulecolor{black}
-\begin{tabular}{|l|c|c|c|}
+\begin{tabular}{|l|c|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Relative prompt quality} & \textbf{Relative time} & \textbf{Relative energy} \T\B \\
+\textbf{Model} & \textbf{Rel.\ prompt quality} & \textbf{Rel.\ comp.\ quality} & \textbf{Rel.\ time} & \textbf{Rel.\ energy} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 1.000 & 1.000 & 1.000 \T\B \\
+\texttt{mistral-small3.2:24b} & 1.000 & 1.000 & 1.000 & 1.000 \T\B \\
 \hline
-\texttt{gemma4:e4b}           & 0.929 & 1.202 & 1.213 \T\B \\
+\texttt{gemma4:e4b}           & 0.989 & 0.993 & 1.543 & 1.469 \T\B \\
 \hline
-\texttt{gemma4:26b}           & 1.024 & 2.028 & 1.578 \T\B \\
+\texttt{gemma4:26b}           & 0.965 & 0.934 & 2.783 & 2.774 \T\B \\
 \hline
 \end{tabular}
 \caption{Test~01: relative efficiency, normalised to \texttt{mistral-small3.2:24b}.}
 \label{tab:test01relativecost}
 \end{table}
 
-\texttt{gemma4:26b} improves prompt E2E quality by only 2.4\,\% relative to
-Mistral Small while taking 2.0$\times$ as long and consuming 1.6$\times$ the
-energy. \texttt{gemma4:e4b} is both slower and less reliable than Mistral at
-baseline, making \texttt{mistral-small3.2:24b} the clear Pareto-optimal
-choice in this test.
+\texttt{gemma4:e4b} recovers quality within 1\,\% of Mistral at the
+component level, but pays a 47\,\% energy premium and is 54\,\% slower.
+\texttt{gemma4:26b} reaches only 93.4\,\% of Mistral's component quality
+at 2.77$\times$ the energy, confirming that larger model scale does not
+compensate for step-level weaknesses without targeted tuning.
 
 \subsubsection{Per-Model Error Analysis}
 \label{subsubsec:test01errors}
 
 \paragraph{\texttt{gemma4:e4b}.}
-The two hard failures occur on prompts~4 and~17, both requiring a comparison
-of average monthly revenue across different store segmentation dimensions over
+The main failures occur on prompts~17 and~4, both requiring a comparison of
+average monthly revenue across different store segmentation dimensions over
 2022 and~2023. The generated SQL queries attempt the correct nested monthly
 aggregation logic but reference incorrect column aliases or date fields in the
-outer subquery, causing the lookup step to return empty results
-(\texttt{csv\_iou}~$= 0.0$). No text or visualization output is produced for
-either prompt as a result.
-
-A third partial failure occurs on prompt~14 (top brands by average
-selling price): the CSV similarity remains high (\texttt{csv\_iou}~$= 0.973$)
-but the analysis agent transposes the average selling price and total unit
-count values in its narrative, yielding \texttt{text\_score}~$= 0.5$.
-Both failure types suggest that this model requires lookup-step targeted
-improvements for complex temporal aggregations, motivating the Best-of-$N$
-and Chain-of-Thought strategies evaluated in Test~04.
+outer subquery, causing the lookup step to return empty results. A further
+partial failure occurs on prompt~9 (store cities exceeding a revenue threshold
+as a bar chart), where text and visualization outputs are produced but with
+reduced scores across repeats. These failure types motivate the lookup-step
+targeted interventions evaluated in Test~04.
 
 \paragraph{\texttt{gemma4:26b}.}
-The model completes all SQL and text steps without failure. Its main
-weakness is concentrated in the visualization agent:
+The model does not fail on SQL. Its main weakness is concentrated in the
+visualization agent on two prompts:
 
 \begin{itemize}
-    \item \textbf{Prompt~10} (monthly revenue for a specific product class
-          as a line chart): perfect data retrieval (\texttt{csv\_iou}~$= 1.0$)
-          and a high text score, but \texttt{vis\_score}~$= 0.0$ because no
-          chart code was produced at all.
-    \item \textbf{Prompt~16} (grouped bar chart for organic vs.\ non-organic
-          revenue by region): near-perfect SQL (\texttt{csv\_iou}~$= 0.974$)
-          and good text (\texttt{text\_score}~$= 0.875$), but weak
-          visualization (\texttt{vis\_score}~$= 0.592$) because the organic
-          flag was treated as a numerical $y$-axis value rather than a grouping
-          variable.
+    \item \textbf{Prompt~5} (promo vs.\ non-promo revenue as a bar chart):
+          the chart type and data are approximately correct but the
+          visualization configuration does not match the expected grouping
+          structure (\texttt{mean quality}~$= 0.389$, 2~missing slots).
+    \item \textbf{Prompt~11} (monthly revenue split by promo flag as a
+          grouped bar chart): similar grouping failure
+          (\texttt{mean quality}~$= 0.500$, 2~missing slots).
 \end{itemize}
 
-These failures suggest that the larger Gemma model's visualization step is
-the primary target for parameter tuning, as explored in Tests~02 and~03.
+These failures suggest that the larger Gemma model requires targeted
+visualization tuning, as explored in Tests~02 and~03.
 
 \paragraph{\texttt{mistral-small3.2:24b}.}
-The model completes all prompts without SQL errors. Its main weakness is
-analytical completeness: on prompts~7, 8, and~16, the CSV output is correct
-or near-correct but the natural-language analysis omits relevant comparisons,
-leading to partial text scores. Prompt~18 (promo revenue share by product
-category) illustrates a schema adherence issue: the model returns a
-semantically correct table but with extra columns and a percentage-formatted
-column name that does not match the expected compact schema
-(\texttt{csv\_iou}~$= 0.546$, \texttt{vis\_score}~$= 0.664$, despite a
-high text score of~0.875). Analysis wording completeness and strict output
-schema adherence are the likely tuning targets for this model.
+The model incurs the largest number of missing expected score slots (12),
+all concentrated on difficulty-4 prompts~4 and~17 (6~slots each). Both
+prompts require nested monthly revenue aggregation across store segmentation
+dimensions; both score exactly 0.000 quality across all three repeats,
+meaning the SQL failure recurs deterministically. Analysis completeness is
+a secondary weakness: several difficulty-1 through~3 prompts receive partial
+text scores due to incomplete analytical coverage or output schema mismatches.
 
 \subsubsection{Summary}
 
 The main findings of Test~01 can be summarised as follows:
 
 \begin{enumerate}
-    \item \textbf{Mistral Small dominates at baseline.}
-          \texttt{mistral-small3.2:24b} achieves the best component E2E
-          quality (0.9265), the lowest latency (112.5~s/prompt), and the
-          lowest energy consumption (0.00705~kWh/prompt). It serves as the
-          primary efficiency reference for all subsequent tests.
+    \item \textbf{Mistral Small is the Pareto baseline.}
+          \texttt{mistral-small3.2:24b} achieves the highest component E2E
+          quality (0.827), the lowest latency (48.9~s/prompt), and the lowest
+          energy (0.00601~kWh/prompt). It serves as the primary efficiency
+          reference for all subsequent tests.
 
-    \item \textbf{Gemma~26B improves SQL and text reliability at high cost.}
-          \texttt{gemma4:26b} achieves near-perfect SQL accuracy
-          (\texttt{csv\_iou}~$= 0.999$) and the highest text score (0.944),
-          but requires 2.0$\times$ the time and 1.6$\times$ the energy of
-          Mistral for only a 2.4\,\% gain in prompt E2E quality. Its
-          visualization step is unexpectedly both weak and expensive.
+    \item \textbf{Gemma~E4B is close on aggregate quality but more expensive.}
+          With three repeats, \texttt{gemma4:e4b} reaches 0.821 component E2E
+          quality --- within 0.7\,\% of Mistral --- but at 1.47$\times$ the
+          energy and 1.54$\times$ the latency. It remains a viable candidate
+          when absolute quality is prioritised over efficiency.
 
-    \item \textbf{Gemma~E4B is brittle on hard SQL.}
-          The small thinking model is competitive at difficulties~1 through~3
-          but collapses at difficulty~4, where two nested monthly aggregation
-          queries trigger complete SQL failures. This motivates the
-          lookup-step targeted interventions in Tests~02 and~04.
+    \item \textbf{Gemma~26B dominates only on the hardest prompts.}
+          \texttt{gemma4:26b} achieves the best score on difficulty-4 prompts
+          (0.910) where the other two models collapse, but its visualization
+          E2E score (0.500) and aggregate quality (0.772) are the weakest
+          overall. Without targeted visualization tuning it is
+          Pareto-dominated.
 
     \item \textbf{Visualization is the dominant energy lever.}
-          The visualization step accounts for 51--64\,\% of per-prompt LLM
+          The visualization step accounts for 52--60\,\% of per-prompt LLM
           energy across all models and is the agent step with the greatest
           potential for efficiency improvement through parameter tuning.
 \end{enumerate}
@@ -422,29 +447,6 @@ of the benchmark, reduced from the full 20-prompt set to limit total
 run time while preserving the original difficulty distribution across
 all four SQL complexity levels (difficulty~1: 3~prompts, difficulty~2:
 4~prompts, difficulty~3: 5~prompts, difficulty~4: 3~prompts).
-
-\subsubsection{Data Completeness}
-
-\begin{table}[H]
-\centering
-\arrayrulecolor{black}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|c|c|c|c|}
-\hline
-\rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Repeats} & \textbf{Expected configs} & \textbf{Completed configs} & \textbf{Status} \T\B \\
-\hline
-\texttt{gemma4:26b}           & 2 & 153 & 153 & included \T\B \\
-\hline
-\texttt{mistral-small3.2:24b} & 2 & 153 & 153 & included \T\B \\
-\hline
-\texttt{gemma4:e4b}           & 2 & 153 & 39 / 14 & {\color{red}\textbf{excluded — run incomplete}} \T\B \\
-\hline
-\end{tabular}%
-}
-\caption{Test~02: run completeness per model (\texttt{gemma4:e4b} excluded --- run incomplete).}
-\label{tab:test02completeness}
-\end{table}
 
 {\color{red}\textbf{[PLACEHOLDER — \texttt{gemma4:e4b} Test~02 run
 incomplete. When the run finishes, add: (i) sensitivity range row in
@@ -781,7 +783,7 @@ top configurations target the \texttt{gemma4:26b} visualization step.
 This directly validates the Test~01 finding that visualization was
 simultaneously the weakest and most energy-intensive step for that
 model. The best single configuration, \texttt{visualization\_repeat\_penalty\_1}
-(disabling the repetition penalty), improves overall pipeline quality
+(setting repeat penalty to neutral 1.0, vs.\ the baseline of~1.1), improves overall pipeline quality
 by~$+0.068$ and the direct \texttt{vis\_score} by~$+0.052$, at a cost
 of only $+0.00128$~kWh and about~24 additional seconds per prompt —
 a highly favourable trade-off.
@@ -839,6 +841,39 @@ lookup fragility vs.\ \texttt{gemma4:26b}, and whether the visualization
 step shows the same universal positive response to parameter tuning
 seen in the larger model.]}}
 
+\subsubsection{Accuracy by Prompt Difficulty}
+
+Figures~\ref{fig:test02_diff_baseline} and~\ref{fig:test02_diff_delta} examine
+whether parameter sensitivity is uniform across prompt difficulty levels.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/test02v2_difficulty_baseline_quality.png}
+    \caption{Test~02: baseline quality by prompt difficulty for each model and agent step.}
+    \label{fig:test02_diff_baseline}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/test02v2_difficulty_best_delta_heatmap.png}
+    \caption{Test~02: best parameter delta by prompt difficulty (heatmap).}
+    \label{fig:test02_diff_delta}
+\end{figure}
+
+Parameter sensitivity is not uniform across task difficulty. \texttt{gemma4:26b}
+obtains the largest difficulty-specific gains on its weakest slices: visualization
+at difficulty~1 (\texttt{repeat\_penalty=1.0}, $+0.246$) and lookup at
+difficulty~1 (\texttt{repeat\_last\_n=128}, $+0.194$), confirming that OFAT
+tuning is most effective where the baseline is already low. However, the same
+model also incurs the largest negative swings: analysis at difficulty~4 degrades
+by~$-0.312$ under \texttt{repeat\_last\_n=96} and visualization at difficulty~4
+by~$-0.250$, indicating that the thinking model becomes unstable when a parameter
+disrupts the model's thinking process on hard prompts. \texttt{mistral-small3.2:24b}
+shows a much flatter sensitivity profile across all difficulty levels, with gains
+and losses well below those of Gemma~26B. This robustness confirms Mistral as a
+safe baseline but also means that one-parameter OFAT tuning finds little room for
+improvement for this model.
+
 \subsubsection{Summary}
 
 Test~02 establishes that sensitivity to static sampling parameter tuning
@@ -865,7 +900,7 @@ is a model-level property, not a step-level one:
     \item \textbf{Temperature reduction hurts Gemma~26B analysis.}
           The thinking model's analysis quality degrades when temperature
           is lowered below the baseline of~1.0, suggesting that the
-          chain-of-thought generation benefits from sampling diversity.
+          model's thinking process benefits from sampling diversity.
 
     \item \textbf{\texttt{gemma4:e4b} results pending.}
           {\color{red}[PLACEHOLDER — update when run completes.]}
@@ -930,7 +965,23 @@ baseline 7000-token cap (0.880) is lower than at the tightest cap
 of~4000 (0.900), indicating that the model's analysis generation
 benefits from the compression imposed by a shorter budget. This is the
 only (step, model) combination in the entire experiment where reducing
-the cap below the baseline yields a positive quality effect.
+the cap below the baseline yields a \emph{non-trivial} positive quality
+effect: a handful of other pairs also peak below their baseline cap
+(\texttt{gemma4:e4b} visualization, $+0.009$; \texttt{mistral-small3.2:24b}
+visualization, $+0.006$, and analysis, $+0.004$; \texttt{gemma4:e4b}
+analysis, $+0.001$; see Table~\ref{tab:test03bestcaps}), but by margins
+small enough to be indistinguishable from measurement noise.
+
+It must be noted, however, that even this $+0.020$ analysis gain does not
+exceed the $\pm 0.05$ inter-repeat noise floor characterised for
+\texttt{gemma4:26b} in Section~\ref{subsubsec:test02stability}, and that
+its direct \texttt{text\_score} delta is~$0.000$
+(Table~\ref{tab:test03bestcaps}); the analysis-cap effect should
+therefore be read as directional rather than as a robust,
+metric-supported gain. The same caution applies to the $+0.022$
+visualization quality gain discussed below, which however is corroborated
+by a direct \texttt{vis\_score} improvement of~$+0.054$ that does clear
+the same noise floor.
 
 \texttt{mistral-small3.2:24b} shows a flat, plateau-like profile across
 all three steps: the total quality range is $0.025$ for analysis,
@@ -1112,6 +1163,37 @@ per-step sensitivity range and the best-performing cap for each
 \label{tab:test03bestcaps}
 \end{table}
 
+\subsubsection{Accuracy by Prompt Difficulty}
+
+Figures~\ref{fig:test03_diff_sensitivity} and~\ref{fig:test03_diff_delta} examine
+whether the effect of \texttt{max\_tokens} varies with prompt difficulty.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/test03v2_difficulty_token_sensitivity.png}
+    \caption{Test~03: \texttt{max\_tokens} sensitivity by prompt difficulty for each model and step.}
+    \label{fig:test03_diff_sensitivity}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/test03v2_difficulty_best_cap_delta.png}
+    \caption{Test~03: best \texttt{max\_tokens} cap delta by prompt difficulty.}
+    \label{fig:test03_diff_delta}
+\end{figure}
+
+The token cap behaves as a failure-prevention bound rather than a smooth quality
+dial, and its impact is strongest on slices where the default cap causes
+truncation or malformed outputs. The most striking case is \texttt{gemma4:e4b}
+visualization at difficulty~4: reducing the cap from the 7000-token baseline to
+4000 raises quality by~$+0.355$, because the model generates overly long or
+structurally incorrect chart code at the default budget. Conversely, on flat
+slices such as \texttt{gemma4:e4b} lookup at difficulty~1, the cap has no effect
+regardless of its value (quality stays at~0.939). These results support using
+generous but not blindly maximal caps per agent: a cap that is too tight causes
+discrete failures on complex prompts, while an excessively high cap rarely helps
+and can encourage verbose outputs that reduce quality.
+
 \subsubsection{Summary}
 
 \begin{enumerate}
@@ -1156,11 +1238,11 @@ previous output is already satisfactory, so the executed depth can be
 lower than the requested depth. The test was run on
 \texttt{gemma4:e4b} and \texttt{mistral-small3.2:24b} only
 (3~repeats $\times$ 8~configs $\times$ 10~prompts = 240~rows each).
-\texttt{gemma4:26b} was excluded because its baseline quality is already
-the highest of the three models, making CoT a less compelling lever:
-the headroom for improvement is smaller and the per-prompt cost is
-already the highest, so additional compute iterations carry a less
-favourable return than for the two lighter models.
+\texttt{gemma4:26b} was excluded because its main weakness (visualization)
+was already addressed by the token-budget increase in Test~03, its SQL
+and text steps were near saturation, and its per-prompt cost is already
+the highest of the three models, making additional compute iterations
+particularly expensive relative to the expected gain.
 
 \subsubsection{Aggregate Results}
 
@@ -1185,7 +1267,7 @@ favourable return than for the two lighter models.
 \hline
 \texttt{gemma4:e4b} & \texttt{vis\_cot\_n2}     & Vis.   & 2 & 0.7149 & $-$0.0417 & $-$0.1131 & 0.00310 \T\B \\
 \hline
-\texttt{gemma4:e4b} & \texttt{vis\_cot\_n3}     & Vis.   & 3 & 0.6413 & $-$0.1152 & $-$0.1607 & 0.00500 \T\B \\
+\texttt{gemma4:e4b} & \texttt{vis\_cot\_n3}     & Vis.   & 3 & 0.6413 & $-$0.1152 & $-$0.1607 & 0.00312 \T\B \\
 \hline
 \texttt{gemma4:e4b} & \texttt{vis\_cot\_n4}     & Vis.   & 4 & 0.7438 & $-$0.0128 & $-$0.0536 & 0.00339 \T\B \\
 \hline
@@ -1219,10 +1301,12 @@ at $+0.063$ at depth~3.
 For the visualization step the pattern is reversed: quality degrades
 at every depth above~1 for both models, with \texttt{gemma4:e4b}
 losing up to $-0.115$ at depth~3.
-The energy columns confirm that lookup CoT is also the more efficient
-investment: the kWh increase from depth~1 to depth~4 is proportionally
-smaller for lookup than for visualization, where extra iterations
-consume more energy without improving output quality.
+The energy columns show that visualization CoT adds little overhead in
+absolute terms (at most $+0.00059$~kWh from depth~1 to depth~4), yet
+every unit of that energy is wasted because quality declines at each
+step. Lookup CoT carries a larger energy cost (up to $+0.00193$~kWh at
+depth~4 for \texttt{gemma4:e4b}), but the quality gains are
+substantial enough to justify it.
 
 \subsubsection{Accuracy vs.\ Requested CoT Depth}
 
@@ -1294,9 +1378,10 @@ against the energy overhead.
 The step-metric view reinforces the two-cluster picture of
 Figure~\ref{fig:test04_pareto} with greater resolution.
 The \texttt{csv\_iou} gains for lookup CoT are substantial — up to
-$+0.197$ for \texttt{gemma4:e4b} at depth~2 — confirming that the
-overall quality improvement seen in the pareto is genuinely driven by
-better data retrieval, not by indirect effects on other steps.
+$+0.226$ for \texttt{gemma4:e4b} at depth~4 (and already $+0.197$ at
+depth~2) — confirming that the overall quality improvement seen in the
+pareto is genuinely driven by better data retrieval, not by indirect
+effects on other steps.
 Conversely, the \texttt{vis\_score} losses for visualization CoT are
 equally unambiguous: the metric drops at every depth above~1 for both
 models, with no configuration managing to improve chart quality at any
@@ -1314,9 +1399,25 @@ depth.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.88\textwidth]{Images/test04v2_cost_multiplier.png}
-    \caption{\color{red}Test~04: time and energy multiplier vs.\ requested \texttt{cot\_n} (baseline $= 1\times$).}
+    \caption{Test~04: time and energy multiplier vs.\ requested \texttt{cot\_n} (baseline $= 1\times$).}
     \label{fig:test04_cost}
 \end{figure}
+
+The cost multiplier grows incrementally with \texttt{cot\_n}: each
+\emph{executed} iteration adds a roughly constant amount of inference time
+and energy, so on a per-iteration basis the cost is predictable, with no
+unexpected spikes or diminishing overhead. The growth is, however,
+sub-linear in the \emph{requested} depth rather than proportional to it.
+Because of the early-stop mechanism (Figure~\ref{fig:test04_earlystop},
+Table~\ref{tab:test04earlystop}) the executed depth saturates near~2, so
+requesting depth~3 or~4 only marginally increases the realised cost over
+depth~2: \texttt{gemma4:e4b} lookup energy rises from $0.00346$ to
+$0.00444$~kWh between requested depths~2 and~4 ($+28\%$, not $+100\%$),
+and \texttt{mistral-small3.2:24b} lookup energy at depth~4
+($0.00279$~kWh) is in fact below depth~3 ($0.00293$~kWh). CoT depth
+therefore remains a predictable compute lever, but the saturation of the
+executed depth makes the realised cost plateau rather than scale linearly
+with the requested value.
 
 \subsubsection{CoT Execution Depth and Early Stops}
 
@@ -1325,7 +1426,7 @@ from the \emph{executed} depth, and reports the early-stop rate.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth]{Images/test04v2_cot_execution_depth.png}
+    \includegraphics[width=0.88\textwidth]{Images/test04v2_cot_execution_diagnostics_corrected.png}
     \caption{Test~04: mean executed iterations and early-stop rate vs.\ requested \texttt{cot\_n}.}
     \label{fig:test04_earlystop}
 \end{figure}
@@ -1346,40 +1447,82 @@ Table~\ref{tab:test04earlystop} summarises the execution diagnostics.
 \centering
 \arrayrulecolor{black}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|l|c|c|c|c|}
+\begin{tabular}{|l|l|c|c|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Step} & \textbf{Requested} & \textbf{Executed mean} & \textbf{Early-stop rate} \T\B \\
+\textbf{Model} & \textbf{Step} & \textbf{cot\_n} & \textbf{Step exec.\ rate} & \textbf{Exec.\ mean} & \textbf{Early stop} & \textbf{Full depth} \T\B \\
 \hline
-\texttt{gemma4:e4b}           & Lookup & 2 & 2.00 & \phantom{0}0.0\,\% \T\B \\
+\texttt{gemma4:e4b}           & Lookup        & 1 & 100.0\,\% & 1.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
 \hline
-\texttt{gemma4:e4b}           & Lookup & 3 & 2.53 & 46.7\,\% \T\B \\
+\texttt{gemma4:e4b}           & Lookup        & 2 & 100.0\,\% & 2.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
 \hline
-\texttt{gemma4:e4b}           & Lookup & 4 & 2.50 & 86.7\,\% \T\B \\
+\texttt{gemma4:e4b}           & Lookup        & 3 & 100.0\,\% & 2.53 & 46.7\,\%           & \phantom{0}53.3\,\% \T\B \\
 \hline
-\texttt{gemma4:e4b}           & Visualization & 2 & 2.00 & \phantom{0}0.0\,\% \T\B \\
+\texttt{gemma4:e4b}           & Lookup        & 4 & 100.0\,\% & 2.50 & 86.7\,\%           & \phantom{0}13.3\,\% \T\B \\
 \hline
-\texttt{gemma4:e4b}           & Visualization & 3 & 2.57 & 23.3\,\% \T\B \\
+\texttt{gemma4:e4b}           & Visualization & 1 & \phantom{0}60.0\,\% & 1.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
 \hline
-\texttt{gemma4:e4b}           & Visualization & 4 & 2.69 & 40.0\,\% \T\B \\
+\texttt{gemma4:e4b}           & Visualization & 2 & \phantom{0}53.3\,\% & 2.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup & 2 & 2.00 & \phantom{0}0.0\,\% \T\B \\
+\texttt{gemma4:e4b}           & Visualization & 3 & \phantom{0}50.0\,\% & 2.53 & 46.7\,\%           & \phantom{0}53.3\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup & 3 & 2.17 & 83.3\,\% \T\B \\
+\texttt{gemma4:e4b}           & Visualization & 4 & \phantom{0}53.3\,\% & 2.69 & 75.0\,\%           & \phantom{0}25.0\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup & 4 & 2.27 & 90.0\,\% \T\B \\
+\texttt{mistral-small3.2:24b} & Lookup        & 1 & 100.0\,\% & 1.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 2 & 2.00 & \phantom{0}0.0\,\% \T\B \\
+\texttt{mistral-small3.2:24b} & Lookup        & 2 & 100.0\,\% & 2.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 3 & 2.17 & 50.0\,\% \T\B \\
+\texttt{mistral-small3.2:24b} & Lookup        & 3 & 100.0\,\% & 2.17 & 83.3\,\%           & \phantom{0}16.7\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 4 & 2.33 & 50.0\,\% \T\B \\
+\texttt{mistral-small3.2:24b} & Lookup        & 4 & 100.0\,\% & 2.27 & 90.0\,\%           & \phantom{0}10.0\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 1 & \phantom{0}60.0\,\% & 1.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 2 & \phantom{0}60.0\,\% & 2.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 3 & \phantom{0}60.0\,\% & 2.17 & 83.3\,\%           & \phantom{0}16.7\,\% \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 4 & \phantom{0}60.0\,\% & 2.33 & 83.3\,\%           & \phantom{0}16.7\,\% \T\B \\
 \hline
 \end{tabular}%
 }
-\caption{\color{red}Test~04: CoT execution diagnostics (requested vs.\ executed depth and early-stop rate).}
+\caption{Test~04: CoT execution diagnostics (rates computed among executed rows).}
 \label{tab:test04earlystop}
 \end{table}
+
+The visualization step execution rate sits at approximately 60\,\% because \textit{decide\_tool} only triggers this step when the prompt explicitly requests a chart; the remaining~40\,\% of prompts require only tabular data or a textual answer and never reach the visualization step. In some configurations the rate falls below 60\,\%: this occurs when the lookup setting produces incorrect or incomplete responses, causing the planner to terminate the pipeline before the visualization step is reached.
+
+\subsubsection{Accuracy by Prompt Difficulty}
+
+Figures~\ref{fig:test04_diff_depth} and~\ref{fig:test04_diff_delta} examine how
+CoT gains vary with prompt difficulty.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/test04v2_difficulty_cot_depth.png}
+    \caption{Test~04: quality by CoT depth and prompt difficulty.}
+    \label{fig:test04_diff_depth}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/test04v2_difficulty_best_cot_delta.png}
+    \caption{Test~04: best CoT delta by prompt difficulty.}
+    \label{fig:test04_diff_delta}
+\end{figure}
+
+CoT depth is most effective precisely where the baseline model is weakest. For
+\texttt{gemma4:e4b} lookup, difficulty-4 prompts benefit from a $+0.524$ quality
+gain at \texttt{cot\_n=3} --- the largest single-slice gain in the entire test
+--- while difficulty-1 prompts show no gain from additional iterations. The same
+asymmetry holds for \texttt{mistral-small3.2:24b}: difficulty-4 lookup gains
+$+0.365$ at \texttt{cot\_n=3}, while difficulties~1 through~3 show only marginal
+changes ($+0.002$ to $+0.023$). This pattern is consistent with the
+SQL-feedback mechanism of CoT: executable results can correct errors on complex
+nested queries, but add no signal when the baseline query is already correct.
+Visualization CoT shows the opposite trend: quality is flat or negative across
+all difficulty levels for both models, reinforcing the conclusion that
+visualization CoT should not be deployed.
 
 \subsubsection{Summary}
 
@@ -1404,7 +1547,15 @@ Table~\ref{tab:test04earlystop} summarises the execution diagnostics.
           early-stop mechanism makes \texttt{cot\_n=3} and
           \texttt{cot\_n=4} behave similarly to \texttt{cot\_n=2} for
           the lookup step. Requesting depth~2 is therefore the most
-          cost-efficient choice for both models.
+          cost-efficient choice for both models. For
+          \texttt{mistral-small3.2:24b} this is an explicit trade-off:
+          although \texttt{cot\_n=3} is the nominal quality peak
+          ($+0.063$), depth~2 already captures most of the benefit
+          ($+0.040$) at lower and more predictable cost, and the
+          additional $+0.023$ at depth~3 is small relative to the extra
+          compute and the executed-depth saturation. Depth~2 is thus
+          recommended for both models, with depth~3 reserved for Mistral
+          only when maximum lookup quality is the priority.
 \end{enumerate}
 
 %-----------------------------------------------------------------------------
