@@ -881,7 +881,7 @@ output-length ceiling: the model is forced to stop generating once the
 budget is exhausted, potentially truncating incomplete SQL queries,
 analysis paragraphs, or visualization code. All three models have
 complete data for this test (3~repeats $\times$ 12~configs $\times$
-20~prompts = 360~rows each).
+10~prompts = 360~rows each).
 
 \subsubsection{Token Caps Tested}
 
@@ -1155,7 +1155,12 @@ early-stop mechanism halts the loop when the model signals that the
 previous output is already satisfactory, so the executed depth can be
 lower than the requested depth. The test was run on
 \texttt{gemma4:e4b} and \texttt{mistral-small3.2:24b} only
-(3~repeats $\times$ 8~configs $\times$ 20~prompts = 240~rows each).
+(3~repeats $\times$ 8~configs $\times$ 10~prompts = 240~rows each).
+\texttt{gemma4:26b} was excluded because its baseline quality is already
+the highest of the three models, making CoT a less compelling lever:
+the headroom for improvement is smaller and the per-prompt cost is
+already the highest, so additional compute iterations carry a less
+favourable return than for the two lighter models.
 
 \subsubsection{Aggregate Results}
 
@@ -1206,6 +1211,19 @@ lower than the requested depth. The test was run on
 \label{tab:test04results}
 \end{table}
 
+The table highlights a clear asymmetry between the two CoT targets.
+For the lookup step, CoT consistently helps: \texttt{gemma4:e4b} gains
+up to $+0.203$ quality at \texttt{cot\_n=4} (with \texttt{csv\_iou}
+rising from~0.757 to~0.983), and \texttt{mistral-small3.2:24b} peaks
+at $+0.063$ at depth~3.
+For the visualization step the pattern is reversed: quality degrades
+at every depth above~1 for both models, with \texttt{gemma4:e4b}
+losing up to $-0.115$ at depth~3.
+The energy columns confirm that lookup CoT is also the more efficient
+investment: the kWh increase from depth~1 to depth~4 is proportionally
+smaller for lookup than for visualization, where extra iterations
+consume more energy without improving output quality.
+
 \subsubsection{Accuracy vs.\ Requested CoT Depth}
 
 Figure~\ref{fig:test04_cot_depth} plots overall pipeline quality against
@@ -1227,6 +1245,16 @@ allows the model to correct erroneous SQL constructs through
 self-criticism, achieving a \texttt{csv\_iou} of~0.954 at
 \texttt{cot\_n=2} compared to~0.757 at baseline.
 
+The visualization curves tell the opposite story. Both models show a
+monotonic quality decline as the requested depth increases: for
+\texttt{gemma4:e4b} the drop reaches $-0.115$ at \texttt{cot\_n=3},
+while \texttt{mistral-small3.2:24b} loses $-0.033$ at depth~4.
+Unlike SQL, where the model can verify its output against a concrete
+execution result, chart code has no analogous feedback signal: the
+self-criticism loop has no reliable criterion to judge correctness and
+tends to over-edit working code, introducing regressions rather than
+fixing them.
+
 \subsubsection{Quality-Energy Pareto of CoT Configurations}
 
 Figure~\ref{fig:test04_pareto} maps all configurations into the
@@ -1238,6 +1266,17 @@ $(\Delta\,\text{energy}, \Delta\,\text{quality})$ plane.
     \caption{Test~04: quality delta vs.\ energy delta per CoT configuration.}
     \label{fig:test04_pareto}
 \end{figure}
+
+The scatter divides cleanly into two clusters. All lookup CoT
+configurations land in the upper-right quadrant: quality improves and
+energy increases, but the ratio is favourable — \texttt{gemma4:e4b}
+achieves its largest gain ($+0.203$) at \texttt{cot\_n=4} with a
+moderate overhead, while \texttt{mistral-small3.2:24b} reaches $+0.063$
+at depth~3 at much lower absolute cost.
+All visualization CoT configurations land in the lower-right quadrant:
+every additional iteration costs energy and degrades quality
+simultaneously, making CoT a strictly dominated strategy for chart
+generation.
 
 \subsubsection{Direct Step-Metric Gain vs.\ Extra Energy}
 
@@ -1251,6 +1290,20 @@ against the energy overhead.
     \caption{Test~04: direct step-metric delta vs.\ energy delta per CoT configuration.}
     \label{fig:test04_metric_cost}
 \end{figure}
+
+The step-metric view reinforces the two-cluster picture of
+Figure~\ref{fig:test04_pareto} with greater resolution.
+The \texttt{csv\_iou} gains for lookup CoT are substantial — up to
+$+0.197$ for \texttt{gemma4:e4b} at depth~2 — confirming that the
+overall quality improvement seen in the pareto is genuinely driven by
+better data retrieval, not by indirect effects on other steps.
+Conversely, the \texttt{vis\_score} losses for visualization CoT are
+equally unambiguous: the metric drops at every depth above~1 for both
+models, with no configuration managing to improve chart quality at any
+energy cost.
+The separation is sharper here than in the pareto because the
+step metric isolates the causal step, removing the dilution from the
+two fixed steps.
 
 \subsubsection{Cost Multiplier}
 
@@ -1324,7 +1377,7 @@ Table~\ref{tab:test04earlystop} summarises the execution diagnostics.
 \hline
 \end{tabular}%
 }
-\caption{Test~04: CoT execution diagnostics (requested vs.\ executed depth and early-stop rate).}
+\caption{\color{red}Test~04: CoT execution diagnostics (requested vs.\ executed depth and early-stop rate).}
 \label{tab:test04earlystop}
 \end{table}
 
@@ -1355,18 +1408,13 @@ Table~\ref{tab:test04earlystop} summarises the execution diagnostics.
 \end{enumerate}
 
 %-----------------------------------------------------------------------------
-\subsection{Test 04b - Lookup Best-of-N Range Check}
+\subsubsection{Lookup Best-of-N Range Check (Test~04b)}
 \label{subsec:res04b}
 
-Test~04b is a targeted follow-up to Test~04, run exclusively on
-\texttt{gemma4:e4b}. It compares three lookup strategies: static
-temperature settings, Best-of-2 temperature ranges (BoN), and
-\texttt{lookup\_cot\_n2} (included as the reference from Test~04).
-The goal is to determine whether Best-of-N with temperature diversity
-offers advantages over simpler single-sample temperature tuning
-(3~repeats $\times$ 8~configs $\times$ 20~prompts = 240~rows).
-
-\subsubsection{Aggregate Results}
+Test~04b is a targeted follow-up run exclusively on \texttt{gemma4:e4b},
+comparing static temperature settings, Best-of-2 temperature ranges
+(BoN), and \texttt{lookup\_cot\_n2} as a reference
+(3~repeats $\times$ 8~configs $\times$ 10~prompts = 240~rows).
 
 \begin{table}[H]
 \centering
@@ -1399,78 +1447,21 @@ offers advantages over simpler single-sample temperature tuning
 \label{tab:test04bresults}
 \end{table}
 
-\subsubsection{Quality Comparison Across Strategies}
-
-Figure~\ref{fig:test04b_quality} shows the absolute quality for all
-eight configurations side by side, with the baseline marked as a
-reference line.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.88\textwidth]{Images/test04b_v2_lookup_bon_range_quality.png}
-    \caption{Test~04b: lookup quality for all strategies, \texttt{gemma4:e4b}.}
-    \label{fig:test04b_quality}
-\end{figure}
-
-\subsubsection{Quality-Energy Trade-off}
-
-Figure~\ref{fig:test04b_pareto} places each configuration in the
-quality-energy plane, making the efficiency gap between strategies
-explicit.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.82\textwidth]{Images/test04b_v2_lookup_bon_range_pareto.png}
-    \caption{Test~04b: quality delta vs.\ energy delta per lookup strategy.}
-    \label{fig:test04b_pareto}
-\end{figure}
-
-\subsubsection{Best-of-N Selection Behaviour}
-
-Figure~\ref{fig:test04b_selection} reports how often the BoN selector
-chose the second candidate over the first across all three temperature
-ranges.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.82\textwidth]{Images/test04b_v2_lookup_bon_selection.png}
-    \caption{Test~04b: non-first candidate selection rate for BoN configurations (0/30 for all).}
-    \label{fig:test04b_selection}
-\end{figure}
-
-The selection failure is the central result of Test~04b. It implies
-that the current BoN selector for the lookup step cannot reliably
-distinguish a correct SQL query from an incorrect one purely from
-the query text --- it is effectively random or systematically biased
-towards the first output. Until a more reliable selector is available
-(for example, one that executes both queries and compares row counts),
-Best-of-N for the lookup step doubles the computation with no selection
-benefit.
-
-\subsubsection{Summary}
-
-\begin{enumerate}
-    \item \textbf{Static temperature tuning outperforms BoN at the
-          same energy cost.} \texttt{lookup\_temp\_0.8} achieves the
-          best quality among non-CoT strategies ($+0.071$) at a fraction
-          of the energy required by the BoN variants.
-
-    \item \textbf{The BoN selector never uses the second candidate.}
-          All three temperature ranges yield 0/30 non-first selections.
-          BoN gains are entirely a temperature effect, not a selection
-          effect, making the strategy a pure compute waste compared to
-          direct temperature tuning.
-
-    \item \textbf{\texttt{lookup\_cot\_n2} remains the quality ceiling.}
-          With a $+0.147$ quality gain, CoT depth~2 is the most
-          effective lookup intervention by a large margin, at the cost
-          of $+0.0022$~kWh per prompt.
-
-    \item \textbf{Best-of-N for lookup should not be recommended}
-          in the final configuration unless a more reliable selection
-          criterion --- such as query execution verification --- is
-          implemented.
-\end{enumerate}
+The central finding is that the BoN selector \emph{never} chose the
+second candidate: all three temperature ranges produced 0 non-first
+selections out of 30 opportunities each.
+This means the BoN quality gains reported in the table are not a
+selection effect — they are purely a consequence of the temperature
+value used for the first (and only effectively used) candidate.
+As a result, a well-chosen static temperature is strictly more efficient
+than BoN: \texttt{lookup\_temp\_0.8} reaches $+0.071$ quality at
+$0.00727$~kWh, while the best BoN variant (\texttt{bon\_temp\_n2\_medium})
+achieves only $+0.051$ at $0.00817$~kWh — worse quality at higher
+energy cost.
+\texttt{lookup\_cot\_n2} remains the most effective intervention by a
+large margin ($+0.147$ quality, $0.00858$~kWh), confirming that
+iterative refinement with execution feedback is a qualitatively
+different and superior strategy compared to sampling diversity alone.
 
 \subsection{Test 05 - Final Pareto Confirmation}
 \label{subsec:res05}

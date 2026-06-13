@@ -317,7 +317,9 @@ quality benefit beyond that threshold.
 
 The test runs on a 10-prompt benchmark subset across all three models, for three
 repeats each, yielding $12 \times 10 = 120$ scored prompt runs per model per
-repeat. Both step-specific metrics and the full-pipeline \texttt{quality\_mean}
+repeat. The subset is reduced from the 15~prompts used in Test~02 to limit
+total wall-clock time, while preserving coverage of all four SQL difficulty
+levels (D1:~2, D2:~3, D3:~3, D4:~2 prompts). Both step-specific metrics and the full-pipeline \texttt{quality\_mean}
 are reported alongside per-step energy measurements, so that any accuracy
 recovery from a higher cap can be weighed against its compute cost.
 
@@ -352,8 +354,9 @@ Both \texttt{gemma4:e4b} and \texttt{mistral-small3.2:24b} are evaluated with
 the same protocol: a CoT depth ladder varying \texttt{cot\_n} $\in \{1, 2, 3,
 4\}$ on the lookup and visualization steps independently, while the analysis
 step is kept fixed at baseline. This yields 8 configurations per model (4
-lookup $\times$ 2 steps), run on the same 10-prompt subset as Test 03 for
-three repeats.
+lookup $\times$ 2 steps), run on the same 10-prompt subset as Test~03 for
+three repeats, for the same reason of limiting total run time while
+retaining full difficulty coverage.
 
 An additional follow-up campaign (Test 04b) is run on \texttt{gemma4:e4b} to
 disentangle whether lookup gains come from CoT refinement or from the
