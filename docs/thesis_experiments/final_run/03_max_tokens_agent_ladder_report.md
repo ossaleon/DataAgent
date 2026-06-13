@@ -84,6 +84,33 @@ visualization: 4000, 5000, 7000 baseline, 10000
 
 ![marginal gain](plots/test03v2_marginal_quality_gain.png)
 
+## Prompt Difficulty Analysis
+
+This view asks whether the effect of `max_tokens` changes with prompt difficulty. For each model, agent step, and difficulty level, the table compares the best observed cap against that step's baseline cap while counting missing expected scores as `0`.
+
+![Test 03 token sensitivity by difficulty](plots/test03v2_difficulty_token_sensitivity.png)
+
+![Test 03 best cap delta by difficulty](plots/test03v2_difficulty_best_cap_delta.png)
+
+Largest difficulty-specific token-cap ranges:
+
+| Model | Step | Difficulty | Baseline cap | Baseline quality | Best cap | Best quality | Delta quality | Worst cap | Range | Energy delta |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| gemma4:e4b | Visualization | 4 | 7,000 | 0.416 | 4,000 | 0.771 | +0.355 | 7,000 | 0.355 | 0.000070 |
+| gemma4:e4b | Lookup | 1 | 5,000 | 0.939 | 5,000 | 0.939 | +0.000 | 3,000 | 0.342 | 0.000000 |
+| gemma4:e4b | Lookup | 4 | 5,000 | 0.777 | 5,000 | 0.777 | +0.000 | 3,000 | 0.309 | 0.000000 |
+| gemma4:e4b | Lookup | 3 | 5,000 | 0.775 | 3,000 | 0.823 | +0.048 | 2,500 | 0.216 | 0.000693 |
+| gemma4:e4b | Visualization | 3 | 7,000 | 0.846 | 5,000 | 0.873 | +0.026 | 10,000 | 0.207 | -0.000012 |
+| gemma4:26b | Lookup | 4 | 5,000 | 0.986 | 5,000 | 0.986 | +0.000 | 2,500 | 0.188 | 0.000000 |
+| gemma4:e4b | Analysis | 4 | 7,000 | 0.493 | 10,000 | 0.519 | +0.026 | 4,000 | 0.185 | -0.000031 |
+| gemma4:26b | Visualization | 4 | 7,000 | 0.938 | 4,000 | 0.972 | +0.035 | 5,000 | 0.174 | -0.000092 |
+| gemma4:e4b | Analysis | 1 | 7,000 | 0.792 | 4,000 | 0.958 | +0.167 | 7,000 | 0.167 | -0.000016 |
+| gemma4:e4b | Analysis | 2 | 7,000 | 0.771 | 7,000 | 0.771 | +0.000 | 10,000 | 0.142 | 0.000000 |
+| gemma4:e4b | Analysis | 3 | 7,000 | 0.789 | 10,000 | 0.861 | +0.072 | 4,000 | 0.139 | 0.000915 |
+| gemma4:e4b | Visualization | 2 | 7,000 | 0.738 | 7,000 | 0.738 | +0.000 | 5,000 | 0.132 | 0.000000 |
+
+Interpretation: the token cap behaves like a failure-prevention bound, not a smooth quality dial. The biggest gains appear where a lower cap or unlucky cap choice causes malformed or incomplete outputs for a specific model-step-difficulty slice. On flatter slices, raising the cap adds little value, which supports using generous but not blindly maximal caps per agent.
+
 ## Thesis Interpretation
 
 The strongest thesis claim is not that higher `max_tokens` is always better. The evidence supports setting token caps per agent: generous where low caps cause missing or malformed outputs, conservative where the ladder is flat.

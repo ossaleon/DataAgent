@@ -114,6 +114,42 @@ Largest quality losses:
 | `gemma4:26b` | Lookup | `lookup_top_k_48` | -0.0834 | -0.0432 | 0.00471 | +72.1 |
 | `gemma4:26b` | Analysis | `analysis_temperature_0p7` | -0.0791 | -0.0833 | -0.00014 | -2.3 |
 
+## Prompt Difficulty Analysis
+
+This difficulty view keeps the Test 02 logic intact: each row compares configurations only against the baseline for the same model, same agent step, and same prompt difficulty. The incomplete `gemma4:e4b` folders remain excluded.
+
+![Test 02 difficulty baseline quality](plots/test02v2_difficulty_baseline_quality.png)
+
+![Test 02 best parameter delta by difficulty](plots/test02v2_difficulty_best_delta_heatmap.png)
+
+Largest difficulty-specific gains:
+
+| Model | Step | Difficulty | Baseline quality | Best config | Best delta |
+| --- | --- | --- | --- | --- | --- |
+| gemma4:26b | Visualization | 1 | 0.622 | visualization_repeat_penalty_1 | +0.246 |
+| gemma4:26b | Lookup | 1 | 0.715 | lookup_repeat_last_n_128 | +0.194 |
+| gemma4:26b | Visualization | 3 | 0.803 | visualization_temperature_0p95 | +0.101 |
+| gemma4:26b | Analysis | 3 | 0.832 | analysis_top_p_1 | +0.069 |
+| gemma4:26b | Visualization | 2 | 0.870 | visualization_top_k_16 | +0.057 |
+| gemma4:26b | Analysis | 4 | 0.917 | analysis_repeat_last_n_56 | +0.042 |
+| gemma4:26b | Lookup | 4 | 0.924 | lookup_temperature_0p95 | +0.042 |
+| gemma4:26b | Analysis | 2 | 0.885 | analysis_repeat_last_n_56 | +0.036 |
+
+Largest difficulty-specific losses:
+
+| Model | Step | Difficulty | Baseline quality | Worst config | Worst delta |
+| --- | --- | --- | --- | --- | --- |
+| gemma4:26b | Analysis | 4 | 0.917 | analysis_repeat_last_n_96 | -0.312 |
+| gemma4:26b | Visualization | 4 | 0.938 | visualization_repeat_last_n_48 | -0.250 |
+| mistral-small3.2:24b | Analysis | 3 | 0.917 | analysis_repeat_penalty_1p2 | -0.242 |
+| gemma4:26b | Analysis | 1 | 0.854 | analysis_temperature_1p2 | -0.229 |
+| gemma4:26b | Lookup | 4 | 0.924 | lookup_temperature_0p8 | -0.215 |
+| gemma4:26b | Lookup | 3 | 0.857 | lookup_top_k_56 | -0.215 |
+| mistral-small3.2:24b | Analysis | 4 | 0.653 | analysis_repeat_last_n_96 | -0.169 |
+| mistral-small3.2:24b | Lookup | 4 | 0.646 | lookup_repeat_last_n_80 | -0.146 |
+
+Interpretation: parameter sensitivity is not uniform across task difficulty. `gemma4:26b` gets the largest upside on visualization-heavy and harder slices, but it also has the largest negative swings when a parameter setting destabilizes an agent. `mistral-small3.2:24b` is flatter: this is good for robustness, but it also means Test 02 finds fewer large accuracy gains from simple one-parameter changes.
+
 ## Thesis Implications
 
 The two complete models confirm that parameter sensitivity is agent-specific. Mistral is the stronger efficient baseline, while Gemma 26B needs careful step-level tuning and should not be summarized by a single global sampling setting.
