@@ -125,27 +125,40 @@
 % -> academic year
 \newcommand{\YEAR}{2025-2026}
 % -> abstract (only in English)
-\renewcommand{\abstract}{\textcolor{red}{Here goes the Abstract in English of your thesis (in article format)
-followed by a list of keywords.
-The Abstract is a concise summary of the content of the thesis (single page of text)
-and a guide to the most important contributions included in your thesis.
-The Abstract is the very last thing you write.
-It should be a self-contained text and should be clear
-to someone who hasn't (yet) read the whole manuscript.
-The Abstract should contain the answers to the main research questions
-that have been addressed in your thesis.
-It needs to summarize the motivations and the adopted approach as well as
-the findings of your work and their relevance and impact.
-The Abstract is the part appearing in the record of your thesis inside POLITesi,
-the Digital Archive of PhD and Master Theses (Laurea Magistrale) of Politecnico di Milano.
-The Abstract will be followed by a list of four to six keywords.
-Keywords are a tool to help indexers and search engines to find relevant documents.
-To be relevant and effective, keywords must be chosen carefully.
-They should represent the content of your work and be specific to your field or sub-field.
-Keywords may be a single word or two to four words.}}
+\renewcommand{\abstract}{Large Language Models (LLMs) increasingly power natural language
+interfaces to structured data, yet deploying them in production raises concerns beyond
+accuracy, namely inference latency and energy cost. To study these concerns, this thesis builds
+a \textit{Sales Agent}: an LLM-powered system, orchestrated with LangGraph, that translates a
+business question into a SQL query executed over Parquet files via DuckDB, interprets the
+results in text, and optionally renders a chart. A hierarchical YAML
+configuration exposes every inference hyperparameter (sampling parameters, beam width,
+best-of-$N$, token budgets, and Chain-of-Thought refinement depth) across both open-weight
+models served locally via Ollama and cloud models via the OpenAI API (used here only for
+LLM-as-judge evaluation). The core contribution is
+a systematic profiling that jointly measures output quality, execution time, and per-step energy
+consumption (via CodeCarbon). Quality is assessed over 20 analytical questions, stratified
+across four SQL difficulty levels, along three dimensions: a row-level Intersection-over-Union
+score for retrieval and two LLM-as-judge scores for analysis and visualisation. Five
+step-isolated experiments establish a baseline for three open-weight models (Gemma~4~E4B,
+Gemma~4~26B, Mistral~Small~3.2~24B) and then vary one agent step at a time across sampling
+parameters, token budgets, and inference-time compute, closing with a Pareto confirmation run.
+The results show that model choice alone does not explain performance: the dominant effects
+arise from the interaction between model family, agent step, prompt difficulty, and
+inference-time settings. Mistral is the most efficient untuned model but collapses on the
+hardest aggregation prompts; Gemma~26B is highly tunable yet energetically costly; and
+Gemma~E4B, repaired through lookup Chain-of-Thought refinement at a lower temperature, attains the
+highest strict quality and joins low-energy Mistral on the final Pareto frontier. The sensitivity
+analysis further shows that hyperparameter effects are strongly step-specific, that larger token
+budgets help only genuinely truncated model-step pairs, and that Chain-of-Thought refinement
+pays off only when its feedback matches the failure mode: it is the strongest intervention for
+verifiable SQL lookup, but harmful for visualisation, where errors are semantic rather than
+executable. The thesis distills three recommendations for energy-aware LLM data agents: tune
+hyperparameters per agent step rather than globally, allocate inference-time compute by failure
+mode, and report accuracy and energy by prompt difficulty, since the best model for simple tasks
+is not the best for hard ones.}
 
 % -> key-words (only in English)
-\newcommand{\keywords}{here, the keywords, of your thesis}
+\newcommand{\keywords}{LLM data agents, Energy-aware profiling, Quality-energy trade-off, Local open-weight LLMs, LLM-as-judge evaluation}
 
 %-------------------------------------------------------------------------
 %	BEGIN OF YOUR DOCUMENT

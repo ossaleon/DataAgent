@@ -363,7 +363,7 @@ disentangle whether lookup gains come from CoT refinement or from the
 temperature value of the first generation pass. It compares three static
 temperature settings ($t \in \{0.3, 0.6, 0.8\}$) against three Best-of-2
 temperature ranges (narrow, medium, wide) and a CoT $n=2$ reference, across
-8 lookup-only configurations and two repeats.
+8 lookup-only configurations and three repeats.
 
 \subsubsection{Deployment with Docker}
 
@@ -391,43 +391,45 @@ full 20-prompt benchmark, and to establish the definitive quality-versus-energy
 Pareto frontier across all models and candidate policies.
 
 Unlike the preceding tests, which vary one hyperparameter dimension at a time,
-Test 05 evaluates complete agent policies: each configuration specifies the
+Test 05 evaluates combined agent policies: each configuration specifies the
 full set of per-step parameters assembled from the most promising candidates of
-the exploratory phase. Six configurations are evaluated per model. Five are
-common to all three models:
+the exploratory phase. Eight to ten configurations are evaluated per model,
+each combining one or more of the interventions from Tests 02--04: lookup
+Chain-of-Thought (varying \texttt{cot\_n} from 2 to~4), static lookup
+temperature tuning (\texttt{temp}~0.8), and reduced downstream token caps.
+
+The configuration families are model-specific:
 
 \begin{itemize}
-    \item \textbf{baseline} --- the fixed default from Test 01, used as
-          the reference point for measuring tuning gains;
-    \item \textbf{efficient\_static} --- the best static-parameter policy
-          that improves quality with minimal energy overhead;
-    \item \textbf{best\_step\_static} --- the per-step best static settings
-          from the OFAT and token-ladder experiments, combined;
-    \item \textbf{max\_tokens\_adjusted} --- a token-cap-only variant to
-          isolate the contribution of the token budget;
-    \item \textbf{combined\_best\_candidate} --- a combination of the
-          top-performing settings across all steps, as a stress test of
-          whether exploratory gains are additive.
+    \item \texttt{gemma4:e4b} --- combinations of lookup CoT
+          (\texttt{cot\_n}~2 or~4), low-temperature lookup
+          (\texttt{temp}~0.8), and reduced token caps across downstream
+          steps;
+    \item \texttt{gemma4:26b} --- visualization top-$k$ sampling
+          (\texttt{top\_k}~20), lookup CoT (\texttt{cot\_n}~2 or~3),
+          combined static parameter sets, and reduced token caps;
+    \item \texttt{mistral-small3.2:24b} --- lookup CoT (\texttt{cot\_n}~2
+          or~3) with efficient token budgets, and combined static parameter
+          sets with varied token caps.
 \end{itemize}
 
-The sixth configuration is model-specific and targets each model's most
-promising compute-expansion or efficiency candidate:
+All three models are evaluated on the full 20-prompt benchmark for two repeats.
+
+The formal Pareto pool combines:
 
 \begin{itemize}
-    \item \texttt{gemma4:e4b} --- \textbf{lookup\_cot\_n2}: SQL repair via
-          Chain-of-Thought on the lookup step;
-    \item \texttt{gemma4:26b} --- \textbf{visualization\_bon\_top\_k\_n2}:
-          Best-of-2 with top-$k$ sampling on the visualization step;
-    \item \texttt{mistral-small3.2:24b} --- \textbf{analysis\_top\_k\_high\_low\_tokens}:
-          analysis top-$k$ tuning combined with reduced token caps across
-          all steps.
+    \item the Test~01 baselines for all three models, measured on the full
+          benchmark with three repeats;
+    \item the new Test~05 combined candidates, measured on the full benchmark
+          with two repeats.
 \end{itemize}
 
-All three models are evaluated on the full 20-prompt benchmark for three
-repeats, yielding $6 \times 20 = 120$ scored prompt runs per model per repeat.
-The primary metrics are \texttt{quality\_mean}, prompt-level end-to-end quality
-(which penalises missing downstream scores caused by upstream failures),
-completion rate, elapsed time, and energy per prompt.
+Single-axis configurations from Tests~02--04 are excluded from the formal
+Pareto frontier because they were measured on the 10- or~15-prompt screening
+subsets rather than on the full 20-prompt benchmark. The primary metrics are
+\texttt{quality\_mean}, prompt-level end-to-end quality (which penalises
+missing downstream scores caused by upstream failures), completion rate,
+elapsed time, and energy per prompt.
 
 \subsubsection{Deployment with Docker}
 
@@ -449,7 +451,7 @@ docker run --rm \
     --gt-judge-provider openai \
     --gt-judge-model gpt-5.4 \
     --save-dir runs/thesis_tests_final/05_final_pareto_confirmation/gemma4_e4b/rep01 \
-    --repetition 01/03 \
+    --repetition 01/02 \
     --resume
 \end{verbatim}
 

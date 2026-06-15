@@ -29,8 +29,12 @@ visualization cap from 7000 to 10000 tokens improves \texttt{vis\_score}
 with negligible energy cost, and the curve does not yet show a clear
 plateau. Gemma~E4B behaves differently: adding too much token headroom can
 reduce quality, especially in lookup and visualization, so it requires
-bounded caps rather than simply larger ones. Mistral is almost insensitive
-to token caps; moderate budgets are enough for stable outputs.
+bounded caps rather than simply larger ones. Mistral, by contrast, is almost
+insensitive to both static sampling parameters and token caps: no parameter at
+any step moves its quality by more than about one point, so moderate budgets
+and default sampling are enough for stable outputs. This robustness makes it a
+safe baseline, but also means static hyperparameter search offers it little
+room for improvement.
 
 The token-budget experiment therefore supports a practical rule: increasing
 \texttt{max\_tokens} is cheap when the model does not actually consume the
@@ -53,11 +57,18 @@ point: requested depths of 3 or 4 usually execute only around two iterations,
 so high \texttt{cot\_n} should be interpreted as an upper bound rather than
 as the actual compute spent. Depth~2 is the safest default, while depth~3 can
 be reserved for hard lookup prompts when maximum accuracy is more important
-than energy.
+than energy. A targeted follow-up on the Gemma~E4B lookup step also evaluated
+a best-of-N sampling strategy for SQL generation: generating two candidates
+at different temperatures and keeping the better one (best-of-2). This gave
+no real benefit, because the selector never actually chose the second
+candidate; the only effect came from the temperature itself. A single well-chosen
+lookup temperature was therefore cheaper and at least as accurate. The
+genuine improvement on this step comes from CoT refinement, which corrects
+SQL using execution feedback rather than from sampling several candidates.
 
 The final Pareto confirmation combines the best insights from the earlier
-tests. Under GPT-5.4 judging, the final non-dominated frontier is dominated
-by low-energy Mistral candidates and one high-quality Gemma~E4B endpoint.
+tests. The final non-dominated frontier consists mostly of low-energy Mistral candidates
+and one high-quality Gemma~E4B endpoint.
 The best final Gemma~E4B configuration combines lookup CoT, a lower lookup
 temperature, and efficient downstream token caps; it reaches the highest
 strict prompt quality with full completion. Mistral remains the natural

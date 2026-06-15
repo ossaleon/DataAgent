@@ -94,8 +94,9 @@ descriptions, and example values used during SQL generation.
 \textbf{RunCache} manages persistent caching of agent runs on disk. Each completed
 run is stored under a unique \texttt{run\_id} directory containing the per-step
 results for all $n$ best-of-$n$ candidates. A JSON index file enables fast lookup
-of semantically similar past runs by prompt similarity, allowing the agent to reuse
-previously computed results and avoid redundant LLM calls.
+of lexically similar past runs by prompt word overlap (Jaccard similarity over the
+prompt token sets), allowing the agent to reuse previously computed results and
+avoid redundant LLM calls.
 
 \textbf{TracingHelper} provides optional observability integration via
 OpenTelemetry~\cite{opentelemetry} and the Arize Phoenix platform~\cite{arize_phoenix}. When enabled,
@@ -112,7 +113,9 @@ latencies, and evaluation scores for post-hoc analysis.
     \item \textbf{Pandas} / \textbf{PyArrow} — tabular data manipulation and Parquet I/O;
     \item \textbf{Matplotlib} — chart rendering for the visualisation step;
     \item \textbf{CodeCarbon} — energy consumption tracking during agent execution;
-    \item \textbf{NLTK} — natural language utilities used in text-based evaluation metrics;
+    \item \textbf{NLTK} — natural language utilities available for optional
+          n-gram-based text scoring (e.g.\ BLEU), not used by the LLM-as-judge
+          metrics adopted in the experiments;
     \item \textbf{PyYAML} — parsing of experiment configuration files;
 \end{itemize}
 
@@ -342,7 +345,10 @@ Chain-of-Thought refinement. After the initial LLM call, the output is fed back 
 the same prompt through a \texttt{CoTRefinementLLM} wrapper. This wrapper appends a
 refinement block to every subsequent call, showing the model its previous response
 and asking it to either confirm it (if correct and complete) or produce an improved
-version. The loop runs for at most \texttt{cot\_n} total iterations.
+version. The loop runs for at most \texttt{cot\_n} total iterations, but stops early
+as soon as the output converges — i.e.\ when the textual similarity between two
+consecutive responses reaches or exceeds 0.95 — avoiding redundant refinement calls
+once the model has settled on a stable answer.
 
 Two refinement modes are available. In the standard mode, the model receives its
 previous output and can voluntarily refine it. In error-aware mode, triggered when
@@ -426,9 +432,13 @@ temperature~0.15, appropriate for an instruction-following model.
 The \texttt{run.step\_overrides} field allows temporary parameter changes for a
 single execution without modifying the base configuration. For example, setting
 \texttt{analyzing\_data.n: 3} and \texttt{temp\_max: 1.3} increases best-of-$n$
-sampling for the analysis step in that run only. The \texttt{interactive\_config}
-flag additionally allows the user to be prompted for step parameters at runtime,
-useful for exploratory experiments.
+sampling for the analysis step in that run only. Runtime overrides are mediated by
+a pluggable \texttt{ParameterProvider} abstraction, queried before each step to
+return the effective \texttt{StepConfig}: the default \texttt{DefaultProvider}
+returns the static YAML configuration unchanged, while the \texttt{interactive\_config}
+flag activates a \texttt{TerminalProvider} that prompts the user to accept or
+override the step parameters at runtime (falling back to the defaults when no
+interactive terminal is available), useful for exploratory experiments.
 
 \subsection{Multi-Table Support and Dataset}
 \label{subsec:multitable}
