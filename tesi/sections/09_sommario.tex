@@ -7,9 +7,42 @@
 % SOMMARIO
 %-----------------------------------------------------------------------------
 \section*{Abstract in lingua italiana}
-Qui va l'Abstract in lingua italiana della tesi seguito dalla lista di parole chiave.
+I Large Language Model (LLM) alimentano sempre più spesso interfacce in linguaggio naturale
+verso dati strutturati, ma il loro impiego in produzione solleva questioni che vanno oltre
+l'accuratezza, ovvero la latenza di inferenza e il costo energetico. Per studiare questi
+aspetti, la tesi realizza un \textit{Sales Agent}: un sistema basato su LLM, orchestrato con
+LangGraph, che traduce una domanda di business in una query SQL eseguita su file Parquet tramite
+DuckDB, ne interpreta i risultati in forma testuale e, opzionalmente, genera un grafico. Una
+configurazione gerarchica in YAML espone tutti gli iperparametri di inferenza (parametri di
+campionamento, ampiezza del beam, best-of-$N$, budget di token e profondità del raffinamento
+Chain-of-Thought) sia per modelli open-weight serviti localmente tramite Ollama, sia per modelli
+cloud tramite l'API OpenAI (qui usata unicamente per la valutazione LLM-as-judge). Il contributo
+principale è un profiling sistematico che misura congiuntamente la qualità dell'output, il tempo
+di esecuzione e il consumo energetico per singolo step (tramite CodeCarbon). La qualità è
+valutata su 20 domande analitiche, stratificate su quattro livelli di difficoltà SQL, lungo tre
+dimensioni: un punteggio Intersection-over-Union a livello di riga per il recupero dei dati e due
+punteggi LLM-as-judge per l'analisi testuale e la visualizzazione. Cinque esperimenti a step
+isolato definiscono una baseline per tre modelli open-weight (Gemma~4~E4B, Gemma~4~26B,
+Mistral~Small~3.2~24B) e poi variano uno step dell'agente alla volta su parametri di
+campionamento, budget di token e compute a tempo di inferenza, concludendo con una conferma di
+Pareto. I risultati mostrano che la sola scelta del modello non spiega le prestazioni: gli
+effetti dominanti emergono dall'interazione tra famiglia del modello, step dell'agente,
+difficoltà del prompt e impostazioni di inferenza. Mistral è il modello non ottimizzato più
+efficiente ma crolla sui prompt di aggregazione più difficili; Gemma~26B è altamente
+ottimizzabile ma energeticamente costoso; Gemma~E4B, corretto con raffinamento Chain-of-Thought
+sullo step di lookup a temperatura più bassa, raggiunge la qualità strict più alta e affianca
+Mistral, a basso consumo, sulla frontiera di Pareto finale. L'analisi di sensitività mostra
+inoltre che gli effetti degli iperparametri sono fortemente specifici per step, che budget di
+token più ampi aiutano solo le coppie modello-step realmente troncate, e che il raffinamento
+Chain-of-Thought conviene solo quando il suo feedback corrisponde al tipo di errore: è
+l'intervento più efficace per il lookup SQL verificabile, ma dannoso per la visualizzazione, dove
+gli errori sono semantici e non eseguibili. La tesi distilla tre raccomandazioni per agenti dati
+LLM attenti all'energia: ottimizzare gli iperparametri per singolo step dell'agente anziché
+globalmente, allocare il compute a tempo di inferenza in base al tipo di errore, e riportare
+accuratezza ed energia per livello di difficoltà del prompt, poiché il modello migliore per i
+compiti semplici non è il migliore per quelli difficili.
 \vspace{15pt}
 \begin{tcolorbox}[arc=0pt, boxrule=0pt, colback=bluePoli!60, width=\textwidth, colupper=white]
-    \textbf{Parole chiave:} qui, le parole chiave, della tesi, in italiano 
+    \textbf{Parole chiave:} LLM data agents, Energy-aware profiling, Quality-energy trade-off, Local open-weight LLMs, LLM-as-judge evaluation
 \end{tcolorbox}
 
