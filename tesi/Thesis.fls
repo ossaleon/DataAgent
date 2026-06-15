@@ -1466,11 +1466,6 @@ INPUT ./Images/test01_final_per_agent_energy_breakdown.png
 INPUT Images/test01_final_per_agent_energy_breakdown.png
 INPUT ./Images/test01_final_per_agent_energy_breakdown.png
 INPUT ./Images/test01_final_per_agent_energy_breakdown.png
-INPUT ./Images/test02v2_repeat_stability.png
-INPUT ./Images/test02v2_repeat_stability.png
-INPUT Images/test02v2_repeat_stability.png
-INPUT ./Images/test02v2_repeat_stability.png
-INPUT ./Images/test02v2_repeat_stability.png
 INPUT ./Images/test02v2_sensitivity_range_by_step.png
 INPUT ./Images/test02v2_sensitivity_range_by_step.png
 INPUT Images/test02v2_sensitivity_range_by_step.png

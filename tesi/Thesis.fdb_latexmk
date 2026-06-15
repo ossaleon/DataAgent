@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex Thesis"] 1781555288.26643 "Thesis.aux" "Thesis.bbl" "Thesis" 1781555300.81163 0
+["bibtex Thesis"] 1781556148.47847 "Thesis.aux" "Thesis.bbl" "Thesis" 1781556164.60655 0
   "./bibliography.bib" 1779395678.45533 7058 520df1d6e9386d009ae2296f02e11cc7 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/unsrt.bst" 1775001600 18030 1376b4b231b50c66211e47e42eda2875 ""
-  "Thesis.aux" 1781555299.99286 54293 cef2b020aa828c63ab49bbaa96bddf16 "pdflatex"
+  "Thesis.aux" 1781556163.50819 53055 183c92451dd3f457a5af34243f52bb5b "pdflatex"
   (generated)
   "Thesis.bbl"
   "Thesis.blg"
   (rewritten before read)
-["pdflatex"] 1781555288.45059 "Thesis.tex" "Thesis.pdf" "Thesis" 1781555300.81221 0
+["pdflatex"] 1781556148.73705 "Thesis.tex" "Thesis.pdf" "Thesis" 1781556164.60724 0
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -265,7 +265,6 @@
   "Images/test02v2_difficulty_best_delta_heatmap.png" 1781555263.43229 150268 d24b0097505d4394a08cf938bd2f2714 ""
   "Images/test02v2_quality_delta_heatmap.png" 1781555263.43454 194207 4df04fcced5ff098876152cbf1ee880f ""
   "Images/test02v2_quality_energy_delta_pareto.png" 1781555263.43676 184029 ce55bc7fd1d0f464d5245e7569755690 ""
-  "Images/test02v2_repeat_stability.png" 1781555263.43801 90677 a61c962ca605eb7418926cb384deaf73 ""
   "Images/test02v2_resource_delta_by_step.png" 1781555263.43924 92285 82b669c5482a565f7a46457ff5dda6c8 ""
   "Images/test02v2_sensitivity_range_by_step.png" 1781555263.44001 59140 27abd7095b6c8b5adce61bdbe1d8f13b ""
   "Images/test02v2_step_metric_delta_heatmap.png" 1781555263.44213 179872 c67ad60636fe3e040a6f52abc1a2def0 ""
@@ -287,15 +286,15 @@
   "Images/test05_final_run_pareto_by_difficulty.png" 1781551408.83386 135810 873bc843c23bc831177d2e71e70f2e02 ""
   "Images/test05_final_run_pareto_frontier.png" 1781552004.23632 100282 e8d68c4dfc326569adbb182afc3c180b ""
   "Images/test05_final_run_screening_supported_pareto.png" 1781552004.78605 118447 392415496243a9ba8c34c38df9fbb604 ""
-  "Thesis.aux" 1781555299.99286 54293 cef2b020aa828c63ab49bbaa96bddf16 "pdflatex"
-  "Thesis.bbl" 1781555288.4359 4375 289790db33b311b954baeaa97d060db6 "bibtex Thesis"
-  "Thesis.out" 1781555300.00086 20825 67e5cd12a0d6c3bba6d5caf7657a25f6 "pdflatex"
+  "Thesis.aux" 1781556163.50819 53055 183c92451dd3f457a5af34243f52bb5b "pdflatex"
+  "Thesis.bbl" 1781556148.71023 4375 289790db33b311b954baeaa97d060db6 "bibtex Thesis"
+  "Thesis.out" 1781556163.51919 20672 f63c917ecd5a008e286b0f903689f536 "pdflatex"
   "Thesis.tex" 1781550817.05637 8928 bdea4beff6231b2aad248fa01cf22787 ""
   "sections/01_introduction.tex" 1781115172.97165 4413 5a93e84b3d63eb4c89408787434ea3a1 ""
   "sections/02_state_of_the_art.tex" 1781115172.97203 23690 bfa0ac72730e7f2f5fc16881ea8f8cd2 ""
   "sections/03_application_sales_agent.tex" 1781550817.05708 45614 2365d2c6a4df902de19446178677546f ""
   "sections/04_experiment_design.tex" 1781551452.17846 21298 14a13bdb1e8f43879f08e8fb5afa59ea ""
-  "sections/05_experimental_results.tex" 1781555263.44397 99258 32c059469056003c90347091661a8237 ""
+  "sections/05_experimental_results.tex" 1781556120.77332 96478 d7e09c43bb794cdf83840c8c5a1859b5 ""
   "sections/06_conclusions.tex" 1781551861.82365 5563 fb49c2d2371c89420852c3183c6cc84e ""
   "sections/07_bibliography.tex" 1779395678.45899 244 98af6d8ea64eb718da41b609eb39219a ""
   "sections/08_appendices.tex" 1781555259.62867 18368 3420e31dc4f9397d2bc7040c60f3455b ""
