@@ -471,16 +471,16 @@ performance.
 \begin{table}[H]
 \centering
 \arrayrulecolor{black}
-\begin{tabular}{|l|c|c|c|c|}
+\begin{tabular}{|l|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Repeats} & \textbf{Mean quality} & \textbf{Mean sec/prompt} & \textbf{Mean kWh/prompt} \T\B \\
+\textbf{Model} & \textbf{Mean quality} & \textbf{Mean sec/prompt} & \textbf{Mean kWh/prompt} \T\B \\
 \hline
-\texttt{gemma4:e4b}           & 1 & 0.8382 & \phantom{0}99.8 & 0.00578 \T\B \\
+\texttt{gemma4:e4b}           & 0.8382 & \phantom{0}99.8 & 0.00578 \T\B \\
 \hline
-\texttt{gemma4:26b}           & 2 & 0.8325 & 189.0 & 0.01189 \T\B \\
+\texttt{gemma4:26b}           & 0.8325 & 189.0 & 0.01189 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 2 & 0.8783 & \phantom{0}67.2 & 0.00416 \T\B \\
+\texttt{mistral-small3.2:24b} & 0.8783 & \phantom{0}67.2 & 0.00416 \T\B \\
 \hline
 \end{tabular}
 \caption{Test~02: aggregate resource use averaged across all 153 OFAT configurations.}
@@ -856,10 +856,13 @@ Test~02 establishes that sensitivity to static sampling parameter tuning
 is a model-level property, not a step-level one:
 
 \begin{enumerate}
-    \item \textbf{\texttt{gemma4:e4b} must be included in the Test~02
-          comparison.} Its lookup, analysis, and visualization ranges are all
-          large, and lookup \texttt{top\_p} variants provide the strongest
-          observed static gains at low energy cost.
+    \item \textbf{\texttt{gemma4:e4b} shows the widest sensitivity range of
+          any model in the test.} Its lookup step alone spans 0.223 quality
+          points between the best and worst static setting, exceeding any step
+          of Gemma~26B or Mistral. Starting from the weakest lookup
+          baseline~(0.806), \texttt{lookup\_top\_p\_0p94} delivers the
+          strongest single-axis gain of the entire sweep at~$+0.117$ quality
+          over baseline with low energy overhead.
 
     \item \textbf{\texttt{gemma4:26b} is highly tunable but fragile.}
           Sensitivity ranges reach~0.155 for lookup and~0.118 for analysis.
