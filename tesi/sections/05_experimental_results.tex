@@ -448,12 +448,11 @@ run time while preserving the original difficulty distribution across
 all four SQL complexity levels (difficulty~1: 3~prompts, difficulty~2:
 4~prompts, difficulty~3: 5~prompts, difficulty~4: 3~prompts).
 
-{\color{red}\textbf{[PLACEHOLDER — \texttt{gemma4:e4b} Test~02 run
-incomplete. When the run finishes, add: (i) sensitivity range row in
-Table~\ref{tab:test02range}; (ii) \texttt{gemma4:e4b} column in the
-quality delta and direct metric heatmaps; (iii) best/worst config rows
-in Table~\ref{tab:test02bestworst}; (iv) a dedicated paragraph in the
-per-model analysis sub-section.]}}
+The main Test~02 figures and repeat-stability statistics are based on the two
+models with complete matched repeats, \texttt{gemma4:26b} and
+\texttt{mistral-small3.2:24b}. A complete single repeat later became available
+for \texttt{gemma4:e4b}; it is reported as supplemental evidence only, because
+it cannot support the same repeat-stability claims as the other two models.
 
 \subsubsection{Overall Resource Use}
 
@@ -482,6 +481,12 @@ performance.
 \caption{Test~02: aggregate resource use averaged across all 153 OFAT configurations.}
 \label{tab:test02overall}
 \end{table}
+
+For context, the supplemental \texttt{gemma4:e4b} single repeat averages
+0.838 prompt E2E quality, 99.8~s per prompt, 0.00578~kWh per prompt, and
+95.1\,\% score-slot completion across the same 153 configurations. These
+values place it between Mistral and Gemma~26B in cost, but the absence of a
+matched second repeat keeps it outside the main stability analysis.
 
 \subsubsection{Repeat Stability}
 \label{subsubsec:test02stability}
@@ -567,8 +572,6 @@ quality when varying a single step.
 \hline
 \texttt{mistral-small3.2:24b} & Visualization & 0.8889 & $+$0.0014 & $-$0.0401 & 0.042 & \texttt{repeat\_last\_n\_56} \T\B \\
 \hline
-{\color{red}\textit{gemma4:e4b}} & {\color{red}\textit{all steps}} & \multicolumn{5}{c|}{\color{red}\textit{[PLACEHOLDER — data missing]}} \T\B \\
-\hline
 \end{tabular}%
 }
 \caption{Test~02: sensitivity range and best/worst quality cap per (model, step).}
@@ -590,6 +593,15 @@ Mistral shows meaningful sensitivity is analysis, where
 ($-0.099$) driven by a $-0.171$ text-score collapse alongside a
 large latency penalty ($+90.4$~s/prompt) — an important
 misconfiguration to avoid but not a target for improvement.
+
+The supplemental \texttt{gemma4:e4b} repeat points in the opposite
+direction from Mistral: it is not flat. Its one-repeat sensitivity ranges
+are large for lookup (0.223), visualization (0.196), and analysis (0.191).
+The strongest directional gain is lookup-side
+\texttt{top\_p=0.94} ($+0.117$ prompt E2E), while the largest losses come
+from analysis settings such as \texttt{repeat\_last\_n=128} ($-0.129$).
+Because this is only one repeat, these values are used as behavioural
+context rather than as final parameter choices.
 
 \subsubsection{Quality Delta Heatmap by Parameter Family}
 \label{subsubsec:test02qualityheatmap}
@@ -770,8 +782,6 @@ and latency delta.
 \hline
 \texttt{gemma4:26b}           & Analysis & \texttt{top\_p\_0.88}         & $-$0.0896 & $-$0.1125 & $-$0.00028 & $-$5.6 \T\B \\
 \hline
-{\color{red}\textit{gemma4:e4b}} & {\color{red}\textit{all}} & \multicolumn{5}{c|}{\color{red}\textit{[PLACEHOLDER — data missing]}} \T\B \\
-\hline
 \end{tabular}%
 }
 \caption{Test~02: top quality-improving and quality-degrading OFAT configurations.}
@@ -833,13 +843,17 @@ misconfiguration described above, which serves as a warning against
 assuming that insensitivity to improvement implies insensitivity to
 regression.
 
-\paragraph{{\color{red}\texttt{gemma4:e4b} — placeholder.}}
-{\color{red}\textbf{[PLACEHOLDER — insert per-model analysis for
-\texttt{gemma4:e4b} once the Test~02 run completes. Expected content:
-sensitivity range per step, dominant tuning directions, comparison of
-lookup fragility vs.\ \texttt{gemma4:26b}, and whether the visualization
-step shows the same universal positive response to parameter tuning
-seen in the larger model.]}}
+\paragraph{\texttt{gemma4:e4b} supplemental repeat.}
+
+The recovered \texttt{gemma4:e4b} repeat is complete but single-run, so it is
+used only as supporting context. Directionally, it shows that the small
+thinking model is closer to \texttt{gemma4:26b} than to Mistral in sensitivity:
+all three steps can move quality by about 0.19--0.22 between the best and worst
+settings. The largest useful signal is lookup tuning, where
+\texttt{lookup\_top\_p\_0p94} improves prompt E2E quality by~$+0.117$ with only
+a small energy increase. This helps explain why later experiments focus on
+repairing E4B's lookup step with static settings and CoT, but the exact Test~02
+E4B static values are not treated as final recommendations.
 
 \subsubsection{Accuracy by Prompt Difficulty}
 
@@ -873,6 +887,12 @@ shows a much flatter sensitivity profile across all difficulty levels, with gain
 and losses well below those of Gemma~26B. This robustness confirms Mistral as a
 safe baseline but also means that one-parameter OFAT tuning finds little room for
 improvement for this model.
+The supplemental \texttt{gemma4:e4b} repeat shows the same difficulty effect
+qualitatively: the largest positive and negative swings are concentrated on
+difficulty~4, where some lookup and visualization settings improve by more than
+$+0.40$ but unstable analysis settings can lose more than $-0.70$. Since this
+is not repeated, the point is not the exact magnitude but the pattern: hard
+prompts amplify parameter sensitivity.
 
 \subsubsection{Summary}
 
@@ -902,8 +922,11 @@ is a model-level property, not a step-level one:
           is lowered below the baseline of~1.0, suggesting that the
           model's thinking process benefits from sampling diversity.
 
-    \item \textbf{\texttt{gemma4:e4b} results pending.}
-          {\color{red}[PLACEHOLDER — update when run completes.]}
+    \item \textbf{\texttt{gemma4:e4b} is directionally sensitive but only
+          single-repeat.} The recovered repeat shows large lookup,
+          visualization, and analysis ranges, supporting the later focus on
+          E4B lookup repair. Its exact Test~02 static settings are treated as
+          exploratory rather than final.
 \end{enumerate}
 
 \subsection{Test 03 - \texttt{max\_tokens} Ladder per Agent}
@@ -1695,7 +1718,12 @@ different and superior strategy compared to sampling diversity alone.
 Test~05 evaluates the combined configurations described in
 Section~\ref{subsec:test05} on the full 20-prompt benchmark. Results cover the
 formal Pareto pool: Test~01 baselines (three repeats) and Test~05 combined
-candidates (two repeats).
+candidates (two repeats). In addition, the analysis includes a separate
+screening-supported candidate pool with selected configurations from
+Tests~02--04. These reused rows are not mixed into the formal frontier because
+they were measured on smaller 10- or~15-prompt subsets, but they are useful for
+showing that the final Test~05 configurations were assembled from actual
+single-step gains rather than chosen post hoc.
 
 \subsubsection{Overall Ranking}
 
@@ -1805,6 +1833,74 @@ full-benchmark baseline and at higher absolute cost; it is therefore useful
 as evidence that targeted tuning helps large MoE models, but not as the final
 Pareto recommendation.
 
+\subsubsection{Screening-Supported Candidate Pool}
+
+The final-run design intentionally avoided rerunning every promising
+single-axis configuration from Tests~02--04. To preserve that evidence, a
+secondary candidate-pool analysis merges the selected previous-test rows with
+the full-benchmark Test~01 and Test~05 rows. Figure~\ref{fig:test05_screening}
+shows this view: filled markers are full-benchmark measurements, while hollow
+markers are reused screening measurements. The figure should therefore be read
+as provenance for the final candidates, not as a replacement for the formal
+full-benchmark frontier in Figure~\ref{fig:test05_pareto}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/test05_final_run_screening_supported_pareto.png}
+    \caption{Test~05: screening-supported candidate pool. Filled points are full-benchmark rows; hollow points are selected screening rows from Tests~02--04.}
+    \label{fig:test05_screening}
+\end{figure}
+
+The selected screening rows confirm that the combined Test~05 configurations
+were built from measurable earlier effects. The strongest screening-only
+frontier rows are Mistral lookup-CoT candidates from Test~04:
+\texttt{lookup\_cot\_n3} reaches prompt quality~0.919 with full completion at
+0.00293~kWh per prompt on the 10-prompt subset, while
+\texttt{lookup\_cot\_n2} reaches 0.896 at 0.00271~kWh per prompt. These rows
+foreshadow the full-benchmark Mistral result, where lookup CoT moves the model
+from the cheap baseline region into the low-energy Pareto frontier.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|l|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Source} & \textbf{Model} & \textbf{Config} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
+\hline
+Test~04 lookup CoT & \texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.9188 & 100.0\,\% & 0.00293 \T\B \\
+\hline
+Test~03 max tokens & \texttt{gemma4:26b} & \texttt{visualization\_max\_tokens\_10000} & 0.9123 & 100.0\,\% & 0.00399 \T\B \\
+\hline
+Test~04 lookup CoT & \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4} & 0.8972 & 100.0\,\% & 0.00444 \T\B \\
+\hline
+Test~04 lookup CoT & \texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.8958 & 95.1\,\% & 0.00271 \T\B \\
+\hline
+Test~02 static sensitivity & \texttt{mistral-small3.2:24b} & \texttt{analysis\_top\_k\_56} & 0.8931 & 95.2\,\% & 0.00414 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~05: strongest selected screening rows reused as candidate provenance. These rows are not part of the formal full-benchmark frontier.}
+\label{tab:test05screening}
+\end{table}
+
+The same view also explains the final Gemma behaviour. For Gemma~E4B,
+lookup-CoT rows from Test~04 are already strong on the screening subset, and
+the best full-benchmark configuration becomes the one that combines lookup CoT
+with the lower lookup temperature and cost-aware downstream token caps. For
+Gemma~26B, the reused \texttt{visualization\_max\_tokens\_10000} row reaches
+0.912 prompt quality on the screening subset, confirming that the MoE model can
+benefit from additional visualization headroom; however, the full-benchmark
+Test~05 rows show that this improvement is not enough to overcome the model's
+higher energy cost.
+
+One planned screening source is deliberately absent. The Test~04b lookup-range
+rows are excluded from this GPT-5.4 analysis because the final-run folder did
+not contain usable GPT-judged rows, while the older Test~04b execution used the
+local Ollama judge. Mixing those measurements would conflate model behaviour
+with judge differences.
+
 \subsubsection{Pareto Frontier by Prompt Difficulty}
 
 The final Pareto picture changes when the benchmark is split by difficulty.
@@ -1871,6 +1967,16 @@ is robust completion rather than minimum energy.
 \subsubsection{Summary}
 
 \begin{enumerate}
+    \item \textbf{The full-benchmark frontier is the recommendation layer.}
+          Test~01 baselines and Test~05 combined candidates are the only rows
+          used for the formal Pareto frontier because they share the same
+          20-prompt benchmark and GPT-5.4 judge.
+
+    \item \textbf{The screening pool is the provenance layer.}
+          Selected rows from Tests~02--04 show that the final configurations
+          were assembled from real single-step gains. They support the design
+          but do not replace the full-benchmark confirmation.
+
     \item \textbf{The final Pareto front is not a pure model-size ranking.}
           The larger Gemma~26B MoE improves with targeted tuning but remains
           dominated in the full-benchmark quality-energy frontier.

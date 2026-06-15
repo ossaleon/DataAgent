@@ -18,9 +18,9 @@ Completeness check:
 | `mistral-small3.2:24b` | rep02 | 153 | 153 | 2295 | included |
 | `gemma4:e4b` | rep01 | 153 | 39 | None | excluded: missing summary.csv; missing detail.csv; 39/153 completed config CSVs |
 | `gemma4:e4b` | rep02 | 153 | 14 | None | excluded: missing summary.csv; missing detail.csv; 14/153 completed config CSVs |
-| `gemma4:e4b` | rep03 | None | 0 | None | excluded: missing/invalid configs_sampled.json; missing summary.csv; missing detail.csv |
+| `gemma4:e4b` | rep03 | 153 | 153 | 2295 | supplemental: complete one-repeat reconstruction from per-config CSVs |
 
-The incomplete `gemma4:e4b` folders are excluded from the numeric analysis.
+The main two-repeat analysis and plots use only `gemma4:26b` and `mistral-small3.2:24b`, because these are the two models with complete matched repeats. The complete `gemma4:e4b` rep03 run is analyzed separately as supplemental evidence. It is useful for directional interpretation, but it is not used for repeat-stability claims or for final parameter ranking because no second complete E4B repeat is available.
 
 ## Method Notes
 
@@ -31,6 +31,7 @@ This test varies one agent step at a time while the other two stay fixed. Each p
 - `mistral-small3.2:24b` remains the efficient control, with lower time and energy than `gemma4:26b`.
 - `gemma4:26b` is more sensitive: it has larger positive movements but also much larger losses.
 - Repeat energy variance is small relative to the model gap; quality variance is visible enough that close config rankings should remain tentative.
+- The supplemental one-repeat `gemma4:e4b` run suggests that E4B is also highly step-sensitive, especially at lookup, but this evidence is weaker than the two-repeat results and should be treated as directional.
 
 ## Overall Resource Use
 
@@ -84,6 +85,8 @@ A small energy difference means more repeats are not needed for the broad energy
 
 ![repeat stability](plots/test02v2_repeat_stability.png)
 
+The figures above retain the complete two-repeat models only. The supplemental `gemma4:e4b` rep03 run is summarized in tables below instead of being added to the plots, to avoid visually equating one repeat with two-repeat evidence.
+
 ## Best And Worst Static Changes
 
 Top quality improvements:
@@ -114,9 +117,35 @@ Largest quality losses:
 | `gemma4:26b` | Lookup | `lookup_top_k_48` | -0.0834 | -0.0432 | 0.00471 | +72.1 |
 | `gemma4:26b` | Analysis | `analysis_temperature_0p7` | -0.0791 | -0.0833 | -0.00014 | -2.3 |
 
+## Supplemental Gemma E4B One-Repeat Check
+
+After the original Test 02 report, a complete `gemma4:e4b` rep03 execution became available in per-config form:
+
+```text
+/home/oss/Downloads/02v2_agent_step_parameter_sensitivity/gemma4_e4b/rep03/
+```
+
+It contains all 153 configurations and 2,295 prompt rows, judged with `openai / gpt-5.4`. Because this is a single complete repeat, it is not used for repeat-stability or final ranking claims. It is useful only as directional evidence about whether the E4B model behaves like the two complete models.
+
+Aggregate one-repeat summary:
+
+| Model | Repeat | Configs | Rows | Mean quality | Mean sec / prompt | Mean kWh / prompt | Mean completion |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `gemma4:e4b` | rep03 | 153 | 2,295 | 0.8381 | 99.8 | 0.00578 | 95.1% |
+
+Step sensitivity from the same strict scoring rule:
+
+| Step | Baseline quality | Best delta | Worst delta | Range | Best config | Worst config |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| Lookup | 0.8062 | +0.1168 | -0.1061 | 0.2230 | `lookup_top_p_0p94` | `lookup_repeat_penalty_1p2` |
+| Analysis | 0.8689 | +0.0618 | -0.1291 | 0.1909 | `analysis_top_k_96` | `analysis_repeat_last_n_128` |
+| Visualization | 0.8480 | +0.0842 | -0.1121 | 0.1963 | `visualization_top_p_0p7` | `visualization_temperature_0p7` |
+
+The one-repeat E4B run suggests that the small thinking model is not flat like Mistral. It has large OFAT swings in all three agents, with the largest range in lookup. The best lookup settings are mainly `top_p` and temperature variants near the baseline, which is consistent with the final Test 05 result where E4B benefits most when the lookup step is repaired. The most important caveat is variance: with only one complete repeat, these values should be used to explain E4B behavior qualitatively, not to select exact static parameters.
+
 ## Prompt Difficulty Analysis
 
-This difficulty view keeps the Test 02 logic intact: each row compares configurations only against the baseline for the same model, same agent step, and same prompt difficulty. The incomplete `gemma4:e4b` folders remain excluded.
+This difficulty view keeps the Test 02 logic intact: each row compares configurations only against the baseline for the same model, same agent step, and same prompt difficulty. The plotted difficulty view remains based on the two complete-repeat models. The one-repeat `gemma4:e4b` reconstruction is not added to the figures, but it shows the same qualitative warning: E4B has large hard-prompt swings, especially when analysis settings destabilize generation.
 
 ![Test 02 difficulty baseline quality](plots/test02v2_difficulty_baseline_quality.png)
 
@@ -150,6 +179,8 @@ Largest difficulty-specific losses:
 
 Interpretation: parameter sensitivity is not uniform across task difficulty. `gemma4:26b` gets the largest upside on visualization-heavy and harder slices, but it also has the largest negative swings when a parameter setting destabilizes an agent. `mistral-small3.2:24b` is flatter: this is good for robustness, but it also means Test 02 finds fewer large accuracy gains from simple one-parameter changes.
 
+For the supplemental `gemma4:e4b` repeat, the largest gains and losses also concentrate on difficulty 4. The strongest positive movements are visualization and lookup improvements above `+0.40` on this slice, while the worst analysis settings lose more than `-0.70`. This reinforces the main thesis claim that hard prompts are where tuning choices matter most, but the exact E4B values remain one-repeat evidence.
+
 ## Thesis Implications
 
-The two complete models confirm that parameter sensitivity is agent-specific. Mistral is the stronger efficient baseline, while Gemma 26B needs careful step-level tuning and should not be summarized by a single global sampling setting.
+The two complete models confirm that parameter sensitivity is agent-specific. Mistral is the stronger efficient baseline, while Gemma 26B needs careful step-level tuning and should not be summarized by a single global sampling setting. The supplemental one-repeat E4B run adds a useful bridge to the later tests: E4B also looks highly sensitive, but its most consequential static signal is lookup-side repair rather than the Gemma 26B visualization pattern. This supports using E4B in the final Pareto campaign, while still keeping the exact Test 02 E4B parameter values out of the main two-repeat conclusions.

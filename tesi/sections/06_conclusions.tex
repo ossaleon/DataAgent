@@ -69,6 +69,9 @@ SQL using execution feedback rather than from sampling several candidates.
 The final Pareto confirmation combines the best insights from the earlier
 tests. The final non-dominated frontier consists mostly of low-energy Mistral candidates
 and one high-quality Gemma~E4B endpoint.
+Selected screening rows from the earlier tests are retained as provenance for
+these candidates, but the final recommendations are drawn only from
+full-benchmark measurements.
 The best final Gemma~E4B configuration combines lookup CoT, a lower lookup
 temperature, and efficient downstream token caps; it reaches the highest
 strict prompt quality with full completion. Mistral remains the natural

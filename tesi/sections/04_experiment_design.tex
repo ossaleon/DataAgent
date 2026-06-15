@@ -426,10 +426,16 @@ The formal Pareto pool combines:
 
 Single-axis configurations from Tests~02--04 are excluded from the formal
 Pareto frontier because they were measured on the 10- or~15-prompt screening
-subsets rather than on the full 20-prompt benchmark. The primary metrics are
-\texttt{quality\_mean}, prompt-level end-to-end quality (which penalises
-missing downstream scores caused by upstream failures), completion rate,
-elapsed time, and energy per prompt.
+subsets rather than on the full 20-prompt benchmark. They are still retained
+in a separate screening-supported view of the candidate pool: full-benchmark
+points are treated as the confirmation evidence, while the reused screening
+points explain which earlier single-step results motivated the final combined
+policies. This separation avoids giving a 10- or~15-prompt screening result
+the same evidential status as a full-benchmark measurement.
+
+The primary metrics are \texttt{quality\_mean}, prompt-level end-to-end
+quality (which penalises missing downstream scores caused by upstream
+failures), completion rate, elapsed time, and energy per prompt.
 
 \subsubsection{Deployment with Docker}
 
