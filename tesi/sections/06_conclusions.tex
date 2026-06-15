@@ -5,3 +5,71 @@
 \label{sec:conclusions}
 \color{black}
 
+This thesis investigated the accuracy-energy trade-off of a multi-agent
+LLM system for sales-data analysis. The central result is that model choice
+alone is not sufficient to explain performance: the most important effects
+emerge from the interaction between model family, agent step, prompt
+difficulty, and inference-time parameters.
+
+The baseline comparison shows that \texttt{mistral-small3.2:24b} is the
+most efficient untuned model. It achieves the best aggregate strict quality
+at the lowest energy cost, especially on easy and medium prompts. However,
+the prompt-difficulty analysis reveals a limitation that is hidden by the
+aggregate score: Mistral collapses on the hardest SQL aggregation prompts,
+where \texttt{gemma4:26b} performs best at baseline and \texttt{gemma4:e4b}
+can be repaired through targeted lookup interventions. This confirms the
+importance of reporting results by prompt difficulty rather than only as a
+single mean score.
+
+The per-agent sensitivity experiments show that hyperparameter tuning must
+be step-specific. Gemma~26B is highly tunable but fragile: its visualization
+agent is weak at baseline and responds strongly to both static sampling
+parameters and larger token caps. In particular, raising the Gemma~26B
+visualization cap from 7000 to 10000 tokens improves \texttt{vis\_score}
+with negligible energy cost, and the curve does not yet show a clear
+plateau. Gemma~E4B behaves differently: adding too much token headroom can
+reduce quality, especially in lookup and visualization, so it requires
+bounded caps rather than simply larger ones. Mistral is almost insensitive
+to token caps; moderate budgets are enough for stable outputs.
+
+The token-budget experiment therefore supports a practical rule: increasing
+\texttt{max\_tokens} is cheap when the model does not actually consume the
+extra budget, so generous caps are useful for model-step pairs that benefit
+from additional headroom. They should not be treated as universally better,
+because some thinking-model agents become more verbose and less reliable
+when given too much room.
+
+The compute-expansion experiment shows that CoT refinement is useful only
+when the feedback signal matches the failure mode. Lookup CoT is effective
+because SQL errors are executable and can be fed back to the model. For
+Gemma~E4B, lookup CoT is the strongest single intervention in the thesis;
+for Mistral it also helps, but the gain is smaller. Visualization CoT is
+harmful for both models. The generated chart often fails semantically rather
+than syntactically, so code-execution feedback does not reveal whether the
+plot matches the user's requested grouping, split, or chart semantics.
+Additional CoT iterations therefore tend to over-edit the output and degrade
+\texttt{vis\_score}. The corrected early-stop diagnostics reinforce this
+point: requested depths of 3 or 4 usually execute only around two iterations,
+so high \texttt{cot\_n} should be interpreted as an upper bound rather than
+as the actual compute spent. Depth~2 is the safest default, while depth~3 can
+be reserved for hard lookup prompts when maximum accuracy is more important
+than energy.
+
+The final Pareto confirmation combines the best insights from the earlier
+tests. Under GPT-5.4 judging, the final non-dominated frontier is dominated
+by low-energy Mistral candidates and one high-quality Gemma~E4B endpoint.
+The best final Gemma~E4B configuration combines lookup CoT, a lower lookup
+temperature, and efficient downstream token caps; it reaches the highest
+strict prompt quality with full completion. Mistral remains the natural
+choice for low-energy execution, especially on easy-to-medium prompts.
+Gemma~26B improves with tuning, but its energy cost keeps it off the final
+full-benchmark Pareto frontier.
+
+Overall, the thesis supports three practical recommendations for LLM data
+agents. First, tune parameters per agent step rather than globally. Second,
+allocate compute according to the failure mode: token headroom for steps
+that are genuinely truncated, CoT for SQL lookup where feedback is
+verifiable, and conservative generation for visualization when the main
+error is semantic mismatch. Third, report accuracy and energy by prompt
+difficulty, because the best model for simple tasks is not necessarily the
+best model for hard analytical questions.

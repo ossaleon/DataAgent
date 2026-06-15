@@ -1011,7 +1011,13 @@ this test. Increasing the visualization budget from the baseline 7000 to
 10000 tokens yields a \texttt{vis\_score} gain of~$+0.054$ and an
 overall quality gain of~$+0.022$ at essentially zero additional energy
 cost (see Table~\ref{tab:test03bestcaps}). For Gemma~26B, this cap
-increase is a straightforward free improvement.
+increase is a straightforward free improvement. It is also the only
+visualization curve that does not show a visible plateau inside the tested
+range: the direct \texttt{vis\_score} continues to improve up to the
+largest tested value. This does not prove that still larger caps would
+continue to help, but it suggests that the 10000-token cap should be
+interpreted as a conservative upper value rather than as a measured
+saturation point for the Gemma~26B visualization agent.
 
 For Gemma~E4B, the collapse at 10000 tokens in visualization --- visible
 both in the quality and the direct metric --- is a safety-relevant
@@ -1057,6 +1063,18 @@ a notable drop. This further confirms that the model is robust to token
 budget choices and does not require careful cap tuning to avoid
 structural failures.
 
+The completion curves also show an interesting similarity between the two
+Gemma thinking models. Despite the large difference in parameter count, the
+completion plateaus occur at comparable cap regions: once the lookup and
+visualization agents have enough room to finish their structured output,
+raising the nominal cap further does not substantially increase the number
+of completed score slots. A plausible explanation is that the effective
+reasoning budget actually used by the two Gemma models is of similar order
+on this benchmark; the larger model is not simply consuming proportionally
+more tokens to think. This remains an inference from completion behaviour,
+not a direct token-count measurement, but it is consistent with the small
+energy deltas observed when caps are raised.
+
 \subsubsection{Quality-Energy Trade-off}
 
 Figure~\ref{fig:test03_qe_delta} shows each cap configuration as a
@@ -1084,6 +1102,18 @@ cap from 7000 to 10000 tokens yields $+0.022$ quality and $+0.054$
 The same model's analysis step moves in the opposite direction on the
 quality axis when the cap is raised, with a slight energy saving at
 lower caps — consistent with the compression effect discussed earlier.
+
+This result changes the practical interpretation of \texttt{max\_tokens}.
+The token cap is not itself a request to spend more compute: it only raises
+the ceiling available to the model. If the model finishes before hitting the
+ceiling, energy remains almost unchanged. For this reason, when a
+model-step pair reacts well to additional headroom, as Gemma~26B
+visualization does, the rational choice is to allocate the larger cap. The
+cost of allowing more tokens is small, while the cost of denying them can be
+a hard truncation or malformed output. Conversely, the Gemma~E4B lookup and
+visualization curves show that generous caps must still be bounded: beyond
+the feasible window, additional headroom encourages longer but less reliable
+outputs.
 
 The lower quadrants are populated by configurations where a cap that
 is too restrictive causes truncated or structurally broken outputs,
@@ -1207,7 +1237,9 @@ and can encourage verbose outputs that reduce quality.
     \item \textbf{Gemma~26B visualization is genuinely token-constrained.}
           Raising the cap from 7000 to 10000 yields a $+0.054$
           \texttt{vis\_score} gain with negligible energy change. This
-          is the clearest actionable finding of Test~03.
+          is the clearest actionable finding of Test~03. Since no plateau
+          is visible at the top of the tested ladder, future runs could
+          probe a slightly larger visualization cap for this model.
 
     \item \textbf{Gemma~26B analysis benefits from a tighter cap.}
           The 4000-token cap outperforms the 7000-token baseline by
@@ -1218,11 +1250,14 @@ and can encourage verbose outputs that reduce quality.
           Higher caps beyond 5000 (lookup) and 7000 (visualization)
           cause quality regressions, with the 10000-token visualization
           cap producing the worst \texttt{vis\_score} ($0.51$) of any
-          configuration in the test.
+          configuration in the test. This model should therefore use
+          bounded, agent-specific caps rather than blindly generous ones.
 
     \item \textbf{Mistral is insensitive to \texttt{max\_tokens}.}
           The quality range does not exceed~0.025 at any step, and the
           baseline cap is optimal or tied-optimal at all three steps.
+          Mistral can therefore be run with moderate caps without sacrificing
+          accuracy.
 \end{enumerate}
 
 %-----------------------------------------------------------------------------
@@ -1243,6 +1278,16 @@ was already addressed by the token-budget increase in Test~03, its SQL
 and text steps were near saturation, and its per-prompt cost is already
 the highest of the three models, making additional compute iterations
 particularly expensive relative to the expected gain.
+
+Before interpreting the cost curves, one resource anomaly was corrected in
+the analysis data. In \texttt{gemma4:e4b}, repeat~3 of
+\texttt{visualization\_cot\_n3} contained two rows with abnormal wall-clock
+time and energy, inconsistent with the same test cases in repeats~1 and~2.
+Only timing and energy columns were replaced with the mean of the two clean
+repetitions; quality scores, completion flags, and CoT execution diagnostics
+were left unchanged. This correction lowers the reported cost of
+\texttt{visualization\_cot\_n3}, but does not change the qualitative result:
+visualization CoT still degrades quality.
 
 \subsubsection{Aggregate Results}
 
@@ -1298,6 +1343,13 @@ For the lookup step, CoT consistently helps: \texttt{gemma4:e4b} gains
 up to $+0.203$ quality at \texttt{cot\_n=4} (with \texttt{csv\_iou}
 rising from~0.757 to~0.983), and \texttt{mistral-small3.2:24b} peaks
 at $+0.063$ at depth~3.
+The numerical peak for Gemma~E4B is therefore depth~4, but this should
+not be interpreted as evidence that four full refinement rounds are
+usually needed. As shown later in Table~\ref{tab:test04earlystop}, the
+requested depth~4 configuration executes only 2.50 iterations on average
+and reaches full depth in just 13.3\,\% of lookup rows. Depth~3 already
+fixes the hardest lookup slice (difficulty~4, $+0.524$ quality), and
+depth~2 captures most of the aggregate gain at lower cost.
 For the visualization step the pattern is reversed: quality degrades
 at every depth above~1 for both models, with \texttt{gemma4:e4b}
 losing up to $-0.115$ at depth~3.
@@ -1337,7 +1389,18 @@ Unlike SQL, where the model can verify its output against a concrete
 execution result, chart code has no analogous feedback signal: the
 self-criticism loop has no reliable criterion to judge correctness and
 tends to over-edit working code, introducing regressions rather than
-fixing them.
+fixing them. In several failed visualization examples the problem is not
+that the Python code cannot run, but that the generated chart does not
+match the exact plot requested by the user: wrong grouping, wrong split,
+or a subtly different chart semantics. Execution feedback does not expose
+this semantic mismatch, so additional CoT steps can reinforce an already
+wrong interpretation. This is consistent with a broader caution for CoT:
+additional reasoning is useful only when the feedback signal is aligned
+with the target property being evaluated.\footnote{A final literature pass
+should add a specific citation here for cases where Chain-of-Thought or
+self-refinement can hurt performance when the task does not benefit from
+additional reasoning, or when the verification signal is misaligned with
+the evaluation target.}
 
 \subsubsection{Quality-Energy Pareto of CoT Configurations}
 
@@ -1440,6 +1503,16 @@ than a genuine depth benefit. The early stop is also the mechanism that
 explains why \texttt{vis\_cot\_n4} partially recovers from the catastrophic
 result of \texttt{vis\_cot\_n3}: at requested depth~4, more runs exit
 early and avoid the harmful third iteration.
+
+The corrected diagnostic table is important because the earlier analysis
+mixed two denominators for visualization: all benchmark rows versus only
+the rows where visualization CoT actually executed. The table below uses
+the latter denominator for early-stop and full-depth rates. Under this
+definition, high requested depths are even less attractive than they first
+appeared. For Gemma~E4B lookup, \texttt{cot\_n=4} stops early in
+86.7\,\% of executed rows; for Mistral lookup, the early-stop rate is
+90.0\,\%. The requested depth is therefore mostly an upper bound, not a
+description of the computation actually performed.
 
 Table~\ref{tab:test04earlystop} summarises the execution diagnostics.
 
@@ -1547,15 +1620,17 @@ visualization CoT should not be deployed.
           early-stop mechanism makes \texttt{cot\_n=3} and
           \texttt{cot\_n=4} behave similarly to \texttt{cot\_n=2} for
           the lookup step. Requesting depth~2 is therefore the most
-          cost-efficient choice for both models. For
-          \texttt{mistral-small3.2:24b} this is an explicit trade-off:
-          although \texttt{cot\_n=3} is the nominal quality peak
-          ($+0.063$), depth~2 already captures most of the benefit
-          ($+0.040$) at lower and more predictable cost, and the
-          additional $+0.023$ at depth~3 is small relative to the extra
-          compute and the executed-depth saturation. Depth~2 is thus
-          recommended for both models, with depth~3 reserved for Mistral
-          only when maximum lookup quality is the priority.
+          cost-efficient default for both models. For Gemma~E4B,
+          \texttt{cot\_n=3} is useful as a hard-prompt repair setting
+          because it fixes the difficulty-4 lookup slice, but
+          \texttt{cot\_n=4} should not be the default: it rarely reaches
+          the fourth iteration and its extra aggregate gain is small
+          relative to the additional cost and variance. For
+          \texttt{mistral-small3.2:24b}, \texttt{cot\_n=3} is the nominal
+          quality peak ($+0.063$), but the gain over depth~2 is much
+          smaller than the Gemma gain and most high-depth runs stop early.
+          Depth~3 should therefore be reserved for maximum lookup quality,
+          not for the energy-aware default.
 \end{enumerate}
 
 %-----------------------------------------------------------------------------
@@ -1617,3 +1692,222 @@ different and superior strategy compared to sampling diversity alone.
 \subsection{Test 05 - Final Pareto Confirmation}
 \label{subsec:res05}
 
+Test~05 validates the most promising configurations from the previous
+experiments on the full 20-prompt benchmark. Unlike Tests~02--04, which
+isolate one parameter or one agent step at a time, Test~05 evaluates
+combined configurations designed to be competitive in the final
+quality-energy Pareto analysis. The ground-truth text and visualization
+scores in this final run are judged by GPT-5.4, while non-ground-truth
+selection calls during the agent execution still use the local model being
+tested. This separates the measurement of accuracy from the model's normal
+runtime behaviour.
+
+The formal Pareto pool combines:
+
+\begin{itemize}
+    \item the Test~01 baselines for all three models, measured on the full
+          benchmark with three repeats;
+    \item the new Test~05 combined candidates, measured on the full benchmark
+          with two repeats.
+\end{itemize}
+
+Single-axis configurations from Tests~02--04 are used as design evidence but
+are not mixed into the formal Pareto front, because they were measured on the
+10- or 15-prompt screening subsets rather than on the full benchmark.
+Older \texttt{rep} folders judged by local Ollama models are also excluded
+from this section, so all quality comparisons use the same GPT-5.4 judge.
+
+\subsubsection{Overall Ranking}
+
+Table~\ref{tab:test05ranking} reports the highest-ranking configurations by
+strict prompt E2E quality. The strongest final candidate is
+\texttt{gemma4:e4b} with \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens}:
+it reaches prompt quality~0.937 with full completion, while consuming
+0.00602~kWh per prompt. This configuration combines the two interventions
+that proved useful in the earlier tests: lookup CoT for SQL repair and lower
+token caps for the downstream steps.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Config} & \textbf{Comp.~E2E} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{Sec/prompt} & \textbf{kWh/prompt} \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} & 0.9238 & 0.9371 & 100.0\,\% & 102.2 & 0.00602 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_temp\_0p8\_low\_cost\_tokens} & 0.9206 & 0.9287 & 100.0\,\% & 108.9 & 0.00645 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{combined\_cot\_static} & 0.9105 & 0.9206 & 98.1\,\% & 71.3 & 0.00449 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_temp\_0p8} & 0.9121 & 0.9189 & 100.0\,\% & 107.0 & 0.00633 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2\_efficient\_tokens} & 0.9063 & 0.9168 & 98.1\,\% & 70.7 & 0.00445 \T\B \\
+\hline
+\texttt{gemma4:26b} & \texttt{combined\_static\_direct} & 0.8271 & 0.8720 & 100.0\,\% & 153.3 & 0.00998 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~05: strongest full-benchmark configurations under GPT-5.4 judging.}
+\label{tab:test05ranking}
+\end{table}
+
+The result differs from the earlier local-judge pass. Under GPT-5.4, the
+larger Gemma~26B MoE improves over its own baseline, but it does not appear
+on the strict prompt-quality Pareto frontier. Its best combined candidate
+(\texttt{combined\_static\_direct}) reaches prompt quality~0.872, improving
+the Test~01 baseline by~$+0.058$ while reducing energy by~0.00668~kWh per
+prompt, but this is still dominated by cheaper and more accurate candidates
+from Mistral and Gemma~E4B.
+
+\subsubsection{Final Pareto Frontier}
+
+Figure~\ref{fig:test05_pareto} and Table~\ref{tab:test05pareto} show the
+non-dominated configurations when maximising strict prompt E2E quality and
+minimising energy per prompt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/test05_final_run_pareto_frontier.png}
+    \caption{Test~05: final full-benchmark Pareto frontier under GPT-5.4 judging.}
+    \label{fig:test05_pareto}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Config} & \textbf{Comp.~E2E} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{combined\_static\_best\_efficient\_tokens} & 0.8273 & 0.8434 & 92.6\,\% & 0.00364 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{max\_tokens\_quality} & 0.8318 & 0.8531 & 92.6\,\% & 0.00365 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{combined\_cot\_static\_tokens} & 0.8794 & 0.8902 & 96.3\,\% & 0.00441 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2\_efficient\_tokens} & 0.9063 & 0.9168 & 98.1\,\% & 0.00445 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{combined\_cot\_static} & 0.9105 & 0.9206 & 98.1\,\% & 0.00449 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} & 0.9238 & 0.9371 & 100.0\,\% & 0.00602 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~05: non-dominated configurations for prompt E2E quality vs.\ energy.}
+\label{tab:test05pareto}
+\end{table}
+
+The frontier has a clear structure. Mistral defines the low-energy region:
+several variants consume roughly 0.0036--0.0045~kWh per prompt, with quality
+rising as lookup CoT is added. Gemma~E4B defines the high-quality endpoint:
+its best final candidate costs about 34\,\% more energy than the best Mistral
+CoT candidate (0.00602 vs.\ 0.00449~kWh), but raises prompt quality from
+0.921 to~0.937 and reaches full completion. This is the strongest final
+evidence that the small thinking model can become the best accuracy-oriented
+choice when the fragile lookup step is repaired.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/test05_final_run_baseline_deltas.png}
+    \caption{Test~05: quality and energy deltas of combined candidates relative to each model baseline.}
+    \label{fig:test05_deltas}
+\end{figure}
+
+Relative to its Test~01 baseline, the best Gemma~E4B candidate improves
+prompt quality by~$+0.102$ while reducing energy by~0.00281~kWh per prompt.
+The best Mistral candidate improves quality by~$+0.077$ and reduces energy
+by~0.00152~kWh per prompt. Gemma~26B also improves, but from a weaker
+full-benchmark baseline and at higher absolute cost; it is therefore useful
+as evidence that targeted tuning helps large MoE models, but not as the final
+Pareto recommendation.
+
+\subsubsection{Pareto Frontier by Prompt Difficulty}
+
+The final Pareto picture changes when the benchmark is split by difficulty.
+Figure~\ref{fig:test05_diff_pareto} repeats the non-dominance analysis inside
+each difficulty level.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/test05_final_run_pareto_by_difficulty.png}
+    \caption{Test~05: Pareto frontier split by prompt difficulty.}
+    \label{fig:test05_diff_pareto}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/test05_final_run_frontier_difficulty_heatmap.png}
+    \caption{Test~05: difficulty-wise quality of the overall Pareto configurations.}
+    \label{fig:test05_diff_heatmap}
+\end{figure}
+
+On difficulty~1 and~2 prompts, Mistral dominates the frontier: it is both
+cheap and highly accurate, reaching prompt quality close to~0.98 in the best
+configurations. On difficulty~3 the frontier becomes mixed: Mistral remains
+the most efficient, but Gemma~E4B reaches the highest quality once lookup CoT
+and static lookup temperature are combined. Difficulty~4 is the decisive
+case. The best Mistral frontier point on this slice reaches quality~0.831
+with 90.9\,\% completion at 0.00475~kWh per prompt. The Gemma~E4B final candidate
+reaches quality~0.919 with full completion at 0.00704~kWh per prompt. Gemma
+26B also remains strong on hard prompts (\texttt{lookup\_cot\_n3} reaches
+0.917), but at 0.01296~kWh per prompt it is dominated by the Gemma~E4B
+hard-prompt endpoint.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|c|l|l|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Difficulty} & \textbf{Best model/config} & \textbf{Role} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
+\hline
+1 & \texttt{mistral} / \texttt{combined\_cot\_static\_tokens} & lowest-cost high-quality & 0.979 & 100.0\,\% & 0.00376 \T\B \\
+\hline
+2 & \texttt{mistral} / \texttt{lookup\_cot\_n3\_efficient\_tokens} & lowest-cost high-quality & 0.979 & 100.0\,\% & 0.00481 \T\B \\
+\hline
+3 & \texttt{gemma4:e4b} / \texttt{lookup\_cot\_n4\_temp\_0p8\_low\_cost\_tokens} & highest quality & 0.946 & 100.0\,\% & 0.00609 \T\B \\
+\hline
+4 & \texttt{gemma4:e4b} / \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} & hard-prompt endpoint & 0.919 & 100.0\,\% & 0.00704 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~05: representative best configurations by prompt difficulty.}
+\label{tab:test05difficulty}
+\end{table}
+
+The prompt-difficulty view is essential for interpreting the final Pareto
+front. A single aggregate score would suggest that Mistral and Gemma~E4B are
+close competitors with different energy profiles. The difficulty split shows
+why: Mistral is the best economic choice on easy and medium prompts, but its
+hard-prompt completion and quality remain lower. Gemma~E4B becomes preferable
+when the workload includes difficult SQL aggregation prompts and the objective
+is robust completion rather than minimum energy.
+
+\subsubsection{Summary}
+
+\begin{enumerate}
+    \item \textbf{The final Pareto front is not a pure model-size ranking.}
+          Under GPT-5.4 judging, the larger Gemma~26B MoE improves with
+          targeted tuning but remains dominated in the full-benchmark
+          quality-energy frontier.
+
+    \item \textbf{Mistral is the low-energy frontier.}
+          Combined Mistral configurations occupy the cheapest non-dominated
+          region, especially when moderate lookup CoT is added.
+
+    \item \textbf{Gemma~E4B is the best high-quality endpoint.}
+          The final E4B candidate combines lookup CoT, static lookup
+          temperature, and lower downstream token caps, reaching the highest
+          prompt E2E quality with full completion.
+
+    \item \textbf{Prompt difficulty determines which Pareto point is best.}
+          Mistral is the natural choice for easy-to-medium workloads; Gemma~E4B
+          is preferable for hard SQL prompts where lookup repair and full
+          completion matter more than minimum energy.
+\end{enumerate}
