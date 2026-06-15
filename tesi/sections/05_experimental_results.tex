@@ -448,18 +448,21 @@ run time while preserving the original difficulty distribution across
 all four SQL complexity levels (difficulty~1: 3~prompts, difficulty~2:
 4~prompts, difficulty~3: 5~prompts, difficulty~4: 3~prompts).
 
-The main Test~02 figures and repeat-stability statistics are based on the two
-models with complete matched repeats, \texttt{gemma4:26b} and
-\texttt{mistral-small3.2:24b}. A complete single repeat later became available
-for \texttt{gemma4:e4b}; it is reported as supplemental evidence only, because
-it cannot support the same repeat-stability claims as the other two models.
+The Test~02 figures include all complete runs: two repeats for
+\texttt{gemma4:26b} and \texttt{mistral-small3.2:24b}, plus a complete
+single repeat for \texttt{gemma4:e4b}. The \texttt{gemma4:e4b} points are
+therefore analysed alongside the other models, but all E4B-specific conclusions
+carry an explicit one-repeat caveat. Only the repeat-stability statistics are
+restricted to the two models with matched repeats.
 
 \subsubsection{Overall Resource Use}
 
 Table~\ref{tab:test02overall} reports the aggregate statistics averaged
-across all 153 configurations and both repeats. The gap from Test~01
-persists: \texttt{mistral-small3.2:24b} runs at 67.2~s and 0.00416~kWh
-per prompt while \texttt{gemma4:26b} requires 189.0~s and 0.01189~kWh.
+across all 153 configurations and available complete repeats. The gap from
+Test~01 persists: \texttt{mistral-small3.2:24b} runs at 67.2~s and
+0.00416~kWh per prompt while \texttt{gemma4:26b} requires 189.0~s and
+0.01189~kWh. \texttt{gemma4:e4b} sits between them at 99.8~s and
+0.00578~kWh per prompt, but this estimate comes from a single complete repeat.
 Note that the mean quality values here are lower than Test~01 because
 they average over all OFAT configurations — including suboptimal
 off-baseline settings — rather than reflecting only the best or baseline
@@ -468,25 +471,28 @@ performance.
 \begin{table}[H]
 \centering
 \arrayrulecolor{black}
-\begin{tabular}{|l|c|c|c|}
+\begin{tabular}{|l|c|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Mean quality} & \textbf{Mean sec/prompt} & \textbf{Mean kWh/prompt} \T\B \\
+\textbf{Model} & \textbf{Repeats} & \textbf{Mean quality} & \textbf{Mean sec/prompt} & \textbf{Mean kWh/prompt} \T\B \\
 \hline
-\texttt{gemma4:26b}           & 0.8325 & 189.0 & 0.01189 \T\B \\
+\texttt{gemma4:e4b}           & 1 & 0.8382 & \phantom{0}99.8 & 0.00578 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 0.8783 & \phantom{0}67.2 & 0.00416 \T\B \\
+\texttt{gemma4:26b}           & 2 & 0.8325 & 189.0 & 0.01189 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 2 & 0.8783 & \phantom{0}67.2 & 0.00416 \T\B \\
 \hline
 \end{tabular}
 \caption{Test~02: aggregate resource use averaged across all 153 OFAT configurations.}
 \label{tab:test02overall}
 \end{table}
 
-For context, the supplemental \texttt{gemma4:e4b} single repeat averages
-0.838 prompt E2E quality, 99.8~s per prompt, 0.00578~kWh per prompt, and
-95.1\,\% score-slot completion across the same 153 configurations. These
-values place it between Mistral and Gemma~26B in cost, but the absence of a
-matched second repeat keeps it outside the main stability analysis.
+The mean quality values here are not intended as model rankings because they
+average both good and deliberately poor off-baseline configurations. They do,
+however, reveal a useful cost ordering for the tuning campaign:
+\texttt{mistral-small3.2:24b} is the low-energy control, \texttt{gemma4:26b}
+is the expensive thinking MoE, and \texttt{gemma4:e4b} is the intermediate-cost
+small thinking model.
 
 \subsubsection{Repeat Stability}
 \label{subsubsec:test02stability}
@@ -495,11 +501,15 @@ Before interpreting configuration rankings, it is important to assess
 how reproducible the measurements are across the two repeats. A high
 inter-repeat quality variance would mean that small deltas between
 configurations could be noise rather than signal.
+The available \texttt{gemma4:e4b} run is displayed in
+Figure~\ref{fig:test02_stability} to keep the visual comparison complete, but
+it is excluded from Table~\ref{tab:test02stability} because no matched second
+repeat exists.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{Images/test02v2_repeat_stability.png}
-    \caption{Test~02: mean quality and energy across repeats per model.}
+    \caption{Test~02: mean quality and energy across available repeats per model. \texttt{gemma4:e4b} is shown as a one-repeat reference only.}
     \label{fig:test02_stability}
 \end{figure}
 
@@ -555,22 +565,28 @@ quality when varying a single step.
 \centering
 \arrayrulecolor{black}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|l|c|c|c|l|l|}
+\begin{tabular}{|l|l|c|c|c|c|l|l|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Step} & \textbf{Baseline} & \textbf{Best $\Delta$} & \textbf{Worst $\Delta$} & \textbf{Range} & \textbf{Best config} \T\B \\
+\textbf{Model} & \textbf{Step} & \textbf{Baseline} & \textbf{Best $\Delta$} & \textbf{Worst $\Delta$} & \textbf{Range} & \textbf{Best config} & \textbf{Worst config} \T\B \\
 \hline
-\texttt{gemma4:26b} & Lookup       & 0.8480 & $+$0.0319 & $-$0.1229 & 0.155 & \texttt{repeat\_last\_n\_96} \T\B \\
+\texttt{gemma4:e4b} & Lookup       & 0.8062 & $+$0.1168 & $-$0.1061 & 0.223 & \texttt{top\_p\_0.94} & \texttt{repeat\_penalty\_1.2} \T\B \\
 \hline
-\texttt{gemma4:26b} & Analysis     & 0.8675 & $+$0.0065 & $-$0.1111 & 0.118 & \texttt{top\_k\_24} \T\B \\
+\texttt{gemma4:e4b} & Analysis     & 0.8689 & $+$0.0618 & $-$0.1291 & 0.191 & \texttt{top\_k\_96} & \texttt{repeat\_last\_n\_128} \T\B \\
 \hline
-\texttt{gemma4:26b} & Visualization & 0.8116 & $+$0.0684 & $-$0.0337 & 0.102 & \texttt{repeat\_penalty\_1} \T\B \\
+\texttt{gemma4:e4b} & Visualization & 0.8480 & $+$0.0842 & $-$0.1121 & 0.196 & \texttt{top\_p\_0.7} & \texttt{temperature\_0.7} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Analysis     & 0.8861 & $+$0.0069 & $-$0.0986 & 0.106 & \texttt{top\_k\_56} \T\B \\
+\texttt{gemma4:26b} & Lookup       & 0.8480 & $+$0.0319 & $-$0.1229 & 0.155 & \texttt{repeat\_last\_n\_96} & \texttt{top\_k\_56} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup       & 0.8861 & $+$0.0042 & $-$0.0362 & 0.040 & \texttt{repeat\_penalty\_1p3} \T\B \\
+\texttt{gemma4:26b} & Analysis     & 0.8675 & $+$0.0065 & $-$0.1111 & 0.118 & \texttt{top\_k\_24} & \texttt{top\_p\_0.75} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 0.8889 & $+$0.0014 & $-$0.0401 & 0.042 & \texttt{repeat\_last\_n\_56} \T\B \\
+\texttt{gemma4:26b} & Visualization & 0.8121 & $+$0.0679 & $-$0.0342 & 0.102 & \texttt{repeat\_penalty\_1} & \texttt{top\_p\_0.8} \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Lookup       & 0.8861 & $+$0.0042 & $-$0.0362 & 0.040 & \texttt{repeat\_penalty\_1.3} & \texttt{repeat\_last\_n\_80} \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Analysis     & 0.8861 & $+$0.0069 & $-$0.0986 & 0.106 & \texttt{top\_k\_56} & \texttt{repeat\_penalty\_1.2} \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & Visualization & 0.8889 & $+$0.0014 & $-$0.0401 & 0.042 & \texttt{repeat\_last\_n\_56} & \texttt{temperature\_0.1} \T\B \\
 \hline
 \end{tabular}%
 }
@@ -579,29 +595,17 @@ quality when varying a single step.
 \end{table}
 
 The most striking result visible in both the figure and the table is the
-model-level asymmetry. For \texttt{gemma4:26b}, the lookup step has a
-sensitivity range of~0.155 — meaning the gap between its best and worst
-parameter choice can swing overall pipeline quality by more than 15
-percentage points. The visualization step offers the largest upside
-(best $\Delta = +0.068$) while the analysis step carries the largest
-downside risk (worst $\Delta = -0.111$). For
-\texttt{mistral-small3.2:24b}, by contrast, the lookup and visualization
-ranges are just~0.040 and~0.042: the model is almost entirely insensitive
-to sampling parameter changes at these steps. The only step where
+model-level asymmetry. \texttt{gemma4:e4b} has the largest observed ranges in
+all three steps, with lookup spanning 0.223 quality points between the best and
+worst setting. This is one-repeat evidence, but it is too large to treat as a
+minor side effect: the small thinking model is strongly parameter-sensitive.
+For \texttt{gemma4:26b}, the lookup step still has a large sensitivity range
+of~0.155, while the visualization step offers the largest reliable upside
+(best $\Delta = +0.068$). For \texttt{mistral-small3.2:24b}, by contrast, the
+lookup and visualization ranges are just~0.040 and~0.042. The only step where
 Mistral shows meaningful sensitivity is analysis, where
-\texttt{repeat\_penalty\_1.2} causes a catastrophic quality drop
-($-0.099$) driven by a $-0.171$ text-score collapse alongside a
-large latency penalty ($+90.4$~s/prompt) — an important
-misconfiguration to avoid but not a target for improvement.
-
-The supplemental \texttt{gemma4:e4b} repeat points in the opposite
-direction from Mistral: it is not flat. Its one-repeat sensitivity ranges
-are large for lookup (0.223), visualization (0.196), and analysis (0.191).
-The strongest directional gain is lookup-side
-\texttt{top\_p=0.94} ($+0.117$ prompt E2E), while the largest losses come
-from analysis settings such as \texttt{repeat\_last\_n=128} ($-0.129$).
-Because this is only one repeat, these values are used as behavioural
-context rather than as final parameter choices.
+\texttt{repeat\_penalty=1.2} causes a large quality drop ($-0.099$) and a
+latency penalty of about~90~s/prompt.
 
 \subsubsection{Quality Delta Heatmap by Parameter Family}
 \label{subsubsec:test02qualityheatmap}
@@ -615,9 +619,16 @@ red cells indicate that the best achievable value still degraded it.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.82\textwidth]{Images/test02v2_quality_delta_heatmap.png}
-    \caption{Test~02: best quality delta per (step, parameter) pair for both models.}
+    \caption{Test~02: best quality delta per (step, parameter) pair for all complete runs.}
     \label{fig:test02_quality_heatmap}
 \end{figure}
+
+The \texttt{gemma4:e4b} block is now part of the main comparison. Its largest
+one-repeat signal is lookup tuning: \texttt{top\_p} values close to the
+baseline, especially \texttt{top\_p=0.94} and \texttt{top\_p=0.98}, improve
+prompt E2E quality by more than 0.11 while adding little energy. This supports
+the later focus on E4B lookup repair, although the exact static value should
+not be treated as final without a second repeat.
 
 The visualization block for \texttt{gemma4:26b} deserves particular
 attention. All five parameter families yield positive best deltas,
@@ -652,18 +663,15 @@ propagation into downstream steps.
 \end{figure}
 
 Comparing Figures~\ref{fig:test02_quality_heatmap}
-and~\ref{fig:test02_metric_heatmap} reveals an important nuance for the
-\texttt{gemma4:26b} analysis step. In the quality heatmap the analysis
-block is largely neutral to slightly positive, but in the direct metric
-heatmap the analysis/temperature cell turns red ($-0.029$
-\texttt{text\_score}). This means that temperature changes at the
-analysis step do not just propagate losses forward — they degrade the
-text generation itself. Conversely, the positive deltas in analysis
-\texttt{top\_k} ($+0.006$ quality, $-0.004$ text score) are within the
-noise floor observed in the repeat-stability analysis and should not be
-over-interpreted as a structural gain: the analysis step output is not
-propagated to the visualization step, so neither sub-score is affected
-by the other.
+and~\ref{fig:test02_metric_heatmap} reveals two useful details. First, the E4B
+direct metrics confirm that the one-repeat quality gains are not only downstream
+noise: lookup \texttt{top\_p=0.94} raises \texttt{csv\_iou} by about 0.139, and
+the best visualization settings also raise \texttt{vis\_score} strongly.
+Second, for \texttt{gemma4:26b}, the analysis/temperature cell is negative in
+the direct metric heatmap, meaning that temperature changes can degrade the
+analysis text itself rather than merely propagating losses forward. Conversely,
+small positive quality deltas in Gemma~26B analysis are near the repeat noise
+floor and should not be over-interpreted as structural gains.
 
 \subsubsection{Quality-Energy Trade-off Across Configurations}
 
@@ -679,7 +687,7 @@ also save or cost energy.
     \label{fig:test02_pareto}
 \end{figure}
 
-The two models occupy structurally different regions of the plot.
+The three models occupy structurally different regions of the plot.
 \texttt{mistral-small3.2:24b} configurations form a narrow vertical
 band near $\Delta E = 0$: quality varies across parameter choices but
 energy consumption remains nearly constant, reflecting the model's
@@ -692,21 +700,27 @@ internal sampling at the analysis step.
 For Mistral, parameter tuning is therefore primarily a quality concern;
 energy cost is largely insensitive to the chosen value.
 
+\texttt{gemma4:e4b} occupies an intermediate-cost region. The strongest E4B
+quality gains are lookup configurations, many of which add only a few
+$10^{-4}$~kWh per prompt. This is the main new information from including E4B
+directly in the plot: the small thinking model has a practical static-tuning
+lever that is cheaper than the Gemma~26B visualization improvements.
+
 \texttt{gemma4:26b} shows the opposite profile.
 Its configurations are scattered across a wide energy range, and the
 upper half of the scatter — quality-improving configurations — is
 dominated almost exclusively by visualization-step variants.
-All ten top-quality improvements belong to \texttt{gemma4:26b}
-visualization, clustered in the upper-right quadrant (quality gain with
-a moderate energy increase).
+Within the repeated Gemma~26B data, the strongest quality improvements belong
+to visualization variants, clustered in the upper-right quadrant (quality gain
+with a moderate energy increase).
 The best absolute improvement, \texttt{visualization\_repeat\_penalty\_1},
-delivers $+0.068$ quality and $+0.052$ vis\_score at a cost of
-$+0.00128$~kWh and $+23.5$~s per prompt.
+delivers $+0.068$ quality at a cost of $+0.00128$~kWh and $+23.5$~s per
+prompt, although its direct \texttt{vis\_score} is nearly unchanged.
 A more energy-conscious option is
-\texttt{visualization\_repeat\_penalty\_1p03}: it yields $+0.052$
-quality and equal vis\_score gain for only $+0.00057$~kWh and
-$+12.9$~s — roughly half the energy overhead of the best-quality
-setting.
+\texttt{visualization\_repeat\_penalty=1.03}: it yields $+0.051$ quality and
+the best direct \texttt{vis\_score} gain ($+0.030$) for only
+$+0.00057$~kWh and $+12.9$~s — roughly half the energy overhead of the
+best-quality setting.
 These results indicate that the visualization step is the primary tuning
 lever for \texttt{gemma4:26b}: modest parameter changes here produce the
 largest and most consistent quality returns across the entire test.
@@ -727,13 +741,17 @@ energy variation explicit.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.90\textwidth]{Images/test02v2_resource_delta_by_step.png}
-    \caption{Test~02: energy delta distribution by agent step for both models.}
+    \caption{Test~02: energy delta distribution by agent step for all complete runs.}
     \label{fig:test02_energy_dist}
 \end{figure}
 
 For \texttt{mistral-small3.2:24b} all three boxes are narrow and centred
 near zero, confirming that parameter choices have negligible energy
 consequences regardless of the step being tuned.
+For \texttt{gemma4:e4b}, lookup contains several high-quality improvements
+with very small energy deltas, especially the best \texttt{top\_p} settings.
+This makes E4B lookup tuning a plausible Pareto candidate despite the
+one-repeat caveat.
 For \texttt{gemma4:26b} the picture is more articulated: the analysis
 step shows a distribution skewed towards negative deltas — lower
 temperatures and tighter sampling constraints reduce output length and
@@ -747,7 +765,7 @@ overhead seen in the top quality-improving configurations.
 \subsubsection{Best and Worst Configurations}
 
 Table~\ref{tab:test02bestworst} lists the top quality-improving and
-top quality-degrading configurations across both models and all steps,
+top quality-degrading configurations across all models and all steps,
 along with the corresponding direct step-metric delta, energy delta,
 and latency delta.
 
@@ -762,25 +780,25 @@ and latency delta.
 \hline
 \multicolumn{7}{|l|}{\cellcolor{bluePoli!10}\textit{Top quality improvements}} \T\B \\
 \hline
-\texttt{gemma4:26b} & Vis. & \texttt{repeat\_penalty\_1}    & $+$0.0684 & $+$0.0521 & $+$0.00128 & $+$23.5 \T\B \\
+\texttt{gemma4:e4b} & Lookup & \texttt{top\_p\_0.94}        & $+$0.1168 & $+$0.1393 & $+$0.00050 & $+$7.4 \T\B \\
 \hline
-\texttt{gemma4:26b} & Vis. & \texttt{top\_k\_20}             & $+$0.0663 & $+$0.0443 & $+$0.00107 & $+$21.0 \T\B \\
+\texttt{gemma4:e4b} & Lookup & \texttt{top\_p\_0.98}        & $+$0.1165 & $+$0.1254 & $+$0.00028 & $+$5.5 \T\B \\
 \hline
-\texttt{gemma4:26b} & Vis. & \texttt{top\_k\_48}             & $+$0.0593 & $+$0.0234 & $+$0.00083 & $+$17.8 \T\B \\
+\texttt{gemma4:e4b} & Lookup & \texttt{temperature\_0.95}   & $+$0.1154 & $+$0.0851 & $+$0.00320 & $+$83.4 \T\B \\
 \hline
-\texttt{gemma4:26b} & Vis. & \texttt{top\_k\_128}            & $+$0.0559 & $+$0.0052 & $+$0.00070 & $+$15.6 \T\B \\
+\texttt{gemma4:e4b} & Lookup & \texttt{temperature\_0.8}    & $+$0.1148 & $+$0.0773 & $+$0.00183 & $+$46.8 \T\B \\
 \hline
-\texttt{gemma4:26b} & Vis. & \texttt{repeat\_penalty\_1p03}  & $+$0.0517 & $+$0.0521 & $+$0.00057 & $+$12.9 \T\B \\
+\texttt{gemma4:e4b} & Lookup & \texttt{top\_p\_0.85}        & $+$0.1119 & $+$0.0950 & $+$0.00307 & $+$79.4 \T\B \\
 \hline
 \multicolumn{7}{|l|}{\cellcolor{bluePoli!10}\textit{Largest quality losses}} \T\B \\
 \hline
+\texttt{gemma4:e4b}           & Analysis & \texttt{repeat\_last\_n\_128} & $-$0.1291 & $-$0.1236 & $-$0.00030 & $-$4.7 \T\B \\
+\hline
+\texttt{gemma4:e4b}           & Analysis & \texttt{top\_p\_0.7}          & $-$0.1285 & $-$0.0852 & $-$0.00049 & $-$8.1 \T\B \\
+\hline
 \texttt{gemma4:26b}           & Lookup  & \texttt{top\_k\_56}           & $-$0.1229 & \phantom{$-$}0.0000 & $+$0.00157 & $+$34.4 \T\B \\
 \hline
-\texttt{gemma4:26b}           & Analysis & \texttt{top\_p\_0.75}         & $-$0.1111 & $-$0.1375 & $-$0.00000 & $-$1.5 \T\B \\
-\hline
-\texttt{mistral-small3.2:24b} & Analysis & \texttt{repeat\_penalty\_1.2} & $-$0.0986 & $-$0.1708 & $+$0.00337 & $+$90.4 \T\B \\
-\hline
-\texttt{gemma4:26b}           & Analysis & \texttt{top\_p\_0.88}         & $-$0.0896 & $-$0.1125 & $-$0.00028 & $-$5.6 \T\B \\
+\texttt{gemma4:e4b}           & Analysis & \texttt{temperature\_1.05}    & $-$0.1229 & $-$0.1250 & $+$0.00015 & $+$1.7 \T\B \\
 \hline
 \end{tabular}%
 }
@@ -788,27 +806,36 @@ and latency delta.
 \label{tab:test02bestworst}
 \end{table}
 
-A notable feature of the improvement list is its homogeneity: all five
-top configurations target the \texttt{gemma4:26b} visualization step.
-This directly validates the Test~01 finding that visualization was
-simultaneously the weakest and most energy-intensive step for that
-model. The best single configuration, \texttt{visualization\_repeat\_penalty\_1}
-(setting repeat penalty to neutral 1.0, vs.\ the baseline of~1.1), improves overall pipeline quality
-by~$+0.068$ and the direct \texttt{vis\_score} by~$+0.052$, at a cost
-of only $+0.00128$~kWh and about~24 additional seconds per prompt —
-a highly favourable trade-off.
+A notable feature of the improvement list is that the top rows now belong to
+\texttt{gemma4:e4b} lookup. This does not overturn the Gemma~26B visualization
+result, because the E4B rows have only one repeat, but it shows that the small
+thinking model has a high-upside and relatively cheap tuning lever. In
+particular, \texttt{top\_p=0.94} improves prompt quality by~$+0.117$ and
+\texttt{csv\_iou} by~$+0.139$ for only $+0.00050$~kWh/prompt.
 
-On the loss side, the Mistral \texttt{analysis\_repeat\_penalty\_1.2}
-configuration stands out: it is the only Mistral configuration that
-causes a large degradation ($-0.099$ quality, $-0.171$ text score)
-and it simultaneously inflates latency by~$+90$~s and energy by
-$+0.00337$~kWh, making it the most counterproductive single setting
-across the entire experiment. This is likely caused by the repetition
-penalty forcing the model to avoid reusing vocabulary, which for an
-analytical summarisation task that inherently must repeat column names
-and numerical values breaks coherent output generation.
+On the loss side, E4B analysis settings dominate the worst rows. This is
+consistent with the difficulty analysis below: when the small thinking model's
+analysis generation is destabilized, the damage concentrates on difficult
+prompts and can be large. The Mistral
+\texttt{analysis\_repeat\_penalty=1.2} configuration remains an important
+misconfiguration even though it no longer appears in the top four worst rows:
+it loses about~0.099 quality and adds about~90~s/prompt.
 
 \subsubsection{Per-Model Analysis}
+
+\paragraph{\texttt{gemma4:e4b}.}
+
+\texttt{gemma4:e4b} is complete for only one repeat, but within that repeat it
+is the most sensitive model in Test~02. Its range is 0.223 at lookup, 0.196 at
+visualization, and 0.191 at analysis. The largest useful signal is lookup
+tuning: \texttt{lookup\_top\_p=0.94} improves prompt E2E quality by~$+0.117$
+and \texttt{csv\_iou} by~$+0.139$ with only a small energy increase. The
+negative side is just as important: analysis settings such as
+\texttt{repeat\_last\_n=128} and low \texttt{top\_p} can degrade quality by
+about~0.13. Thus E4B should be treated as a high-leverage but fragile small
+thinking model. The exact parameter values remain one-repeat evidence, but the
+structural conclusion is clear enough to motivate the later focus on E4B lookup
+repair.
 
 \paragraph{\texttt{gemma4:26b}.}
 
@@ -843,18 +870,6 @@ misconfiguration described above, which serves as a warning against
 assuming that insensitivity to improvement implies insensitivity to
 regression.
 
-\paragraph{\texttt{gemma4:e4b} supplemental repeat.}
-
-The recovered \texttt{gemma4:e4b} repeat is complete but single-run, so it is
-used only as supporting context. Directionally, it shows that the small
-thinking model is closer to \texttt{gemma4:26b} than to Mistral in sensitivity:
-all three steps can move quality by about 0.19--0.22 between the best and worst
-settings. The largest useful signal is lookup tuning, where
-\texttt{lookup\_top\_p\_0p94} improves prompt E2E quality by~$+0.117$ with only
-a small energy increase. This helps explain why later experiments focus on
-repairing E4B's lookup step with static settings and CoT, but the exact Test~02
-E4B static values are not treated as final recommendations.
-
 \subsubsection{Accuracy by Prompt Difficulty}
 
 Figures~\ref{fig:test02_diff_baseline} and~\ref{fig:test02_diff_delta} examine
@@ -874,25 +889,21 @@ whether parameter sensitivity is uniform across prompt difficulty levels.
     \label{fig:test02_diff_delta}
 \end{figure}
 
-Parameter sensitivity is not uniform across task difficulty. \texttt{gemma4:26b}
-obtains the largest difficulty-specific gains on its weakest slices: visualization
-at difficulty~1 (\texttt{repeat\_penalty=1.0}, $+0.246$) and lookup at
-difficulty~1 (\texttt{repeat\_last\_n=128}, $+0.194$), confirming that OFAT
-tuning is most effective where the baseline is already low. However, the same
-model also incurs the largest negative swings: analysis at difficulty~4 degrades
-by~$-0.312$ under \texttt{repeat\_last\_n=96} and visualization at difficulty~4
-by~$-0.250$, indicating that the thinking model becomes unstable when a parameter
-disrupts the model's thinking process on hard prompts. \texttt{mistral-small3.2:24b}
-shows a much flatter sensitivity profile across all difficulty levels, with gains
-and losses well below those of Gemma~26B. This robustness confirms Mistral as a
-safe baseline but also means that one-parameter OFAT tuning finds little room for
-improvement for this model.
-The supplemental \texttt{gemma4:e4b} repeat shows the same difficulty effect
-qualitatively: the largest positive and negative swings are concentrated on
-difficulty~4, where some lookup and visualization settings improve by more than
-$+0.40$ but unstable analysis settings can lose more than $-0.70$. Since this
-is not repeated, the point is not the exact magnitude but the pattern: hard
-prompts amplify parameter sensitivity.
+Parameter sensitivity is not uniform across task difficulty. The largest
+observed swings belong to the one-repeat \texttt{gemma4:e4b} run:
+visualization at difficulty~4 improves by~$+0.431$ under
+\texttt{repeat\_penalty=0.9}, lookup at difficulty~4 improves by~$+0.417$
+under \texttt{repeat\_penalty=1.08}, and analysis at difficulty~4 can lose
+as much as~$-0.728$ under \texttt{temperature=1.2}. The exact magnitudes should
+not be over-claimed because E4B has one repeat, but the pattern is clear:
+hard prompts amplify the effect of parameter tuning.
+
+\texttt{gemma4:26b} shows the same mechanism with matched repeats, but at a
+smaller scale. It obtains large gains on weak slices, such as visualization at
+difficulty~1 ($+0.246$) and lookup at difficulty~1 ($+0.194$), while analysis
+at difficulty~4 can degrade by~$-0.312$. \texttt{mistral-small3.2:24b} remains
+flatter across difficulty levels, confirming it as a robust baseline but also
+showing why static OFAT tuning finds little upside for this model.
 
 \subsubsection{Summary}
 
@@ -900,6 +911,12 @@ Test~02 establishes that sensitivity to static sampling parameter tuning
 is a model-level property, not a step-level one:
 
 \begin{enumerate}
+    \item \textbf{\texttt{gemma4:e4b} must be included in the Test~02
+          comparison, with a one-repeat caveat.} Its lookup, analysis, and
+          visualization ranges are all large, and lookup \texttt{top\_p}
+          variants provide the strongest observed static gains at low energy
+          cost.
+
     \item \textbf{\texttt{gemma4:26b} is highly tunable but fragile.}
           Sensitivity ranges reach~0.155 for lookup and~0.118 for analysis.
           The visualization step is the most rewarding target: all parameter
@@ -912,21 +929,19 @@ is a model-level property, not a step-level one:
           is robust to misconfiguration but also leaves little room for
           improvement through static hyperparameter tuning.
 
-    \item \textbf{The top-5 quality improvements all target Gemma~26B
-          visualization.} This directly follows from the Test~01
-          diagnosis: the step that was weakest and most costly at baseline
-          is also the most responsive to tuning.
+    \item \textbf{The best repeated Gemma~26B gains still target
+          visualization.} E4B lookup dominates the one-repeat top-gain table,
+          but Gemma~26B's repeated evidence still points to visualization as
+          its main tuning lever.
 
     \item \textbf{Temperature reduction hurts Gemma~26B analysis.}
           The thinking model's analysis quality degrades when temperature
           is lowered below the baseline of~1.0, suggesting that the
           model's thinking process benefits from sampling diversity.
 
-    \item \textbf{\texttt{gemma4:e4b} is directionally sensitive but only
-          single-repeat.} The recovered repeat shows large lookup,
-          visualization, and analysis ranges, supporting the later focus on
-          E4B lookup repair. Its exact Test~02 static settings are treated as
-          exploratory rather than final.
+    \item \textbf{Prompt difficulty magnifies tuning effects.} The largest
+          gains and losses concentrate on hard prompts, especially for the
+          thinking Gemma models.
 \end{enumerate}
 
 \subsection{Test 03 - \texttt{max\_tokens} Ladder per Agent}
