@@ -745,10 +745,10 @@ For the analysis and visualisation steps, the no-GT evaluator uses an LLM judge
 that scores the output against the retrieved data and the original question, rather
 than against a reference text.
 
-\subsubsection{\textcolor{red}{Output: the \texttt{detail\_combined} CSV}}
+\subsubsection{Output CSV}
 
 At the end of a benchmark run, all per-item results are aggregated into a single
-\texttt{detail\_combined} CSV file. Each row corresponds to one benchmark item and
+output CSV file. Each row corresponds to one benchmark item and
 contains the columns summarised in Table~\ref{tab:output_cols}.
 
 \begin{table}[H]
@@ -775,12 +775,12 @@ contains the columns summarised in Table~\ref{tab:output_cols}.
 \hline
 \texttt{lookup/analyzing/} \texttt{vis\_llm\_time\_sec} & Time spent in LLM calls per step (sum of BoN candidates, CoT iterations, and judge calls) \T\B \\
 \hline
-\texttt{\{step\}\_llm\_energy\_kwh}, \texttt{\{step\}\_llm\_{cpu|gpu|ram}\_} \texttt{energy\_kwh}, \texttt{\{step\}\_llm\_emissions\_co2} & Per-step LLM energy breakdown (5 fields $\times$ 3 steps); \texttt{None} when CodeCarbon is disabled \T\B \\
+\texttt{\{step\}\_llm\_energy\_kwh}, \texttt{\{step\}\_llm\_{cpu|gpu|ram}\_} \texttt{energy\_kwh}, \texttt{\{step\}\_llm\_emissions\_co2} & Per-step energy of the LLM calls --- total, CPU, GPU and RAM energy (kWh) and CO$_2$ emissions (kg) --- for each of the 3 steps (5 fields $\times$ 3 steps; see the Energy Consumption Monitoring subsection below); \texttt{None} when CodeCarbon is disabled \T\B \\
 \hline
 \texttt{energy\_consumed\_kwh}, \texttt{cpu/gpu/ram\_energy\_kwh}, \texttt{emissions\_kg\_co2} & Run-level total energy and CO$_2$ covering the full agent invocation; \texttt{None} when CodeCarbon is disabled \T\B \\
 \hline
 \end{tabular}
-\caption{Main columns of the \texttt{detail\_combined} output CSV.}
+\caption{Main columns of the output CSV.}
 \label{tab:output_cols}
 \end{table}
 

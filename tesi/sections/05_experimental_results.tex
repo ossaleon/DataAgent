@@ -362,6 +362,25 @@ component level, but pays a 47\,\% energy premium and is 54\,\% slower.
 at 2.77$\times$ the energy, confirming that larger model scale does not
 compensate for step-level weaknesses without targeted tuning.
 
+These relative figures also expose a tight coupling between latency and
+energy that recurs throughout the thesis. For every model the relative
+latency and the relative energy are almost identical
+(\texttt{gemma4:e4b}: 1.54$\times$ time vs.\ 1.47$\times$ energy;
+\texttt{gemma4:26b}: 2.78$\times$ vs.\ 2.77$\times$), the two rankings
+never diverging by more than about five percentage points. This is the
+expected consequence of measuring on fixed hardware: the inference server
+draws a near-constant average power during generation, so per-prompt energy
+is essentially that power multiplied by wall-clock time. The same lockstep
+behaviour reappears in the later tests --- the
+\texttt{analysis\_repeat\_penalty\_1.2} misconfiguration in Test~02
+inflates latency and energy together ($+90.4$~s and $+0.00337$~kWh), and
+the Test~04 cost multiplier rises in parallel for time and energy. The
+methodological consequence is decisive: because latency and energy encode
+the same ordering, \emph{energy per prompt is adopted as the single
+efficiency axis} for every quality--cost trade-off and Pareto frontier in
+the remaining tests, while absolute latency is kept in the tables only for
+response-time-constrained deployments.
+
 \subsubsection{Per-Model Error Analysis}
 \label{subsubsec:test01errors}
 

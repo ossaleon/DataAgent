@@ -4,7 +4,32 @@
 \section{Experiment Design}
 \label{sec:experimentdesign}
 
-The experimental campaign was carried out across two hardware environments.
+The experimental campaign is structured into five experiments, each isolating a distinct
+aspect of model behaviour or configuration:
+
+\begin{itemize}
+    \item \textbf{Test 01 --- Baseline Model Comparison}: runs each candidate
+          model with its Ollama-recommended default configuration on the full
+          20-prompt benchmark to establish a quality and efficiency reference.
+    \item \textbf{Test 02 --- Per-Agent Sensitivity Analysis}: sweeps five
+          static sampling hyperparameters one at a time (One-Factor-At-a-Time,
+          OFAT) across each agent step to quantify their individual effect on
+          pipeline quality.
+    \item \textbf{Test 03 --- \texttt{max\_tokens} Ladder per Agent}: varies
+          the output token budget for each agent step across four discrete
+          levels to identify the minimum safe cap and any quality sensitivity
+          to the budget.
+    \item \textbf{Test 04 --- Compute Expansion (CoT Depth Ladder)}: applies
+          Chain-of-Thought refinement at depths 1--4 on the lookup and
+          visualization steps; a targeted follow-up (Test~04b) checks whether
+          Best-of-N temperature sampling provides genuine benefit through
+          candidate selection.
+    \item \textbf{Test 05 --- Final Pareto Confirmation}: evaluates the most
+          promising combined configurations from Tests~02--04 on the full
+          benchmark to establish the definitive quality-versus-energy Pareto frontier.
+\end{itemize}
+
+The campaign was carried out across two hardware environments.
 Tests 01, 02, and 05 were conducted on a dedicated remote Linux server used
 exclusively for inference workloads; its hardware and software specifications
 are reported in Table~\ref{tab:server}. Tests 03, 04, and 04b were instead
@@ -171,8 +196,7 @@ Beam search (\texttt{num\_beams}) & 1   & 1    & 1    \T\B \\
 \texttt{max\_tokens} — visualization & 7000 & 7000 & 7000 \T\B \\
 \hline
 \end{tabular}
-\caption{Baseline hyperparameter configuration for Test 01, taken from the
-         Ollama-recommended settings for each model.}
+\caption{Baseline hyperparameter configuration for Test 01.}
 \label{tab:test01baseline}
 \end{table}
 
@@ -436,6 +460,21 @@ the same evidential status as a full-benchmark measurement.
 The primary metrics are \texttt{quality\_mean}, prompt-level end-to-end
 quality (which penalises missing downstream scores caused by upstream
 failures), completion rate, elapsed time, and energy per prompt.
+
+Although execution time and energy are both recorded, they are treated as
+two readings of the same underlying cost rather than as independent axes.
+On fixed inference hardware the accelerator draws a near-constant average
+power during generation, so per-prompt energy is, to first order, a fixed
+multiple of wall-clock latency; the baseline campaign confirms this, with
+the per-model latency and energy rankings coinciding to within about five
+percentage points (Table~\ref{tab:test01relativecost}). The
+quality--cost trade-offs and Pareto frontiers in
+Section~\ref{sec:experiments} therefore use energy per prompt as the single
+representative efficiency axis, while absolute latency is still reported in
+the per-test tables for deployments bound by response-time limits. Energy
+is preferred as the headline axis because it simultaneously captures the
+sustainability dimension and, unlike wall-clock time, aggregates the CPU,
+GPU, and RAM contributions measured by CodeCarbon.
 
 \subsubsection{Deployment with Docker}
 
