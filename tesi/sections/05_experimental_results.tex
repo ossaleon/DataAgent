@@ -77,21 +77,14 @@ reaches~0.821, while Gemma~26B trails at~0.772.
 \label{tab:test01aggregate}
 \end{table}
 
-Figure~\ref{fig:test01_acc_energy} maps component E2E quality against mean
-energy consumption per prompt. \texttt{mistral-small3.2:24b} occupies the
-top-left Pareto corner: it achieves the highest strict quality at the lowest
-energy cost. \texttt{gemma4:e4b} reaches a nearly identical component E2E
-quality (0.821 vs.\ 0.827) but at 1.47$\times$ the energy and 1.54$\times$
-the latency. \texttt{gemma4:26b} is Pareto-dominated by both competitors: it
-records the lowest strict quality while consuming 2.77$\times$ the energy of
-Mistral, with its visualization score (0.500) being the primary drag.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.80\textwidth]{Images/test01_final_accuracy_vs_energy.png}
-    \caption{Test~01: component E2E quality vs.\ mean energy per prompt (Pareto).}
-    \label{fig:test01_acc_energy}
-\end{figure}
+These aggregate values already define the baseline quality--energy ordering.
+\texttt{mistral-small3.2:24b} is the strongest baseline because it combines
+the highest strict quality with the lowest energy cost.
+\texttt{gemma4:e4b} reaches a nearly identical component E2E quality
+(0.821 vs.\ 0.827) but at 1.47$\times$ the energy and 1.54$\times$ the
+latency. \texttt{gemma4:26b} is Pareto-dominated at baseline: it records the
+lowest strict quality while consuming 2.77$\times$ the energy of Mistral, with
+its visualization score (0.500) being the primary drag.
 
 \subsubsection{Repeat Stability}
 
@@ -144,17 +137,10 @@ scores because they depend on generated-token length and GPU runtime state.
 
 \subsubsection{Pipeline Completion and Reliability}
 
-Figure~\ref{fig:test01_completion} shows the pipeline completion rate for each
-model. Across three repeats, all models produce complete CSV outputs for every
-prompt, but both text and visualization steps produce some missing expected
-scores concentrated on a small number of difficult prompts.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.80\textwidth]{Images/test01_final_completion_rates.png}
-    \caption{Test~01: pipeline completion rate by model and output type.}
-    \label{fig:test01_completion}
-\end{figure}
+Table~\ref{tab:test01completeness} reports the pipeline completion counts for
+each model. Across three repeats, all models produce complete CSV outputs for
+every prompt, but both text and visualization steps produce some missing
+expected scores concentrated on a small number of difficult prompts.
 
 \begin{table}[H]
 \centering
@@ -217,170 +203,6 @@ The figure reveals distinct failure modes across the three models:
           being the main source of quality loss.
 \end{itemize}
 
-\subsubsection{Accuracy by Prompt Difficulty}
-
-The benchmark is stratified across four SQL difficulty levels.
-Table~\ref{tab:test01difficulty} and Figure~\ref{fig:test01_by_difficulty}
-report the prompt E2E quality per difficulty tier, counting missing expected
-outputs as zero.
-
-\begin{table}[H]
-\centering
-\arrayrulecolor{black}
-\begin{tabular}{|c|c|c|c|}
-\hline
-\rowcolor{bluePoli!30}
-\textbf{Difficulty} & \textbf{\texttt{gemma4:e4b}} & \textbf{\texttt{gemma4:26b}} & \textbf{\texttt{mistral-small3.2:24b}} \T\B \\
-\hline
-1 & 0.895 & 0.695 & 0.976 \T\B \\
-\hline
-2 & 0.929 & 0.772 & 0.940 \T\B \\
-\hline
-3 & 0.848 & 0.858 & 0.911 \T\B \\
-\hline
-4 & 0.634 & 0.910 & 0.474 \T\B \\
-\hline
-\end{tabular}
-\caption{Prompt E2E quality per SQL difficulty level in Test~01 (averaged over three repeats).}
-\label{tab:test01difficulty}
-\end{table}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{Images/test01_final_accuracy_by_difficulty.png}
-    \caption{Test~01: prompt E2E quality by SQL difficulty level.}
-    \label{fig:test01_by_difficulty}
-\end{figure}
-
-The difficulty split reveals that no model dominates uniformly. At
-difficulties~1 through~3, \texttt{mistral-small3.2:24b} is the strongest
-or co-strongest model (0.911--0.976). The critical divergence occurs at
-difficulty~4: \texttt{gemma4:26b} rises to~0.910 --- the best score on the
-hardest prompts --- while both \texttt{mistral-small3.2:24b} (0.474) and
-\texttt{gemma4:e4b} (0.634) fall sharply. Both models fail consistently on
-difficulty-4 prompts requiring nested monthly revenue aggregation across
-multiple years, generating queries with incorrect column aliases or date
-fields in outer subqueries. \texttt{gemma4:26b}'s advantage on hard SQL
-comes at the cost of lower performance on the more frequent difficulty-1
-and~2 prompts (0.695 and 0.772), which is the main reason its aggregate
-quality ranks last. This pattern motivates the lookup-step targeted
-interventions explored in Tests~02 and~04.
-
-\subsubsection{Step-Level Latency and Energy}
-
-Figures~\ref{fig:test01_latency} and~\ref{fig:test01_energy} break down the
-mean LLM call time and energy per prompt by agent step. Numerical values are
-reported in Tables~\ref{tab:test01latency} and~\ref{tab:test01energy}.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.82\textwidth]{Images/test01_final_per_agent_latency_breakdown.png}
-    \caption{Test~01: mean LLM call time per prompt by agent step.}
-    \label{fig:test01_latency}
-\end{figure}
-
-\begin{table}[H]
-\centering
-\arrayrulecolor{black}
-\begin{tabular}{|l|c|c|c|c|}
-\hline
-\rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Lookup (s)} & \textbf{Analysis (s)} & \textbf{Visualization (s)} & \textbf{Dominant step} \T\B \\
-\hline
-\texttt{gemma4:e4b}           & 7.5 & 20.9 & 21.1 & visualization \T\B \\
-\hline
-\texttt{gemma4:26b}           & 19.6 & 35.3 & 53.1 & visualization \T\B \\
-\hline
-\texttt{mistral-small3.2:24b} & 6.9 & 12.4 & 13.0 & visualization \T\B \\
-\hline
-\end{tabular}
-\caption{Mean LLM call time per prompt by agent step for Test~01.}
-\label{tab:test01latency}
-\end{table}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.82\textwidth]{Images/test01_final_per_agent_energy_breakdown.png}
-    \caption{Test~01: mean LLM energy per prompt by agent step (52--60\,\% in visualization).}
-    \label{fig:test01_energy}
-\end{figure}
-
-\begin{table}[H]
-\centering
-\arrayrulecolor{black}
-\begin{tabular}{|l|c|c|c|c|}
-\hline
-\rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Lookup (kWh)} & \textbf{Analysis (kWh)} & \textbf{Visualization (kWh)} & \textbf{Vis.\ share} \T\B \\
-\hline
-\texttt{gemma4:e4b}           & 0.000572 & 0.002102 & 0.003130 & 53.9\,\% \T\B \\
-\hline
-\texttt{gemma4:26b}           & 0.002147 & 0.003918 & 0.009205 & 60.3\,\% \T\B \\
-\hline
-\texttt{mistral-small3.2:24b} & 0.000595 & 0.001181 & 0.001957 & 52.4\,\% \T\B \\
-\hline
-\end{tabular}
-\caption{Test~01: mean LLM energy per prompt by agent step with visualization share.}
-\label{tab:test01energy}
-\end{table}
-
-Visualization is the dominant cost centre across all three models, accounting
-for 52--60\,\% of total per-prompt LLM energy. This is most pronounced for
-\texttt{gemma4:26b}, whose visualization step alone consumes 0.0092~kWh per
-prompt and takes a mean of~53~seconds --- exceeding the entire per-prompt
-time of \texttt{mistral-small3.2:24b} (48.9~s). The high visualization cost
-of the large Gemma model is particularly counterproductive given that its
-visualization E2E score (0.500) is the weakest of the three.
-\texttt{mistral-small3.2:24b} shows the most efficient profile across all
-three steps, with total per-prompt energy of 0.00601~kWh.
-
-Table~\ref{tab:test01relativecost} quantifies the efficiency gap relative
-to \texttt{mistral-small3.2:24b} as the reference:
-
-\begin{table}[H]
-\centering
-\arrayrulecolor{black}
-\begin{tabular}{|l|c|c|c|c|}
-\hline
-\rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Rel.\ prompt quality} & \textbf{Rel.\ comp.\ quality} & \textbf{Rel.\ time} & \textbf{Rel.\ energy} \T\B \\
-\hline
-\texttt{mistral-small3.2:24b} & 1.000 & 1.000 & 1.000 & 1.000 \T\B \\
-\hline
-\texttt{gemma4:e4b}           & 0.989 & 0.993 & 1.543 & 1.469 \T\B \\
-\hline
-\texttt{gemma4:26b}           & 0.965 & 0.934 & 2.783 & 2.774 \T\B \\
-\hline
-\end{tabular}
-\caption{Test~01: relative efficiency, normalised to \texttt{mistral-small3.2:24b}.}
-\label{tab:test01relativecost}
-\end{table}
-
-\texttt{gemma4:e4b} recovers quality within 1\,\% of Mistral at the
-component level, but pays a 47\,\% energy premium and is 54\,\% slower.
-\texttt{gemma4:26b} reaches only 93.4\,\% of Mistral's component quality
-at 2.77$\times$ the energy, confirming that larger model scale does not
-compensate for step-level weaknesses without targeted tuning.
-
-These relative figures also expose a tight coupling between latency and
-energy that recurs throughout the thesis. For every model the relative
-latency and the relative energy are almost identical
-(\texttt{gemma4:e4b}: 1.54$\times$ time vs.\ 1.47$\times$ energy;
-\texttt{gemma4:26b}: 2.78$\times$ vs.\ 2.77$\times$), the two rankings
-never diverging by more than about five percentage points. This is the
-expected consequence of measuring on fixed hardware: the inference server
-draws a near-constant average power during generation, so per-prompt energy
-is essentially that power multiplied by wall-clock time. The same lockstep
-behaviour reappears in the later tests --- the
-\texttt{analysis\_repeat\_penalty\_1.2} misconfiguration in Test~02
-inflates latency and energy together ($+90.4$~s and $+0.00337$~kWh), and
-the Test~04 cost multiplier rises in parallel for time and energy. The
-methodological consequence is decisive: because latency and energy encode
-the same ordering, \emph{energy per prompt is adopted as the single
-efficiency axis} for every quality--cost trade-off and Pareto frontier in
-the remaining tests, while absolute latency is kept in the tables only for
-response-time-constrained deployments.
-
 \subsubsection{Per-Model Error Analysis}
 \label{subsubsec:test01errors}
 
@@ -438,17 +260,17 @@ The main findings of Test~01 can be summarised as follows:
           energy and 1.54$\times$ the latency. It remains a viable candidate
           when absolute quality is prioritised over efficiency.
 
-    \item \textbf{Gemma~26B dominates only on the hardest prompts.}
-          \texttt{gemma4:26b} achieves the best score on difficulty-4 prompts
-          (0.910) where the other two models collapse, but its visualization
-          E2E score (0.500) and aggregate quality (0.772) are the weakest
-          overall. Without targeted visualization tuning it is
-          Pareto-dominated.
+    \item \textbf{Gemma~26B is held back by visualization.}
+          \texttt{gemma4:26b} achieves the strongest CSV and text component
+          scores, but its visualization E2E score (0.500) and aggregate
+          quality (0.772) are the weakest overall. Without targeted
+          visualization tuning it is Pareto-dominated.
 
-    \item \textbf{Visualization is the dominant energy lever.}
-          The visualization step accounts for 52--60\,\% of per-prompt LLM
-          energy across all models and is the agent step with the greatest
-          potential for efficiency improvement through parameter tuning.
+    \item \textbf{Failure modes are step-specific.}
+          Mistral and Gemma~E4B mainly lose quality through recurrent lookup
+          failures on hard aggregation prompts, while Gemma~26B mainly loses
+          quality in the visualization agent. This motivates the agent-specific
+          parameter sweeps in the following tests.
 \end{enumerate}
 
 \subsection{Test 02 - Per-Agent Sensitivity Analysis (OFAT)}
@@ -702,35 +524,6 @@ analysis configurations, most notably \texttt{lookup\_top\_k\_56}
 \texttt{lookup\_top\_k\_48} ($-0.083$ quality, $+0.00471$~kWh).
 These represent configurations to actively avoid in production deployment.
 
-\subsubsection{Energy Delta Distribution by Agent Step}
-
-Figure~\ref{fig:test02_energy_dist} shows the distribution of per-prompt
-energy deltas for each agent step via box plots, making the scale of
-energy variation explicit.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.90\textwidth]{Images/test02v2_resource_delta_by_step.png}
-    \caption{Test~02: energy delta distribution by agent step for all complete runs.}
-    \label{fig:test02_energy_dist}
-\end{figure}
-
-For \texttt{mistral-small3.2:24b} all three boxes are narrow and centred
-near zero, confirming that parameter choices have negligible energy
-consequences regardless of the step being tuned.
-For \texttt{gemma4:e4b}, lookup contains several high-quality improvements
-with very small energy deltas, especially the best \texttt{top\_p} settings.
-This makes E4B lookup tuning a plausible Pareto candidate.
-For \texttt{gemma4:26b} the picture is more articulated: the analysis
-step shows a distribution skewed towards negative deltas — lower
-temperatures and tighter sampling constraints reduce output length and
-therefore consume less energy than the baseline — while the lookup step
-has the widest spread and the largest positive outliers, driven by
-configurations that trigger longer SQL-generation chains.
-The visualization step sits in between: its distribution is
-consistently above zero, reflecting the moderate but predictable energy
-overhead seen in the top quality-improving configurations.
-
 \subsubsection{Best and Worst Configurations}
 
 Table~\ref{tab:test02bestworst} lists the top quality-improving and
@@ -972,13 +765,13 @@ the cap below the baseline yields a \emph{non-trivial} positive quality
 effect: a handful of other pairs also peak below their baseline cap
 (\texttt{gemma4:e4b} visualization, $+0.009$; \texttt{mistral-small3.2:24b}
 visualization, $+0.006$, and analysis, $+0.004$; \texttt{gemma4:e4b}
-analysis, $+0.001$; see Table~\ref{tab:test03bestcaps}), but by margins
+analysis, $+0.001$; see Table~\ref{tab:test03capsummary}), but by margins
 small enough to be indistinguishable from measurement noise.
 
 It must be noted, however, that even this $+0.020$ analysis gain is within the
 small-delta uncertainty observed for \texttt{gemma4:26b}, and that its direct
 \texttt{text\_score} delta is~$0.000$
-(Table~\ref{tab:test03bestcaps}); the analysis-cap effect should
+(Table~\ref{tab:test03capsummary}); the analysis-cap effect should
 therefore be read as directional rather than as a robust,
 metric-supported gain. The same caution applies to the $+0.022$
 visualization quality gain discussed below, which however is corroborated
@@ -1012,7 +805,7 @@ The Gemma~26B visualization result is the most actionable finding of
 this test. Increasing the visualization budget from the baseline 7000 to
 10000 tokens yields a \texttt{vis\_score} gain of~$+0.054$ and an
 overall quality gain of~$+0.022$ at essentially zero additional energy
-cost (see Table~\ref{tab:test03bestcaps}). For Gemma~26B, this cap
+cost (see Table~\ref{tab:test03capsummary}). For Gemma~26B, this cap
 increase is a straightforward free improvement. It is also the only
 visualization curve that does not show a visible plateau inside the tested
 range: the direct \texttt{vis\_score} continues to improve up to the
@@ -1123,76 +916,43 @@ particularly for \texttt{gemma4:e4b} at the visualization step.
 These are the only points where energy and quality move together
 downward, because a truncated generation is both shorter and useless.
 
-\subsubsection{Sensitivity Range and Best Caps}
-
-Tables~\ref{tab:test03range} and~\ref{tab:test03bestcaps} summarise the
-per-step sensitivity range and the best-performing cap for each
-(model, step) pair.
-
-\begin{table}[H]
-\centering
-\arrayrulecolor{black}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|l|c|c|c|l|}
-\hline
-\rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Step} & \textbf{Quality range} & \textbf{Metric range} & \textbf{Best quality cap} & \textbf{Worst cap} \T\B \\
-\hline
-\texttt{gemma4:e4b}           & Lookup        & 0.125 & 0.157 & 5{,}000  & 3{,}000 \T\B \\
-\hline
-\texttt{gemma4:e4b}           & Visualization & 0.075 & 0.253 & 4{,}000  & 10{,}000 \T\B \\
-\hline
-\texttt{gemma4:e4b}           & Analysis      & 0.025 & 0.021 & 5{,}000  & 4{,}000 \T\B \\
-\hline
-\texttt{gemma4:26b}           & Lookup        & 0.071 & 0.078 & 8{,}000  & 2{,}500 \T\B \\
-\hline
-\texttt{gemma4:26b}           & Visualization & 0.066 & 0.149 & 10{,}000 & 5{,}000 \T\B \\
-\hline
-\texttt{gemma4:26b}           & Analysis      & 0.027 & 0.021 & 4{,}000  & 5{,}000 \T\B \\
-\hline
-\texttt{mistral-small3.2:24b} & Visualization & 0.010 & 0.021 & 5{,}000  & 10{,}000 \T\B \\
-\hline
-\texttt{mistral-small3.2:24b} & Analysis      & 0.025 & 0.063 & 5{,}000  & 4{,}000 \T\B \\
-\hline
-\texttt{mistral-small3.2:24b} & Lookup        & 0.015 & 0.000 & 5{,}000  & 2{,}500 \T\B \\
-\hline
-\end{tabular}%
-}
-\caption{Test~03: sensitivity range and best quality cap per (model, step).}
-\label{tab:test03range}
-\end{table}
+Table~\ref{tab:test03capsummary} summarises the per-step sensitivity range and
+the best-performing cap for each (model, step) pair. The merged view preserves
+both pieces of information needed for interpretation: how wide the cap-induced
+quality/metric variation is, and whether the best cap differs materially from
+the baseline.
 
 \begin{table}[H]
 \centering
 \arrayrulecolor{black}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|l|c|c|c|c|c|}
+\begin{tabular}{|l|l|c|c|c|c|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Step} & \textbf{Baseline cap} & \textbf{Baseline quality} & \textbf{Best cap} & \textbf{$\Delta$ quality} & \textbf{$\Delta$ metric} \T\B \\
+\textbf{Model} & \textbf{Step} & \textbf{Qual. range} & \textbf{Metric range} & \textbf{Baseline cap} & \textbf{Best cap} & \textbf{$\Delta$ quality} & \textbf{$\Delta$ metric} & \textbf{Worst cap} \T\B \\
 \hline
-\texttt{gemma4:26b} & Analysis      & 7{,}000 & 0.8796 & \textbf{4{,}000}  & $+$0.020 & \phantom{$+$}0.000 \T\B \\
+\texttt{gemma4:e4b}           & Lookup        & 0.125 & 0.157 & 5{,}000 & 5{,}000  & \phantom{$+$}0.000 & \phantom{$+$}0.000 & 3{,}000 \T\B \\
 \hline
-\texttt{gemma4:26b} & Visualization & 7{,}000 & 0.8901 & \textbf{10{,}000} & $+$0.022 & $+$0.054 \T\B \\
+\texttt{gemma4:e4b}           & Visualization & 0.075 & 0.253 & 7{,}000 & 4{,}000  & $+$0.009 & \phantom{$+$}0.000 & 10{,}000 \T\B \\
 \hline
-\texttt{gemma4:26b} & Lookup        & 5{,}000 & 0.8818 & \textbf{8{,}000}  & $+$0.007 & $+$0.021 \T\B \\
+\texttt{gemma4:e4b}           & Analysis      & 0.025 & 0.021 & 7{,}000 & 5{,}000  & $+$0.001 & $+$0.017 & 4{,}000 \T\B \\
 \hline
-\texttt{gemma4:e4b} & Visualization & 7{,}000 & 0.7491 & \textbf{4{,}000}  & $+$0.009 & \phantom{$+$}0.000 \T\B \\
+\texttt{gemma4:26b}           & Lookup        & 0.071 & 0.078 & 5{,}000 & 8{,}000  & $+$0.007 & $+$0.021 & 2{,}500 \T\B \\
 \hline
-\texttt{gemma4:e4b} & Lookup        & 5{,}000 & 0.8292 & \textbf{5{,}000}  & \phantom{$+$}0.000 & \phantom{$+$}0.000 \T\B \\
+\texttt{gemma4:26b}           & Visualization & 0.066 & 0.149 & 7{,}000 & 10{,}000 & $+$0.022 & $+$0.054 & 5{,}000 \T\B \\
 \hline
-\texttt{gemma4:e4b} & Analysis      & 7{,}000 & 0.7251 & \textbf{5{,}000}  & $+$0.001 & $+$0.017 \T\B \\
+\texttt{gemma4:26b}           & Analysis      & 0.027 & 0.021 & 7{,}000 & 4{,}000  & $+$0.020 & \phantom{$+$}0.000 & 5{,}000 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Analysis      & 7{,}000 & 0.8611 & \textbf{5{,}000}  & $+$0.004 & $+$0.004 \T\B \\
+\texttt{mistral-small3.2:24b} & Visualization & 0.010 & 0.021 & 7{,}000 & 5{,}000  & $+$0.006 & \phantom{$+$}0.000 & 10{,}000 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 7{,}000 & 0.8555 & \textbf{5{,}000}  & $+$0.006 & \phantom{$+$}0.000 \T\B \\
+\texttt{mistral-small3.2:24b} & Analysis      & 0.025 & 0.063 & 7{,}000 & 5{,}000  & $+$0.004 & $+$0.004 & 4{,}000 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup        & 5{,}000 & 0.8625 & \textbf{5{,}000}  & \phantom{$+$}0.000 & \phantom{$+$}0.000 \T\B \\
+\texttt{mistral-small3.2:24b} & Lookup        & 0.015 & 0.000 & 5{,}000 & 5{,}000  & \phantom{$+$}0.000 & \phantom{$+$}0.000 & 2{,}500 \T\B \\
 \hline
 \end{tabular}%
 }
-\caption{Test~03: best \texttt{max\_tokens} cap per (model, step) (bold = differs from baseline).}
-\label{tab:test03bestcaps}
+\caption{Test~03: \texttt{max\_tokens} sensitivity range and best cap per (model, step).}
+\label{tab:test03capsummary}
 \end{table}
 
 \subsubsection{Accuracy by Prompt Difficulty}
@@ -1569,15 +1329,8 @@ The visualization step execution rate sits at approximately 60\,\% because \text
 
 \subsubsection{Accuracy by Prompt Difficulty}
 
-Figures~\ref{fig:test04_diff_depth} and~\ref{fig:test04_diff_delta} examine how
-CoT gains vary with prompt difficulty.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.90\textwidth]{Images/test04v2_difficulty_cot_depth.png}
-    \caption{Test~04: quality by CoT depth and prompt difficulty.}
-    \label{fig:test04_diff_depth}
-\end{figure}
+Figure~\ref{fig:test04_diff_delta} examines how CoT gains vary with prompt
+difficulty.
 
 \begin{figure}[H]
     \centering
@@ -1695,19 +1448,18 @@ different and superior strategy compared to sampling diversity alone.
 \label{subsec:res05}
 
 Test~05 evaluates the combined configurations described in
-Section~\ref{subsec:test05} on the full 20-prompt benchmark. Results cover the
-formal Pareto pool: Test~01 baselines (three repeats) and Test~05 combined
-candidates (two repeats). In addition, the analysis includes a separate
-screening-supported candidate pool with selected configurations from
-Tests~02--04. These reused rows are not mixed into the formal frontier because
-they were measured on smaller 10- or~15-prompt subsets, but they are useful for
-showing that the final Test~05 configurations were assembled from actual
-single-step gains rather than chosen post hoc.
+Section~\ref{subsec:test05}. The candidate set includes every useful
+configuration selected for the final Pareto analysis, including configurations
+whose measurements were already available from Tests~02--04. These rows are not
+treated as a separate pool: they are part of Test~05 by design, because the
+goal of the final test is to compare the best available candidate policies
+without rerunning configurations that had already been measured with the same
+judge.
 
 \subsubsection{Overall Ranking}
 
 Table~\ref{tab:test05ranking} reports the highest-ranking configurations by
-strict prompt E2E quality. The strongest final candidate is
+strict prompt E2E quality. The strongest candidate is
 \texttt{gemma4:e4b} with \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens}:
 it reaches prompt quality~0.937 with full completion, while consuming
 0.00602~kWh per prompt. This configuration combines the three interventions
@@ -1718,26 +1470,36 @@ lookup temperature (0.8), and lower token caps for the downstream steps.
 \centering
 \arrayrulecolor{black}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|l|c|c|c|c|c|}
+\begin{tabular}{|l|l|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Config} & \textbf{Comp.~E2E} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{Sec/prompt} & \textbf{kWh/prompt} \T\B \\
+\textbf{Model} & \textbf{Config} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
 \hline
-\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} & 0.9238 & 0.9371 & 100.0\,\% & 102.2 & 0.00602 \T\B \\
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} & 0.9371 & 100.0\,\% & 0.00602 \T\B \\
 \hline
-\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_temp\_0p8\_low\_cost\_tokens} & 0.9206 & 0.9287 & 100.0\,\% & 108.9 & 0.00645 \T\B \\
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_temp\_0p8\_low\_cost\_tokens} & 0.9287 & 100.0\,\% & 0.00645 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{combined\_cot\_static} & 0.9105 & 0.9206 & 98.1\,\% & 71.3 & 0.00449 \T\B \\
+\texttt{mistral-small3.2:24b} & \texttt{combined\_cot\_static} & 0.9206 & 98.1\,\% & 0.00449 \T\B \\
 \hline
-\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_temp\_0p8} & 0.9121 & 0.9189 & 100.0\,\% & 107.0 & 0.00633 \T\B \\
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_temp\_0p8} & 0.9189 & 100.0\,\% & 0.00633 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2\_efficient\_tokens} & 0.9063 & 0.9168 & 98.1\,\% & 70.7 & 0.00445 \T\B \\
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.9188 & 100.0\,\% & 0.00293 \T\B \\
 \hline
-\texttt{gemma4:26b} & \texttt{combined\_static\_direct} & 0.8271 & 0.8720 & 100.0\,\% & 153.3 & 0.00998 \T\B \\
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2\_efficient\_tokens} & 0.9168 & 98.1\,\% & 0.00445 \T\B \\
+\hline
+\texttt{gemma4:26b} & \texttt{visualization\_max\_tokens\_10000} & 0.9123 & 100.0\,\% & 0.00399 \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4} & 0.8972 & 100.0\,\% & 0.00444 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.8958 & 95.1\,\% & 0.00271 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & \texttt{analysis\_top\_k\_56} & 0.8931 & 95.2\,\% & 0.00414 \T\B \\
+\hline
+\texttt{gemma4:26b} & \texttt{combined\_static\_direct} & 0.8720 & 100.0\,\% & 0.00998 \T\B \\
 \hline
 \end{tabular}%
 }
-\caption{Test~05: strongest full-benchmark configurations by prompt E2E quality.}
+\caption{Test~05: strongest candidate configurations by prompt E2E quality.}
 \label{tab:test05ranking}
 \end{table}
 
@@ -1746,18 +1508,20 @@ appear on the strict prompt-quality Pareto frontier. Its best combined candidate
 (\texttt{combined\_static\_direct}) reaches prompt quality~0.872, improving
 the Test~01 baseline by~$+0.058$ while reducing energy by~0.00668~kWh per
 prompt, but this is still dominated by cheaper and more accurate candidates
-from Mistral and Gemma~E4B.
+from Mistral and Gemma~E4B in the final candidate set.
 
 \subsubsection{Final Pareto Frontier}
 
 Figure~\ref{fig:test05_pareto} and Table~\ref{tab:test05pareto} show the
 non-dominated configurations when maximising strict prompt E2E quality and
-minimising energy per prompt.
+minimising energy per prompt. This is a single unified frontier over the full
+Test~05 candidate set: no distinction is made between configurations measured
+directly in the final run and configurations reused from earlier tests.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth]{Images/test05_final_run_pareto_frontier.png}
-    \caption{Test~05: final full-benchmark Pareto frontier.}
+    \includegraphics[width=0.88\textwidth]{Images/test05_final_run_unified_candidate_pareto.png}
+    \caption{Test~05: unified candidate Pareto frontier.}
     \label{fig:test05_pareto}
 \end{figure}
 
@@ -1765,138 +1529,51 @@ minimising energy per prompt.
 \centering
 \arrayrulecolor{black}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|l|c|c|c|c|}
+\begin{tabular}{|l|l|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Model} & \textbf{Config} & \textbf{Comp.~E2E} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
+\textbf{Model} & \textbf{Config} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{combined\_static\_best\_efficient\_tokens} & 0.8273 & 0.8434 & 92.6\,\% & 0.00364 \T\B \\
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.8958 & 95.1\,\% & 0.00271 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{max\_tokens\_quality} & 0.8318 & 0.8531 & 92.6\,\% & 0.00365 \T\B \\
+\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.9188 & 100.0\,\% & 0.00293 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{combined\_cot\_static\_tokens} & 0.8794 & 0.8902 & 96.3\,\% & 0.00441 \T\B \\
+\texttt{mistral-small3.2:24b} & \texttt{combined\_cot\_static} & 0.9206 & 98.1\,\% & 0.00449 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2\_efficient\_tokens} & 0.9063 & 0.9168 & 98.1\,\% & 0.00445 \T\B \\
-\hline
-\texttt{mistral-small3.2:24b} & \texttt{combined\_cot\_static} & 0.9105 & 0.9206 & 98.1\,\% & 0.00449 \T\B \\
-\hline
-\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} & 0.9238 & 0.9371 & 100.0\,\% & 0.00602 \T\B \\
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} & 0.9371 & 100.0\,\% & 0.00602 \T\B \\
 \hline
 \end{tabular}%
 }
-\caption{Test~05: non-dominated configurations for prompt E2E quality vs.\ energy.}
+\caption{Test~05: non-dominated candidate configurations for prompt E2E quality vs.\ energy.}
 \label{tab:test05pareto}
 \end{table}
 
 The frontier has a clear structure. Mistral defines the low-energy region:
-several variants consume roughly 0.0036--0.0045~kWh per prompt, with quality
-rising as lookup CoT is added. Gemma~E4B defines the high-quality endpoint:
-its best final candidate costs about 34\,\% more energy than the best Mistral
-CoT candidate (0.00602 vs.\ 0.00449~kWh), but raises prompt quality from
-0.921 to~0.937 and reaches full completion. This is the strongest final
-evidence that the small thinking model can become the best accuracy-oriented
-choice when the fragile lookup step is repaired.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.90\textwidth]{Images/test05_final_run_baseline_deltas.png}
-    \caption{Test~05: quality and energy deltas of combined candidates relative to each model baseline.}
-    \label{fig:test05_deltas}
-\end{figure}
+lookup CoT creates two very efficient candidate points
+(\texttt{cot\_n=2} and \texttt{cot\_n=3}), and
+\texttt{combined\_cot\_static} extends the same family to slightly higher
+energy and quality. Gemma~E4B defines the high-quality endpoint: its best
+candidate costs about 34\,\% more energy than the strongest Mistral combined
+candidate (0.00602 vs.\ 0.00449~kWh), but raises prompt quality from 0.921
+to~0.937 and reaches full completion. This is the strongest final evidence
+that the small thinking model can become the best accuracy-oriented choice
+when the fragile lookup step is repaired. Gemma~26B has useful repaired
+configurations, especially the visualization-token candidate, but these are
+dominated once energy is included.
 
 Relative to its Test~01 baseline, the best Gemma~E4B candidate improves
 prompt quality by~$+0.102$ while reducing energy by~0.00281~kWh per prompt.
 The best Mistral candidate improves quality by~$+0.077$ and reduces energy
 by~0.00152~kWh per prompt. Gemma~26B also improves, but from a weaker
-full-benchmark baseline and at higher absolute cost; it is therefore useful
+baseline and at higher absolute cost; it is therefore useful
 as evidence that targeted tuning helps large MoE models, but not as the final
 Pareto recommendation.
-
-\subsubsection{Screening-Supported Candidate Pool}
-
-The final-run design intentionally avoided rerunning every promising
-single-axis configuration from Tests~02--04. To preserve that evidence, a
-secondary candidate-pool analysis merges the selected previous-test rows with
-the full-benchmark Test~01 and Test~05 rows. Figure~\ref{fig:test05_screening}
-shows this view: filled markers are full-benchmark measurements, while hollow
-markers are reused screening measurements. The figure should therefore be read
-as provenance for the final candidates, not as a replacement for the formal
-full-benchmark frontier in Figure~\ref{fig:test05_pareto}.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.88\textwidth]{Images/test05_final_run_screening_supported_pareto.png}
-    \caption{Test~05: screening-supported candidate pool. Filled points are full-benchmark rows; hollow points are selected screening rows from Tests~02--04.}
-    \label{fig:test05_screening}
-\end{figure}
-
-The selected screening rows confirm that the combined Test~05 configurations
-were built from measurable earlier effects. The strongest screening-only
-frontier rows are Mistral lookup-CoT candidates from Test~04:
-\texttt{lookup\_cot\_n3} reaches prompt quality~0.919 with full completion at
-0.00293~kWh per prompt on the 10-prompt subset, while
-\texttt{lookup\_cot\_n2} reaches 0.896 at 0.00271~kWh per prompt. These rows
-foreshadow the full-benchmark Mistral result, where lookup CoT moves the model
-from the cheap baseline region into the low-energy Pareto frontier.
-
-\begin{table}[H]
-\centering
-\arrayrulecolor{black}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|l|l|c|c|c|}
-\hline
-\rowcolor{bluePoli!30}
-\textbf{Source} & \textbf{Model} & \textbf{Config} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
-\hline
-Test~04 lookup CoT & \texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.9188 & 100.0\,\% & 0.00293 \T\B \\
-\hline
-Test~03 max tokens & \texttt{gemma4:26b} & \texttt{visualization\_max\_tokens\_10000} & 0.9123 & 100.0\,\% & 0.00399 \T\B \\
-\hline
-Test~04 lookup CoT & \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4} & 0.8972 & 100.0\,\% & 0.00444 \T\B \\
-\hline
-Test~04 lookup CoT & \texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.8958 & 95.1\,\% & 0.00271 \T\B \\
-\hline
-Test~02 static sensitivity & \texttt{mistral-small3.2:24b} & \texttt{analysis\_top\_k\_56} & 0.8931 & 95.2\,\% & 0.00414 \T\B \\
-\hline
-\end{tabular}%
-}
-\caption{Test~05: strongest selected screening rows reused as candidate provenance. These rows are not part of the formal full-benchmark frontier.}
-\label{tab:test05screening}
-\end{table}
-
-The same view also explains the final Gemma behaviour. For Gemma~E4B,
-lookup-CoT rows from Test~04 are already strong on the screening subset, and
-the best full-benchmark configuration becomes the one that combines lookup CoT
-with the lower lookup temperature and cost-aware downstream token caps. For
-Gemma~26B, the reused \texttt{visualization\_max\_tokens\_10000} row reaches
-0.912 prompt quality on the screening subset, confirming that the MoE model can
-benefit from additional visualization headroom; however, the full-benchmark
-Test~05 rows show that this improvement is not enough to overcome the model's
-higher energy cost.
-
-One planned screening source is deliberately absent: the Test~04b lookup-range
-rows are excluded because no usable final-run rows are available for that
-configuration family.
 
 \subsubsection{Pareto Frontier by Prompt Difficulty}
 
 The final Pareto picture changes when the benchmark is split by difficulty.
-Figure~\ref{fig:test05_diff_pareto} repeats the non-dominance analysis inside
-each difficulty level.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{Images/test05_final_run_pareto_by_difficulty.png}
-    \caption{Test~05: Pareto frontier split by prompt difficulty.}
-    \label{fig:test05_diff_pareto}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.88\textwidth]{Images/test05_final_run_frontier_difficulty_heatmap.png}
-    \caption{Test~05: difficulty-wise quality of the overall Pareto configurations.}
-    \label{fig:test05_diff_heatmap}
-\end{figure}
+Table~\ref{tab:test05difficulty} reports the representative best
+configurations inside each difficulty level.
 
 On difficulty~1 and~2 prompts, Mistral dominates the frontier: it is both
 cheap and highly accurate, reaching prompt quality close to~0.98 in the best
@@ -1944,19 +1621,14 @@ is robust completion rather than minimum energy.
 \subsubsection{Summary}
 
 \begin{enumerate}
-    \item \textbf{The full-benchmark frontier is the recommendation layer.}
-          Test~01 baselines and Test~05 combined candidates are the only rows
-          used for the formal Pareto frontier because they are the only rows
-          measured on the full 20-prompt benchmark.
-
-    \item \textbf{The screening pool is the provenance layer.}
-          Selected rows from Tests~02--04 show that the final configurations
-          were assembled from real single-step gains. They support the design
-          but do not replace the full-benchmark confirmation.
+    \item \textbf{The final candidate set is the recommendation layer.}
+          Test~05 compares all useful candidate configurations selected for
+          the final analysis, including configurations whose measurements were
+          already available from earlier tests.
 
     \item \textbf{The final Pareto front is not a pure model-size ranking.}
           The larger Gemma~26B MoE improves with targeted tuning but remains
-          dominated in the full-benchmark quality-energy frontier.
+          dominated in the quality-energy frontier.
 
     \item \textbf{Mistral is the low-energy frontier.}
           Combined Mistral configurations occupy the cheapest non-dominated

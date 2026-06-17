@@ -437,25 +437,11 @@ The configuration families are model-specific:
           sets with varied token caps.
 \end{itemize}
 
-All three models are evaluated on the full 20-prompt benchmark for two repeats.
-
-The formal Pareto pool combines:
-
-\begin{itemize}
-    \item the Test~01 baselines for all three models, measured on the full
-          benchmark with three repeats;
-    \item the new Test~05 combined candidates, measured on the full benchmark
-          with two repeats.
-\end{itemize}
-
-Single-axis configurations from Tests~02--04 are excluded from the formal
-Pareto frontier because they were measured on the 10- or~15-prompt screening
-subsets rather than on the full 20-prompt benchmark. They are still retained
-in a separate screening-supported view of the candidate pool: full-benchmark
-points are treated as the confirmation evidence, while the reused screening
-points explain which earlier single-step results motivated the final combined
-policies. This separation avoids giving a 10- or~15-prompt screening result
-the same evidential status as a full-benchmark measurement.
+The final candidate set combines the Test~01 baselines, the newly measured
+combined Test~05 policies, and useful configurations that had already been
+measured in Tests~02--04. This reuse is intentional: the purpose of Test~05 is
+to compare the best available candidate policies, not to rerun every
+configuration whose result was already known under the same judging setup.
 
 The primary metrics are \texttt{quality\_mean}, prompt-level end-to-end
 quality (which penalises missing downstream scores caused by upstream
@@ -467,8 +453,7 @@ On fixed inference hardware the accelerator draws a near-constant average
 power during generation, so per-prompt energy is, to first order, a fixed
 multiple of wall-clock latency; the baseline campaign confirms this, with
 the per-model latency and energy rankings coinciding to within about five
-percentage points (Table~\ref{tab:test01relativecost}). The
-quality--cost trade-offs and Pareto frontiers in
+percentage points. The quality--cost trade-offs and Pareto frontiers in
 Section~\ref{sec:experiments} therefore use energy per prompt as the single
 representative efficiency axis, while absolute latency is still reported in
 the per-test tables for deployments bound by response-time limits. Energy
