@@ -607,8 +607,7 @@ ranging from $+0.043$ (\texttt{top\_p}) to $+0.068$
 (\texttt{repeat\_penalty}). This is directly consistent with the Test~01
 finding that Gemma~26B's visualization step was its primary weakness:
 the step is not only weak at baseline but also the most responsive to
-tuning. The best visualization configurations and their quality gains are
-listed in Table~\ref{tab:test02bestworst}.
+tuning.
 
 The red cell at Analysis/\texttt{temperature} for \texttt{gemma4:26b}
 reveals an important asymmetry: reducing temperature below~1.0 hurts the
@@ -1875,11 +1874,9 @@ benefit from additional visualization headroom; however, the full-benchmark
 Test~05 rows show that this improvement is not enough to overcome the model's
 higher energy cost.
 
-One planned screening source is deliberately absent. The Test~04b lookup-range
-rows are excluded from this GPT-5.4 analysis because the final-run folder did
-not contain usable GPT-judged rows, while the older Test~04b execution used the
-local Ollama judge. Mixing those measurements would conflate model behaviour
-with judge differences.
+One planned screening source is deliberately absent: the Test~04b lookup-range
+rows are excluded because no usable final-run rows are available for that
+configuration family.
 
 \subsubsection{Pareto Frontier by Prompt Difficulty}
 
@@ -1949,8 +1946,8 @@ is robust completion rather than minimum energy.
 \begin{enumerate}
     \item \textbf{The full-benchmark frontier is the recommendation layer.}
           Test~01 baselines and Test~05 combined candidates are the only rows
-          used for the formal Pareto frontier because they share the same
-          20-prompt benchmark and GPT-5.4 judge.
+          used for the formal Pareto frontier because they are the only rows
+          measured on the full 20-prompt benchmark.
 
     \item \textbf{The screening pool is the provenance layer.}
           Selected rows from Tests~02--04 show that the final configurations
