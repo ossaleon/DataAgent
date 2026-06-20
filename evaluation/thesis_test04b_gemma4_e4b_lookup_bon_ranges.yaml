@@ -1,8 +1,9 @@
 # Thesis Test 04b: Gemma E4B lookup Best-of-N range check.
 #
 # Purpose:
-#   Disentangle whether lookup Best-of-N gains come from having two candidates
-#   or from the temperature range / first candidate value.
+#   Disentangle whether lookup Best-of-N gains come from having multiple candidates
+#   or from the temperature range / first candidate value. Uses n=3 so the consensus
+#   selector is no longer forced into a tie (as happens with n=2).
 #
 # Use with:
 #   --model gemma4:e4b
@@ -80,26 +81,26 @@ configs:
     steps:
       lookup_sales_data: {temp_min: 0.8, temp_max: 0.8}
 
-  - name: lookup_bon_temp_n2_narrow
+  - name: lookup_bon_temp_n3_narrow
     vary_step: lookup_sales_data
     axis: best_of_n_range
-    description: Best-of-2 lookup with narrow temperature range 0.8 to 1.0.
+    description: Best-of-3 lookup with narrow temperature range 0.8 to 1.0.
     steps:
-      lookup_sales_data: {n: 2, bon_param: temperature, temp_min: 0.8, temp_max: 1.0}
+      lookup_sales_data: {n: 3, bon_param: temperature, temp_min: 0.8, temp_max: 1.0}
 
-  - name: lookup_bon_temp_n2_medium
+  - name: lookup_bon_temp_n3_medium
     vary_step: lookup_sales_data
     axis: best_of_n_range
-    description: Best-of-2 lookup with medium temperature range 0.6 to 1.0, matching Test 04 n=2.
+    description: Best-of-3 lookup with medium temperature range 0.6 to 1.0.
     steps:
-      lookup_sales_data: {n: 2, bon_param: temperature, temp_min: 0.6, temp_max: 1.0}
+      lookup_sales_data: {n: 3, bon_param: temperature, temp_min: 0.6, temp_max: 1.0}
 
-  - name: lookup_bon_temp_n2_wide
+  - name: lookup_bon_temp_n3_wide
     vary_step: lookup_sales_data
     axis: best_of_n_range
-    description: Best-of-2 lookup with wide temperature range 0.3 to 1.0.
+    description: Best-of-3 lookup with wide temperature range 0.3 to 1.0.
     steps:
-      lookup_sales_data: {n: 2, bon_param: temperature, temp_min: 0.3, temp_max: 1.0}
+      lookup_sales_data: {n: 3, bon_param: temperature, temp_min: 0.3, temp_max: 1.0}
 
   - name: lookup_cot_n2
     vary_step: lookup_sales_data
