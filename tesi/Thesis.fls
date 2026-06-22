@@ -1541,6 +1541,16 @@ INPUT ./Images/test04v2_difficulty_best_cot_delta.png
 INPUT Images/test04v2_difficulty_best_cot_delta.png
 INPUT ./Images/test04v2_difficulty_best_cot_delta.png
 INPUT ./Images/test04v2_difficulty_best_cot_delta.png
+INPUT ./Images/test04b_v2_lookup_bon_range_pareto.png
+INPUT ./Images/test04b_v2_lookup_bon_range_pareto.png
+INPUT Images/test04b_v2_lookup_bon_range_pareto.png
+INPUT ./Images/test04b_v2_lookup_bon_range_pareto.png
+INPUT ./Images/test04b_v2_lookup_bon_range_pareto.png
+INPUT ./Images/test04b_v2_lookup_bon_selection.png
+INPUT ./Images/test04b_v2_lookup_bon_selection.png
+INPUT Images/test04b_v2_lookup_bon_selection.png
+INPUT ./Images/test04b_v2_lookup_bon_selection.png
+INPUT ./Images/test04b_v2_lookup_bon_selection.png
 INPUT ./Images/test05_final_run_unified_candidate_pareto.png
 INPUT ./Images/test05_final_run_unified_candidate_pareto.png
 INPUT Images/test05_final_run_unified_candidate_pareto.png

@@ -58,13 +58,13 @@ so high \texttt{cot\_n} should be interpreted as an upper bound rather than
 as the actual compute spent. Depth~2 is the safest default, while depth~3 can
 be reserved for hard lookup prompts when maximum accuracy is more important
 than energy. A targeted follow-up on the Gemma~E4B lookup step also evaluated
-a best-of-N sampling strategy for SQL generation: generating two candidates
-at different temperatures and keeping the better one (best-of-2). This gave
-no real benefit, because the selector never actually chose the second
-candidate; the only effect came from the temperature itself. A single well-chosen
-lookup temperature was therefore cheaper and at least as accurate. The
-genuine improvement on this step comes from CoT refinement, which corrects
-SQL using execution feedback rather than from sampling several candidates.
+a best-of-N sampling strategy for SQL generation using three temperature-range
+candidates. The corrected run shows that candidate diversity can help, with the
+medium range $[0.6,1.0]$ outperforming the narrow and wide ranges, but the
+no-GT selector still chose the first candidate in most runs. A single
+well-chosen lookup temperature was therefore the best low-cost option, while
+CoT remained the better quality intervention because it corrects SQL using
+execution feedback rather than relying only on sampling diversity.
 
 The final Pareto confirmation combines the best insights from the earlier
 tests. The final non-dominated frontier consists mostly of low-energy Mistral candidates

@@ -22,8 +22,8 @@ aspect of model behaviour or configuration:
     \item \textbf{Test 04 --- Compute Expansion (CoT Depth Ladder)}: applies
           Chain-of-Thought refinement at depths 1--4 on the lookup and
           visualization steps; a targeted follow-up (Test~04b) checks whether
-          Best-of-N temperature sampling provides genuine benefit through
-          candidate selection.
+          Best-of-N temperature sampling provides genuine lookup benefit
+          through candidate selection.
     \item \textbf{Test 05 --- Final Pareto Confirmation}: evaluates the most
           promising combined configurations from Tests~02--04 on the full
           benchmark to establish the definitive quality-versus-energy Pareto frontier.
@@ -293,11 +293,14 @@ three repeats, for the same reason of limiting total run time while
 retaining full difficulty coverage.
 
 An additional follow-up campaign (Test 04b) is run on \texttt{gemma4:e4b} to
-disentangle whether lookup gains come from CoT refinement or from the
-temperature value of the first generation pass. It compares three static
-temperature settings ($t \in \{0.3, 0.6, 0.8\}$) against three Best-of-2
-temperature ranges (narrow, medium, wide) and a CoT $n=2$ reference, across
-8 lookup-only configurations and three repeats.
+disentangle whether lookup gains come from CoT refinement, from a better static
+temperature, or from genuine Best-of-N candidate selection. It compares three
+static temperature settings ($t \in \{0.3, 0.6, 0.8\}$) against three
+Best-of-3 temperature ranges --- narrow $[0.8,1.0]$, medium $[0.6,1.0]$, and
+wide $[0.3,1.0]$ --- plus a CoT $n=2$ reference, across 8 lookup-only
+configurations and three repeats. The use of $n=3$ is deliberate: with only
+two candidates the no-GT selector has too little ranking signal to test whether
+Best-of-N is actually choosing among alternatives.
 
 \subsection{Test 05 - Final Pareto Confirmation}
 \label{subsec:test05}

@@ -359,9 +359,10 @@ signal aligned with correctness; the gain concentrates on the hardest prompts ($
 difficulty~4). On visualization the same mechanism is harmful at every depth, because chart
 errors are semantic rather than executable, so self-criticism over-edits already-working code.
 An early-stop mechanism makes the executed depth saturate near~2, so depth~2 is the efficient
-default. A targeted follow-up (Test 04b) confirms the best-of-$N$ selector never preferred a
-later candidate: a well-chosen static lookup temperature therefore dominates best-of-$N$ at
-lower cost, while CoT remains a qualitatively superior strategy.
+default. A targeted follow-up (Test 04b) shows that best-of-$N$ temperature sampling can create
+useful lookup diversity, especially with the medium range $[0.6,1.0]$, but the no-GT selector
+still picks the first candidate in most runs. A well-chosen static lookup temperature is
+therefore the best low-cost option, while CoT remains the stronger quality intervention.
 
 \paragraph{Final trade-off (Test 05).}
 Combining the per-step interventions yields the unified quality--energy frontier of
@@ -404,8 +405,8 @@ difficulty, and inference-time parameters. The untuned baseline favours Mistral~
 efficiency, but the difficulty split reveals what the aggregate hides --- it collapses on the
 hardest SQL aggregations, exactly where targeted lookup repair lets the compact Gemma~E4B
 overtake it. This repair comes specifically from CoT refinement, which exploits executable
-SQL feedback; best-of-$N$ sampling, by contrast, gave no benefit beyond its temperature
-setting, since the selector never preferred the second candidate. After tuning, the
+SQL feedback; best-of-$N$ sampling, by contrast, was limited by the local selector, which
+still preferred the first candidate in most corrected Best-of-3 runs. After tuning, the
 quality--energy frontier is shared between low-energy Mistral
 candidates and a single high-quality Gemma~E4B endpoint, while the larger Gemma~26B
 improves yet stays dominated once energy is counted. Notably, the recommended configurations

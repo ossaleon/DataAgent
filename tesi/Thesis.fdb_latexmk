@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex Thesis"] 1782116323.02699 "Thesis.aux" "Thesis.bbl" "Thesis" 1782116333.16546 0
+["bibtex Thesis"] 1782132347.59548 "Thesis.aux" "Thesis.bbl" "Thesis" 1782132358.14213 0
   "./bibliography.bib" 1779395678.45533 7058 520df1d6e9386d009ae2296f02e11cc7 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/unsrt.bst" 1775001600 18030 1376b4b231b50c66211e47e42eda2875 ""
-  "Thesis.aux" 1782116332.37797 44100 487f48066491ece2c36c86540921b6e7 "pdflatex"
+  "Thesis.aux" 1782132357.27022 44922 cbc142534362eaa8696563fa2e053a04 "pdflatex"
   (generated)
   "Thesis.bbl"
   "Thesis.blg"
   (rewritten before read)
-["pdflatex"] 1782116323.24596 "Thesis.tex" "Thesis.pdf" "Thesis" 1782116333.16612 0
+["pdflatex"] 1782132347.77548 "Thesis.tex" "Thesis.pdf" "Thesis" 1782132358.14268 0
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -268,6 +268,8 @@
   "Images/test03v2_difficulty_token_sensitivity.png" 1781450207.82771 147274 9f1aab08f0b5c84779931d2ea064ffd8 ""
   "Images/test03v2_quality_energy_delta.png" 1781365290.06722 92529 578451a5b85b4d6fb171d752af9f0b62 ""
   "Images/test03v2_quality_ladder_by_model.png" 1781365290.06907 110874 39058b0b75bb266730269f2e8c5be508 ""
+  "Images/test04b_v2_lookup_bon_range_pareto.png" 1782132243.01818 110741 d0c5b8ad698097915a7e9b4c6bbda68c ""
+  "Images/test04b_v2_lookup_bon_selection.png" 1782132243.0221 73092 e3434a1a6a8b7223186a313aa5e74b2b ""
   "Images/test04v2_accuracy_vs_cot_depth.png" 1781365290.07433 85731 c99327d45c1e899db297b8e5d6fb79b8 ""
   "Images/test04v2_agent_metric_gain_cost.png" 1781365290.07516 66074 b2aa8630aa9cbf00dc3f44fcc33c2763 ""
   "Images/test04v2_compute_expansion_pareto.png" 1781365290.07607 83260 792c1030114a019a8dd5b72be9216cfc ""
@@ -275,16 +277,16 @@
   "Images/test04v2_cot_execution_diagnostics_corrected.png" 1781450207.83198 170709 0d5efa3cf5834f7dd096b0fb374b13d8 ""
   "Images/test04v2_difficulty_best_cot_delta.png" 1781450207.8333 74873 f910ab9f1b4893fb45ab71e1ee434f92 ""
   "Images/test05_final_run_unified_candidate_pareto.png" 1781723966.36256 110788 2b01cfae6c8ed5323ea3e54f352417dc ""
-  "Thesis.aux" 1782116332.37797 44100 487f48066491ece2c36c86540921b6e7 "pdflatex"
-  "Thesis.bbl" 1782116323.23463 4375 289790db33b311b954baeaa97d060db6 "bibtex Thesis"
-  "Thesis.out" 1782116332.38497 18434 4be31966d9f051613804242fb347dc07 "pdflatex"
+  "Thesis.aux" 1782132357.27022 44922 cbc142534362eaa8696563fa2e053a04 "pdflatex"
+  "Thesis.bbl" 1782132347.75922 4375 289790db33b311b954baeaa97d060db6 "bibtex Thesis"
+  "Thesis.out" 1782132357.27722 18434 4be31966d9f051613804242fb347dc07 "pdflatex"
   "Thesis.tex" 1782115002.71414 9098 9df4b96c764076f8b76fb56a0444df8a ""
   "sections/01_introduction.tex" 1782116115.15505 4623 1eee47cadb499452671ab3b7dae4294a ""
   "sections/02_state_of_the_art.tex" 1782116120.37504 23674 87eca13e52f73524cb4ed94b02a242df ""
   "sections/03_application_sales_agent.tex" 1782116202.21637 46555 fe960e9b697e26b6a37651d7ffd8c658 ""
-  "sections/04_experiment_design.tex" 1782116286.47356 17925 4902372cfbf896b3ea49f769bede2678 ""
-  "sections/05_experimental_results.tex" 1781725454.14601 83175 ed859494c1cccab6de78caa4d7efbeed ""
-  "sections/06_conclusions.tex" 1781551861.82365 5563 fb49c2d2371c89420852c3183c6cc84e ""
+  "sections/04_experiment_design.tex" 1782132262.14734 18174 b84a314d8c7df7578465d4918f860b19 ""
+  "sections/05_experimental_results.tex" 1782132303.66754 84808 7a0efe54b5c5475eb959a77ea324f796 ""
+  "sections/06_conclusions.tex" 1782132322.46542 5561 07ab35001bd0ea58b103119db4462704 ""
   "sections/07_bibliography.tex" 1779395678.45899 244 98af6d8ea64eb718da41b609eb39219a ""
   "sections/08_appendices.tex" 1781555259.62867 18368 3420e31dc4f9397d2bc7040c60f3455b ""
   "sections/09_sommario.tex" 1782116131.24 3981 cbdc5ba1b5a7601003ed4041aaa720f5 ""

@@ -1357,9 +1357,14 @@ visualization CoT should not be deployed.
 \label{subsec:res04b}
 
 Test~04b is a targeted follow-up run exclusively on \texttt{gemma4:e4b},
-comparing static temperature settings, Best-of-2 temperature ranges
+comparing static temperature settings, Best-of-3 temperature ranges
 (BoN), and \texttt{lookup\_cot\_n2} as a reference
 (3~repeats $\times$ 8~configs $\times$ 10~prompts = 240~rows).
+This corrected follow-up replaces an earlier Best-of-2 variant: with only
+two candidates the pairwise no-GT selector provided too little evidence about
+whether Best-of-N was really choosing among alternatives. The corrected
+Best-of-3 design therefore tests three temperature ranges: narrow
+$[0.8,1.0]$, medium $[0.6,1.0]$, and wide $[0.3,1.0]$.
 
 \begin{table}[H]
 \centering
@@ -1370,21 +1375,21 @@ comparing static temperature settings, Best-of-2 temperature ranges
 \rowcolor{bluePoli!30}
 \textbf{Config} & \textbf{Type} & \textbf{Quality} & \textbf{$\Delta$ quality} & \textbf{csv\_iou} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
 \hline
-\texttt{lookup\_baseline}       & baseline    & 0.707 & \phantom{$+$}0.000 & 0.792 & 86.4\,\% & 0.00639 \T\B \\
+\texttt{lookup\_baseline}       & baseline    & 0.731 & \phantom{$+$}0.000 & 0.780 & 90.0\,\% & 0.00676 \T\B \\
 \hline
-\texttt{lookup\_temp\_0.3}      & static temp & 0.749 & $+$0.042 & 0.807 & 87.7\,\% & 0.00647 \T\B \\
+\texttt{lookup\_temp\_0.3}      & static temp & 0.760 & $+$0.029 & 0.822 & 83.3\,\% & 0.00642 \T\B \\
 \hline
-\texttt{lookup\_temp\_0.6}      & static temp & 0.673 & $-$0.034 & 0.731 & 82.7\,\% & 0.00580 \T\B \\
+\texttt{lookup\_temp\_0.6}      & static temp & 0.768 & $+$0.037 & 0.853 & 86.7\,\% & 0.00649 \T\B \\
 \hline
-\texttt{lookup\_temp\_0.8}      & static temp & 0.778 & $+$0.071 & 0.848 & 95.1\,\% & 0.00727 \T\B \\
+\texttt{lookup\_temp\_0.8}      & static temp & 0.784 & $+$0.053 & 0.802 & 83.3\,\% & 0.00618 \T\B \\
 \hline
-\texttt{bon\_temp\_n2\_narrow}  & BoN range   & 0.737 & $+$0.030 & 0.785 & 90.1\,\% & 0.00774 \T\B \\
+\texttt{bon\_temp\_n3\_narrow}  & BoN range   & 0.689 & $-$0.042 & 0.735 & 83.3\,\% & 0.00849 \T\B \\
 \hline
-\texttt{bon\_temp\_n2\_medium}  & BoN range   & 0.758 & $+$0.051 & 0.824 & 90.1\,\% & 0.00817 \T\B \\
+\texttt{bon\_temp\_n3\_medium}  & BoN range   & 0.785 & $+$0.054 & 0.867 & 90.0\,\% & 0.00893 \T\B \\
 \hline
-\texttt{bon\_temp\_n2\_wide}    & BoN range   & 0.738 & $+$0.031 & 0.818 & 87.7\,\% & 0.00778 \T\B \\
+\texttt{bon\_temp\_n3\_wide}    & BoN range   & 0.775 & $+$0.044 & 0.834 & 86.7\,\% & 0.00862 \T\B \\
 \hline
-\texttt{lookup\_cot\_n2}        & CoT depth   & 0.854 & $+$0.147 & 0.930 & 97.5\,\% & 0.00858 \T\B \\
+\texttt{lookup\_cot\_n2}        & CoT depth   & 0.797 & $+$0.067 & 0.871 & 96.7\,\% & 0.00820 \T\B \\
 \hline
 \end{tabular}%
 }
@@ -1392,21 +1397,45 @@ comparing static temperature settings, Best-of-2 temperature ranges
 \label{tab:test04bresults}
 \end{table}
 
-The central finding is that the BoN selector \emph{never} chose the
-second candidate: all three temperature ranges produced 0 non-first
-selections out of 30 opportunities each.
-This means the BoN quality gains reported in the table are not a
-selection effect — they are purely a consequence of the temperature
-value used for the first (and only effectively used) candidate.
-As a result, a well-chosen static temperature is strictly more efficient
-than BoN: \texttt{lookup\_temp\_0.8} reaches $+0.071$ quality at
-$0.00727$~kWh, while the best BoN variant (\texttt{bon\_temp\_n2\_medium})
-achieves only $+0.051$ at $0.00817$~kWh — worse quality at higher
-energy cost.
-\texttt{lookup\_cot\_n2} remains the most effective intervention by a
-large margin ($+0.147$ quality, $0.00858$~kWh), confirming that
-iterative refinement with execution feedback is a qualitatively
-different and superior strategy compared to sampling diversity alone.
+The corrected run changes the methodological interpretation but not the final
+recommendation. With three candidates the selector is no longer completely
+inert: the medium and wide ranges each choose a non-first candidate 4 times
+out of 30, while the narrow range does so only once. However, the selector
+still chooses the first candidate in 86.7--96.7\,\% of runs, and the median
+selection margin is zero for all three ranges. This means that candidate
+diversity is present, but the local no-GT selector only weakly exploits it.
+
+The best BoN setting is the medium range $[0.6,1.0]$, which reaches 0.785
+quality and the strongest BoN \texttt{csv\_iou} score (0.867). This confirms
+that range design matters: the narrow range is harmful, while the wide range
+adds diversity without matching the medium range. Yet the Pareto conclusion is
+still negative for deploying BoN as the default lookup repair. A single static
+\texttt{lookup\_temp\_0.8} setting is the best low-cost point, increasing
+quality by $+0.053$ while using slightly less measured energy than baseline.
+\texttt{lookup\_cot\_n2} is the best quality point (0.797 quality, 0.871
+\texttt{csv\_iou}) and dominates the strongest BoN range: it obtains higher
+quality, higher CSV similarity, higher completion, and lower energy than
+\texttt{bon\_temp\_n3\_medium}. Thus Best-of-N remains useful as a diagnostic
+for lookup candidate diversity, but CoT with SQL execution feedback is the
+more effective compute-expansion strategy for \texttt{gemma4:e4b}.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/test04b_v2_lookup_bon_range_pareto.png}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.49\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/test04b_v2_lookup_bon_selection.png}
+    \end{minipage}
+    \caption{Test~04b corrected Best-of-3 analysis. The Pareto view shows that
+    static \texttt{lookup\_temp\_0.8} and \texttt{lookup\_cot\_n2} are the
+    non-dominated lookup interventions, while the selector diagnostics show
+    that Best-of-N still chooses the first candidate in most runs.}
+    \label{fig:test04b_corrected}
+\end{figure}
 
 \subsubsection{Summary}
 
