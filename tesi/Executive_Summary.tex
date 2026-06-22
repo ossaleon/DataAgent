@@ -406,7 +406,7 @@ efficiency, but the difficulty split reveals what the aggregate hides --- it col
 hardest SQL aggregations, exactly where targeted lookup repair lets the compact Gemma~E4B
 overtake it. This repair comes specifically from CoT refinement, which exploits executable
 SQL feedback; best-of-$N$ sampling, by contrast, was limited by the local selector, which
-still preferred the first candidate in most corrected Best-of-3 runs. After tuning, the
+still preferred the first candidate in most Best-of-3 runs. After tuning, the
 quality--energy frontier is shared between low-energy Mistral
 candidates and a single high-quality Gemma~E4B endpoint, while the larger Gemma~26B
 improves yet stays dominated once energy is counted. Notably, the recommended configurations

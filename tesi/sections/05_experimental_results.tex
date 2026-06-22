@@ -1266,10 +1266,10 @@ explains why \texttt{vis\_cot\_n4} partially recovers from the catastrophic
 result of \texttt{vis\_cot\_n3}: at requested depth~4, more runs exit
 early and avoid the harmful third iteration.
 
-The corrected diagnostic table is important because the earlier analysis
-mixed two denominators for visualization: all benchmark rows versus only
-the rows where visualization CoT actually executed. The table below uses
-the latter denominator for early-stop and full-depth rates. Under this
+The diagnostic table is important because it avoids mixing two denominators
+for visualization: all benchmark rows versus only the rows where visualization
+CoT actually executed. The table below uses the latter denominator for
+early-stop and full-depth rates. Under this
 definition, high requested depths are even less attractive than they first
 appeared. For Gemma~E4B lookup, \texttt{cot\_n=4} stops early in
 86.7\,\% of executed rows; for Mistral lookup, the early-stop rate is
@@ -1360,11 +1360,9 @@ Test~04b is a targeted follow-up run exclusively on \texttt{gemma4:e4b},
 comparing static temperature settings, Best-of-3 temperature ranges
 (BoN), and \texttt{lookup\_cot\_n2} as a reference
 (3~repeats $\times$ 8~configs $\times$ 10~prompts = 240~rows).
-This corrected follow-up replaces an earlier Best-of-2 variant: with only
-two candidates the pairwise no-GT selector provided too little evidence about
-whether Best-of-N was really choosing among alternatives. The corrected
-Best-of-3 design therefore tests three temperature ranges: narrow
-$[0.8,1.0]$, medium $[0.6,1.0]$, and wide $[0.3,1.0]$.
+The Best-of-3 design uses three candidates so that the pairwise no-GT selector
+faces a genuine multi-candidate ranking problem, and tests three temperature
+ranges: narrow $[0.8,1.0]$, medium $[0.6,1.0]$, and wide $[0.3,1.0]$.
 
 \begin{table}[H]
 \centering
@@ -1397,8 +1395,7 @@ $[0.8,1.0]$, medium $[0.6,1.0]$, and wide $[0.3,1.0]$.
 \label{tab:test04bresults}
 \end{table}
 
-The corrected run changes the methodological interpretation but not the final
-recommendation. With three candidates the selector is no longer completely
+With three candidates the selector is not completely
 inert: the medium and wide ranges each choose a non-first candidate 4 times
 out of 30, while the narrow range does so only once. However, the selector
 still chooses the first candidate in 86.7--96.7\,\% of runs, and the median
@@ -1430,7 +1427,7 @@ more effective compute-expansion strategy for \texttt{gemma4:e4b}.
         \centering
         \includegraphics[width=\linewidth]{Images/test04b_v2_lookup_bon_selection.png}
     \end{minipage}
-    \caption{Test~04b corrected Best-of-3 analysis. The Pareto view shows that
+    \caption{Test~04b Best-of-3 analysis. The Pareto view shows that
     static \texttt{lookup\_temp\_0.8} and \texttt{lookup\_cot\_n2} are the
     non-dominated lookup interventions, while the selector diagnostics show
     that Best-of-N still chooses the first candidate in most runs.}
@@ -1471,6 +1468,20 @@ more effective compute-expansion strategy for \texttt{gemma4:e4b}.
           smaller than the Gemma gain and most high-depth runs stop early.
           Depth~3 should therefore be reserved for maximum lookup quality,
           not for the energy-aware default.
+
+    \item \textbf{Lookup Best-of-N helps but is dominated by CoT (Test~04b).}
+          On the \texttt{gemma4:e4b} lookup step, Best-of-3 candidate diversity
+          does improve quality when the temperature range is well chosen --- the
+          medium range $[0.6,1.0]$ reaches $+0.054$ quality and the strongest BoN
+          \texttt{csv\_iou} ($0.867$), while the narrow range is harmful --- but
+          the local no-GT selector exploits this diversity only weakly, still
+          picking the first candidate in $86.7$--$96.7\,\%$ of runs. A single
+          static \texttt{lookup\_temp\_0.8} is the best low-cost point ($+0.053$
+          quality below baseline energy), and \texttt{lookup\_cot\_n2} dominates
+          the best BoN range on quality, CSV similarity, completion, and energy.
+          Best-of-N is therefore a useful diagnostic for candidate diversity, but
+          CoT with SQL-execution feedback remains the more effective
+          compute-expansion strategy for lookup.
 \end{enumerate}
 
 \subsection{Test 05 - Final Pareto Confirmation}

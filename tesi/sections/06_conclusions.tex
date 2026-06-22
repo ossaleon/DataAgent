@@ -52,14 +52,14 @@ harmful for both models. The generated chart often fails semantically rather
 than syntactically, so code-execution feedback does not reveal whether the
 plot matches the user's requested grouping, split, or chart semantics.
 Additional CoT iterations therefore tend to over-edit the output and degrade
-\texttt{vis\_score}. The corrected early-stop diagnostics reinforce this
+\texttt{vis\_score}. The early-stop diagnostics reinforce this
 point: requested depths of 3 or 4 usually execute only around two iterations,
 so high \texttt{cot\_n} should be interpreted as an upper bound rather than
 as the actual compute spent. Depth~2 is the safest default, while depth~3 can
 be reserved for hard lookup prompts when maximum accuracy is more important
 than energy. A targeted follow-up on the Gemma~E4B lookup step also evaluated
 a best-of-N sampling strategy for SQL generation using three temperature-range
-candidates. The corrected run shows that candidate diversity can help, with the
+candidates. This follow-up shows that candidate diversity can help, with the
 medium range $[0.6,1.0]$ outperforming the narrow and wide ranges, but the
 no-GT selector still chose the first candidate in most runs. A single
 well-chosen lookup temperature was therefore the best low-cost option, while
