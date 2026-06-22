@@ -131,18 +131,22 @@ accuracy, namely inference latency and energy cost. To study these concerns, thi
 a \textit{Sales Agent}: an LLM-powered system, orchestrated with LangGraph, that translates a
 business question into a SQL query executed over Parquet files via DuckDB, interprets the
 results in text, and optionally renders a chart. A hierarchical YAML
-configuration exposes every inference hyperparameter (sampling parameters, beam width,
-best-of-$N$, token budgets, and Chain-of-Thought refinement depth) across both open-weight
+configuration exposes the inference parameters studied in the experiments
+(sampling parameters, best-of-$N$, token budgets, and Chain-of-Thought
+refinement depth) across both open-weight
 models served locally via Ollama and cloud models via the OpenAI API (used here only for
 LLM-as-judge evaluation). The core contribution is
 a systematic profiling that jointly measures output quality, execution time, and per-step energy
 consumption (via CodeCarbon). Quality is assessed over 20 analytical questions, stratified
-across four SQL difficulty levels, along three dimensions: a row-level Intersection-over-Union
-score for retrieval and two LLM-as-judge scores for analysis and visualisation. Five
+across four SQL difficulty levels, along three dimensions: a graded
+ground-truth table-similarity score for retrieval and two LLM-as-judge scores
+for analysis and visualisation. Five
 step-isolated experiments establish a baseline for three open-weight models (Gemma~4~E4B,
 Gemma~4~26B, Mistral~Small~3.2~24B) and then vary one agent step at a time across sampling
 parameters, token budgets, and inference-time compute, closing with a Pareto confirmation run.
-The results show that model choice alone does not explain performance: the dominant effects
+The experiments are designed also to test a common assumption in local LLM
+deployment: that larger thinking models are necessarily the best solution.
+The results show instead that model choice alone does not explain performance: the dominant effects
 arise from the interaction between model family, agent step, prompt difficulty, and
 inference-time settings. Mistral is the most efficient untuned model but collapses on the
 hardest aggregation prompts; Gemma~26B is highly tunable yet energetically costly; and
