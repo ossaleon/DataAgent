@@ -20,17 +20,20 @@ and executes a SQL query against Parquet files via DuckDB, produces a textual in
 of the results, and optionally renders a Matplotlib chart. The agent is orchestrated through
 LangGraph~\cite{langgraph}, a framework for stateful graph-based LLM pipelines, and supports
 two interchangeable backends: locally-hosted open-weight models via Ollama and cloud-based
-models via the OpenAI API. A hierarchical YAML configuration system exposes all inference
-hyperparameters --- sampling temperature, top-$p$, top-$k$, beam search width, best-of-$N$ candidates, and
+models via the OpenAI API. A hierarchical YAML configuration system exposes the inference
+parameters studied in the experiments --- sampling temperature, top-$p$, top-$k$, best-of-$N$ candidates, and
 Chain-of-Thought refinement iterations --- making every run fully reproducible and configurable
 without code changes.
 
 On the experimental side, the primary focus of the thesis is the systematic profiling of the
 agent under varying configurations. A benchmark of 20 analytical questions, stratified across
 four SQL difficulty levels, is used to evaluate output quality across three complementary
-dimensions: a row-level Intersection-over-Union metric for data retrieval accuracy, an
-LLM-as-judge score for the natural language analysis, and a further LLM-based score for
-visualisation correctness. The evaluation is structured as a sequence of five step-isolated
+dimensions: a graded ground-truth table-similarity score for data retrieval
+accuracy, an LLM-as-judge score for the natural language analysis, and a
+further LLM-based score for visualisation correctness. A central motivation is
+to test whether larger thinking models are always the best choice, or whether
+smaller thinking models and larger non-thinking models can be more efficient
+once the agent steps are tuned. The evaluation is structured as a sequence of five step-isolated
 experiments. The first establishes a quality and energy baseline for three locally-hosted
 open-weight models --- Gemma~4~E4B, Gemma~4~26B, and Mistral~Small~3.2~24B. The subsequent
 tests vary one agent step at a time: a one-factor-at-a-time sensitivity analysis across
@@ -51,7 +54,7 @@ The document is organised as follows:
           covering the agent graph, each processing step, the configuration system, and
           the benchmark dataset;
     \item Section~\ref{sec:experimentdesign} presents the experimental design, including
-          the server hardware environment, Docker-based deployment, and the specification
+          the server hardware environment, execution protocol, and the specification
           of the five test campaigns;
     \item Section~\ref{sec:experiments} presents the experimental results, analysing
           output quality, energy consumption, and the Pareto trade-offs across models
@@ -59,4 +62,3 @@ The document is organised as follows:
     \item Section~\ref{sec:conclusions} summarises the findings and outlines directions
           for future work.
 \end{itemize}
-

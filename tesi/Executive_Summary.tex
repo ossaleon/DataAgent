@@ -116,14 +116,15 @@ interfaces to structured data, yet deploying them in production raises concerns 
 accuracy, namely inference latency and energy cost. To study these concerns, this work builds
 a \textit{Sales Agent}: an LLM-powered system, orchestrated with LangGraph, that translates a
 business question into a SQL query executed over Parquet files via DuckDB, interprets the
-results in text, and optionally renders a chart. A hierarchical YAML configuration exposes every
-inference hyperparameter (sampling parameters, beam width, best-of-$N$, token budgets, and
-Chain-of-Thought refinement depth) across open-weight models served locally via Ollama. The
+results in text, and optionally renders a chart. A hierarchical YAML configuration exposes the
+inference parameters studied in the experiments (sampling parameters, best-of-$N$, token budgets,
+and Chain-of-Thought refinement depth) across open-weight models served locally via Ollama. The
 core contribution is a systematic profiling that jointly measures output quality, execution time,
 and per-step energy consumption (via CodeCarbon), over 20 analytical questions stratified across
 four SQL difficulty levels. Five step-isolated experiments establish a baseline for three
-open-weight models and then vary one agent step at a time. The results show that model choice
-alone does not explain performance: the dominant effects arise from the interaction between model
+open-weight models and then vary one agent step at a time. The experiments also challenge the
+assumption that larger thinking models are always the best solution. The results show instead
+that model choice alone does not explain performance: the dominant effects arise from the interaction between model
 family, agent step, prompt difficulty, and inference-time settings. The thesis distills three
 recommendations for energy-aware LLM data agents: tune hyperparameters per agent step rather than
 globally, allocate inference-time compute by failure mode, and report accuracy and energy by
@@ -173,8 +174,8 @@ question, the agent autonomously selects the processing steps, generates and exe
 against Parquet files via DuckDB, produces a textual interpretation of the results, and optionally
 renders a Matplotlib chart. The agent is orchestrated through LangGraph~\cite{langgraph}, a
 framework for stateful graph-based LLM pipelines, and runs on locally-hosted open-weight models
-served via Ollama. A hierarchical YAML configuration exposes every inference hyperparameter ---
-sampling temperature, top-$p$, top-$k$, beam width, best-of-$N$ candidates, and Chain-of-Thought
+served via Ollama. A hierarchical YAML configuration exposes the inference parameters studied in the experiments ---
+sampling temperature, top-$p$, top-$k$, best-of-$N$ candidates, and Chain-of-Thought
 refinement depth --- making each run fully reproducible and configurable
 without code changes.
 
@@ -182,7 +183,7 @@ On the experimental side, the core contribution is the systematic \emph{profilin
 which jointly measures output quality, execution time, and per-step energy consumption (tracked
 with CodeCarbon~\cite{lottick2019codecarbon}). A benchmark of 20 analytical questions, stratified
 across four SQL difficulty levels, evaluates quality along three complementary dimensions: a
-row-level Intersection-over-Union score for data retrieval, and two LLM-as-judge
+graded ground-truth table-similarity score for data retrieval, and two LLM-as-judge
 scores~\cite{zheng2023judging} for the textual analysis and the visualization. The evaluation is
 organised as five step-isolated experiments: the first establishes a quality and energy baseline
 for three open-weight models (Gemma~4~E4B, Gemma~4~26B, and Mistral~Small~3.2~24B), and the
@@ -231,8 +232,8 @@ the LLM-as-judge evaluation.
 \end{figure}
 
 \paragraph{Configuration and inference-time mechanisms.}
-A hierarchical YAML configuration exposes every inference hyperparameter
-\emph{per agent step} --- sampling temperature, top-$p$, top-$k$, beam width, token budget,
+A hierarchical YAML configuration exposes the inference parameters studied in the experiments
+\emph{per agent step} --- sampling temperature, top-$p$, top-$k$, token budget,
 best-of-$N$ candidates, and Chain-of-Thought (CoT) refinement depth --- so that each run is
 fully reproducible without code changes. Two inference-time compute mechanisms are central
 to the study. \emph{Best-of-$N$} sampling runs a step $N$ times while sweeping one sampling
@@ -247,7 +248,7 @@ error-aware mode it injects the execution error so the model can self-correct.
 The agent is evaluated on a hand-built benchmark of 20 analytical questions, stratified
 across four SQL difficulty levels (from single-table aggregations to multi-join queries
 with ratios and year-over-year logic). Quality is measured per step along three
-complementary dimensions: a row-level \emph{Intersection-over-Union} (IoU) between the
+complementary dimensions: a graded table-similarity score between the
 retrieved table and the ground truth for lookup; and two LLM-as-judge~\cite{zheng2023judging}
 scores --- factual accuracy and coverage for the analysis, and axis/type/functional
 correctness for the visualization. Energy is tracked with CodeCarbon~\cite{lottick2019codecarbon},
@@ -265,8 +266,8 @@ Three open-weight models are studied, served locally via Ollama:
 Gemma~4~E4B~\cite{gemma4_2025}, a compact reasoning model; Gemma~4~26B, its large
 counterpart; and Mistral~Small~3.2~24B~\cite{mistralsmall_2025}, an instruction-following
 model. Each model uses the sampling defaults recommended on its Ollama page (Gemma at
-temperature~1.0, Mistral at~0.15). The agent runs inside a Docker container, with inference
-offloaded to the GPU; LLM-as-judge scoring uses the OpenAI API. Experiments were executed on
+temperature~1.0, Mistral at~0.15). Inference is offloaded to the GPU, while
+LLM-as-judge scoring uses the OpenAI API. Experiments were executed on
 two GPU servers (NVIDIA~L40S and A40) to parallelise data collection: absolute latency and
 energy are not compared across machines, but each sweep varies a single factor on a fixed
 machine, so the rankings and relative trends it captures are unaffected.

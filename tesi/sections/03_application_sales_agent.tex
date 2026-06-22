@@ -73,8 +73,8 @@ energy monitoring.
 \texttt{AgentConfig} holds global settings — the LLM provider (\texttt{ollama} or
 \texttt{openai}), the model name, and the Ollama server URL — together with one
 \texttt{StepConfig} instance per processing step. \texttt{StepConfig} encapsulates
-all per-step hyperparameters: number of best-of-$n$ candidates, temperature range,
-top-$p$, top-$k$, beam width, maximum tokens, caching policy, and optional evaluation
+all per-step hyperparameters used by the experiments: number of best-of-$n$
+candidates, temperature range, top-$p$, top-$k$, maximum tokens, caching policy, and optional evaluation
 and selection callables. Both classes support serialisation to and from dictionaries
 and YAML files, enabling fully reproducible experiment configurations.
 
@@ -99,9 +99,13 @@ prompt token sets), allowing the agent to reuse previously computed results and
 avoid redundant LLM calls.
 
 \textbf{TracingHelper} provides optional observability integration via
-OpenTelemetry~\cite{opentelemetry} and the Arize Phoenix platform~\cite{arize_phoenix}. When enabled,
-it records structured spans for each processing step, capturing inputs, outputs,
-latencies, and evaluation scores for post-hoc analysis.
+OpenTelemetry~\cite{opentelemetry}, with compatibility for the Arize Phoenix
+platform~\cite{arize_phoenix}. The integration is implemented in the codebase:
+when enabled, it records structured spans for each processing step, capturing
+inputs, outputs, latencies, and evaluation scores for post-hoc analysis.
+However, Phoenix was not used during the experiments reported in this thesis;
+the experimental analysis relies on the benchmark CSV outputs and CodeCarbon
+measurements.
 
 \vspace{0.5em}
 \noindent The system depends on the following key external libraries:
@@ -113,6 +117,9 @@ latencies, and evaluation scores for post-hoc analysis.
     \item \textbf{Pandas} / \textbf{PyArrow} — tabular data manipulation and Parquet I/O;
     \item \textbf{Matplotlib} — chart rendering for the visualisation step;
     \item \textbf{CodeCarbon} — energy consumption tracking during agent execution;
+    \item \textbf{OpenTelemetry} / \textbf{Arize Phoenix} — optional tracing and
+          observability integration; implemented in the framework but not used
+          for the reported benchmark runs;
     \item \textbf{NLTK} — natural language utilities available for optional
           n-gram-based text scoring (e.g.\ BLEU), not used by the LLM-as-judge
           metrics adopted in the experiments;
@@ -381,7 +388,7 @@ The configuration file is divided into six top-level sections:
     \item \texttt{ground\_truth} — optional ground-truth references for tracking
           evaluation scores during benchmarking (described in
           Section~\ref{subsec:benchmark});
-    \item \texttt{tracing} — optional Phoenix/OpenTelemetry endpoint for observability.
+    \item \texttt{tracing} — optional OpenTelemetry/Phoenix endpoint for observability.
 \end{itemize}
 
 \subsubsection{Per-Step Parameters}
@@ -411,8 +418,6 @@ temperature~0.15, appropriate for an instruction-following model.
 \texttt{top\_p\_min / top\_p\_max} & 0.95 / 0.95 & 0.95 / 0.95 & Top-$p$ nucleus sampling range \T\B \\
 \hline
 \texttt{top\_k\_min / top\_k\_max} & 64 / 64 & 64 / 64 & Top-$k$ sampling range (Ollama only) \T\B \\
-\hline
-\texttt{num\_beams} & 1 & 1 & Beam search width; 1 = greedy (Ollama only) \T\B \\
 \hline
 \texttt{repeat\_penalty} & 1.1 & 1.1 & Repetition penalty applied to already-seen tokens; $>1$ discourages repetition (Ollama only) \T\B \\
 \hline
@@ -639,36 +644,40 @@ solely on the non-GT evaluators described in Section~\ref{subsec:evaluation}.
 The Sales Agent is evaluated across three complementary dimensions, one per
 processing step.
 
-\paragraph{CSV IoU (\texttt{csv\_iou}).}
-The quality of the data retrieval step is measured by applying the IoU metric
-defined in Section~\ref{sec:stateofart} to the agent's result \texttt{DataFrame}
-and the ground-truth CSV. The score instantiates Equation~\ref{eq:iou_general} as:
+\paragraph{Ground-truth table similarity (\texttt{csv\_iou}).}
+The quality of the data retrieval step is measured by comparing the agent's
+result \texttt{DataFrame} with the ground-truth CSV. The output column is still
+named \texttt{csv\_iou} for continuity with earlier experiments, but the final
+benchmark scorer is a graded ground-truth table-similarity metric rather than a
+brittle exact row-IoU score. This change is important because many correct SQL
+answers differ from the reference only in harmless surface choices: column
+aliases, column order, boolean labels, numeric formatting, or long-versus-wide
+layout.
 
-\begin{equation}
-    \text{csv\_iou} = \frac{|\text{matched rows}|}{|\text{agent rows}| + |\text{GT rows}| - |\text{matched rows}|}
-    \label{eq:iou}
-\end{equation}
+Failed SQL executions, missing dataframes, and empty results receive score~0.
+Otherwise, both tables are first normalised with
+\texttt{normalize\_dataframe\_values}: float-encoded integers are cast to their
+integer representation, numeric values are rounded, dates are rendered as
+\texttt{YYYY-MM-DD}, and string cells are stripped of leading and trailing
+whitespace. Column names are lowercased before benchmark evaluation; during
+agent execution, result columns can also be aligned to the ground-truth column
+order when ground-truth columns are available.
 
-\noindent where matched rows are determined by the normalisation and matching
-procedure described below. When the result and ground-truth tables have different
-column sets, only the shared columns are compared; if no columns are shared the
-score is 0.
-
-Before matching, both DataFrames are passed through a normalisation step
-(\texttt{normalize\_dataframe\_values}) that absorbs representational differences
-that do not reflect genuine retrieval errors: float-encoded integers are cast to
-their integer representation (e.g.\ \texttt{33653.0} $\to$ \texttt{33653}),
-floating-point values are rounded to two decimal places, date columns are
-formatted as \texttt{YYYY-MM-DD} strings, and leading/trailing whitespace is
-stripped from string cells. Column names are lowercased on both sides to make the
-comparison case-insensitive.
-
-After normalisation, the algorithm performs greedy row matching: for each row in
-the agent's result it searches for the first unmatched row in the ground-truth
-table that agrees element-wise. Numeric values are compared with an absolute
-tolerance of $5 \times 10^{-2}$ to absorb residual precision differences from SQL
-casts; date strings are further normalised to treat \texttt{YYYY-MM} and
-\texttt{YYYY-MM-01} as equivalent.
+The scorer then computes the best of two comparisons. The direct comparison
+aligns columns by a weighted combination of normalised column-name similarity
+and value similarity, so aliases such as \texttt{revenue} and
+\texttt{total\_sales\_value}, or swapped numeric columns with matching values,
+can still receive high credit. Rows are matched without assuming order, using a
+soft value similarity that gives full credit for equal values, month/month-start
+date equivalence, near-equal numeric values within tolerance, and common binary
+category equivalents such as \texttt{true}/\texttt{false},
+\texttt{1}/\texttt{0}, \texttt{Organic}/\texttt{Non-Organic}, and
+\texttt{Promo}/\texttt{Non-Promo}. The final direct score combines table
+structure and soft row-value agreement. A second comparison detects common
+long-versus-wide binary grouped outputs, such as
+\texttt{month, promo\_flag, revenue} versus
+\texttt{month, promo\_revenue, non\_promo\_revenue}, and the final
+\texttt{csv\_iou} value is the maximum of the direct and long-wide scores.
 
 \paragraph{Text Score (\texttt{text\_score}).}
 The quality of the natural language analysis is evaluated using an LLM-as-judge
@@ -825,5 +834,3 @@ configuration. When enabled, the system operates two independent trackers:
 
 \noindent When \texttt{enable\_codecarbon} is false, all 20 energy columns are set
 to \texttt{None}.
-
-

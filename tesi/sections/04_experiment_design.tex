@@ -74,8 +74,6 @@ Linux kernel     & 6.8.0-117-generic \T\B \\
 \hline
 GPU driver       & 580.159.03 \T\B \\
 \hline
-Docker version   & 27.5.1 \T\B \\
-\hline
 \end{tabular}
 \caption{Remote server hardware and software specifications (Tests 01, 02, 05).}
 \label{tab:server}
@@ -107,8 +105,6 @@ Linux kernel     & 4.18.0-553.8.1.el8\_10.x86\_64 \T\B \\
 \hline
 GPU driver       & 555.42.02 \T\B \\
 \hline
-Docker version   & 26.1.3 \T\B \\
-\hline
 \end{tabular}
 \caption{Secondary server hardware and software specifications (Tests 03, 04, 04b).}
 \label{tab:server_local}
@@ -123,27 +119,15 @@ API key is required only for the ground-truth judge, which calls
 \texttt{gpt-5.4} to score both the natural-language analysis step and the
 visualization step.
 
-The agent itself runs inside a Docker container built from the repository
-Dockerfile. The image is based on \texttt{python:3.12-slim} and installs all
-Python dependencies from \texttt{requirements.txt}. Two environment variables
-are set at build time: \texttt{MPLBACKEND=Agg} to enable headless chart
-rendering, and \texttt{OLLAMA\_HOST=http://localhost:11434} as the default
-Ollama endpoint. The host \texttt{runs/} directory is mounted as a volume to
-persist experiment results across container restarts. The
-\texttt{--network=host} flag allows the container to reach the Ollama service
-running on the host. The image is built once from the repository root:
-
-\begin{verbatim}
-docker build -t data-agent .
-\end{verbatim}
-
-Tests 01 through 04 are executed via this same container and are fully
-orchestrated by the helper script
-\texttt{evaluation/\allowbreak run\_thesis\_final\_tests\_01\_04\_docker.sh},
-which loops over all model and repeat combinations sequentially. Test 05,
-whose configurations depend on the findings of the preceding tests, is run
-with individual \texttt{docker run} invocations as described in
-Section~\ref{subsec:test05}.
+All benchmark runs are launched from deterministic YAML manifests and write
+their outputs to a persistent \texttt{runs/} directory. For clean energy
+attribution, model/configuration/repeat combinations are executed in series:
+only one benchmark process runs on the measured GPU at a time. This means that
+each CodeCarbon measurement corresponds to a single atomic agent run rather
+than to a concurrent workload sharing the same accelerator. The orchestration
+scripts are used only to automate this ordered sequence and to resume incomplete
+runs; they do not parallelise configurations whose energy values are later
+compared.
 
 Before executing the tests in the definitive form described below, a lighter
 version of the same experiments was first run --- with fewer repetitions and a
@@ -187,8 +171,6 @@ BoN candidates ($n$)        & 1    & 1    & 1    \T\B \\
 \hline
 CoT iterations (\texttt{cot\_n}) & 1    & 1    & 1    \T\B \\
 \hline
-Beam search (\texttt{num\_beams}) & 1   & 1    & 1    \T\B \\
-\hline
 \texttt{max\_tokens} — lookup       & 5000 & 5000 & 5000 \T\B \\
 \hline
 \texttt{max\_tokens} — analysis     & 7000 & 7000 & 7000 \T\B \\
@@ -202,8 +184,9 @@ Beam search (\texttt{num\_beams}) & 1   & 1    & 1    \T\B \\
 
 The evaluation is performed on the full 20-prompt benchmark, stratified across
 four SQL difficulty levels. For each prompt, three complementary quality scores
-are recorded: the row-level Intersection-over-Union (\texttt{csv\_iou}) for
-data retrieval accuracy, the LLM-as-judge score (\texttt{text\_score}) for the
+are recorded: the graded ground-truth table-similarity score
+(\texttt{csv\_iou}) for data retrieval accuracy, the LLM-as-judge score
+(\texttt{text\_score}) for the
 natural-language analysis, and the LLM-as-judge score (\texttt{vis\_score}) for
 visualization correctness when a chart is expected. In addition, per-step
 execution time and energy consumption are tracked via CodeCarbon. Each model
@@ -214,46 +197,6 @@ subsequent tests and provide the first evidence of whether model size, the
 presence of an internal chain-of-thought reasoning mechanism, and the
 mixture-of-experts architecture lead to meaningful accuracy or efficiency
 differences on this agentic workload.
-
-\subsubsection{Deployment with Docker}
-
-Each model is run for three independent repeats using the manifest files in
-\texttt{evaluation/thesis\_final\_run/}. The general \texttt{docker run}
-invocation is:
-
-\begin{verbatim}
-docker run --rm \
-    --gpus "device=0" \
-    --network=host \
-    -e OLLAMA_HOST=http://localhost:11434 \
-    -e OPENAI_API_KEY \
-    -v "$(pwd)/runs:/app/runs" \
-    data-agent \
-    evaluation/run_manifest_benchmark.py \
-    evaluation/benchmark_dataset.json \
-    evaluation/thesis_final_run/thesis_test01_<manifest>.yaml \
-    --provider ollama \
-    --model <model> \
-    --gt-judge-provider openai \
-    --gt-judge-model gpt-5.4 \
-    --save-dir runs/thesis_tests_final/01_model_baseline_comparison/<slug>/repNN \
-    --repetition NN/03 \
-    --resume
-\end{verbatim}
-
-The manifest, model, and output slug triplets are:
-
-\begin{itemize}
-    \item \texttt{thesis\_test01\_gemma4\_baseline.yaml} /
-          \texttt{gemma4:e4b} /
-          \texttt{gemma4\_e4b}
-    \item \texttt{thesis\_test01\_gemma4\_baseline.yaml} /
-          \texttt{gemma4:26b} /
-          \texttt{gemma4\_26b}
-    \item \texttt{thesis\_test01\_mistral\_small32\_baseline.yaml} /
-          \texttt{mistral-small3.2:24b} /
-          \texttt{mistral\_small32\_24b}
-\end{itemize}
 
 \subsection{Test 02 - Per-Agent Sensitivity Analysis (OFAT)}
 \label{subsec:test02}
@@ -300,23 +243,6 @@ The main goal of this test is to identify which static parameters and which
 agent steps offer the most leverage for quality improvement at low computational
 cost, before considering more expensive compute-expansion strategies in Test 04.
 
-\subsubsection{Deployment with Docker}
-
-The \texttt{docker run} command follows the same template as Test 01 with
-the following substitutions:
-
-\begin{itemize}
-    \item Dataset:
-          \texttt{evaluation/\allowbreak benchmark\_\allowbreak dataset\_\allowbreak gemma4\_\allowbreak thesis\_15.json}
-    \item Manifests:
-          \texttt{thesis\_test02\_gemma4\_sensitivity.yaml} for
-          \texttt{gemma4:e4b} and \texttt{gemma4:26b};
-          \texttt{thesis\_\allowbreak test02\_\allowbreak mistral\_\allowbreak small32\_\allowbreak sensitivity.yaml} for
-          \texttt{mistral-small3.2:24b}
-    \item Save directory prefix:
-          \texttt{02v2\_\allowbreak agent\_\allowbreak step\_\allowbreak parameter\_\allowbreak sensitivity/\allowbreak <model\_slug>}
-\end{itemize}
-
 \subsection{Test 03 - \texttt{max\_tokens} Ladder per Agent}
 \label{subsec:test03}
 
@@ -335,9 +261,10 @@ The rationale is that \texttt{max\_tokens} is an upper bound on the number of
 tokens the model can generate in a single call, not a fixed generation length.
 A too-low cap can cause structural failures --- truncated SQL queries, incomplete
 analysis text, or missing chart code --- while a cap that is already non-binding
-adds no measurable cost. The experiment therefore aims to identify the minimum
-safe cap for each step and model, and to verify whether higher caps provide any
-quality benefit beyond that threshold.
+should add little measurable cost. The experiment therefore aims to identify the
+minimum safe cap for each step and model, to verify whether higher caps provide
+any quality benefit beyond that threshold, and to check empirically whether
+larger caps introduce a significant energy increase.
 
 The test runs on a 10-prompt benchmark subset across all three models, for three
 repeats each, yielding $12 \times 10 = 120$ scored prompt runs per model per
@@ -346,23 +273,6 @@ total wall-clock time, while preserving coverage of all four SQL difficulty
 levels (D1:~2, D2:~3, D3:~3, D4:~2 prompts). Both step-specific metrics and the full-pipeline \texttt{quality\_mean}
 are reported alongside per-step energy measurements, so that any accuracy
 recovery from a higher cap can be weighed against its compute cost.
-
-\subsubsection{Deployment with Docker}
-
-The \texttt{docker run} command follows the same template as Test 01 with
-the following substitutions:
-
-\begin{itemize}
-    \item Dataset:
-          \texttt{evaluation/\allowbreak benchmark\_\allowbreak dataset\_\allowbreak gemma4\_\allowbreak thesis\_10.json}
-    \item Manifests:
-          \texttt{thesis\_test03\_gemma4\_max\_tokens.yaml} for
-          \texttt{gemma4:e4b} and \texttt{gemma4:26b};
-          \texttt{thesis\_\allowbreak test03\_\allowbreak mistral\_\allowbreak small32\_\allowbreak max\_tokens.yaml} for
-          \texttt{mistral-small3.2:24b}
-    \item Save directory prefix:
-          \texttt{03\_\allowbreak max\_tokens\_\allowbreak agent\_ladder/\allowbreak <model\_slug>}
-\end{itemize}
 
 \subsection{Test 04 - Compute Expansion (CoT Depth Ladder)}
 \label{subsec:test04}
@@ -389,23 +299,6 @@ temperature settings ($t \in \{0.3, 0.6, 0.8\}$) against three Best-of-2
 temperature ranges (narrow, medium, wide) and a CoT $n=2$ reference, across
 8 lookup-only configurations and three repeats.
 
-\subsubsection{Deployment with Docker}
-
-The \texttt{docker run} command follows the same template as Test 01 with
-the following substitutions:
-
-\begin{itemize}
-    \item Dataset:
-          \texttt{evaluation/\allowbreak benchmark\_\allowbreak dataset\_\allowbreak gemma4\_\allowbreak thesis\_10.json}
-    \item Manifests:
-          \texttt{thesis\_test04\_gemma4\_e4b\_compute\_expansion.yaml} for
-          \texttt{gemma4:e4b};
-          \texttt{thesis\_\allowbreak test04\_\allowbreak mistral\_\allowbreak small32\_\allowbreak compute\_expansion.yaml} for
-          \texttt{mistral-small3.2:24b}
-    \item Save directory prefix:
-          \texttt{04\_\allowbreak compute\_\allowbreak expansion\_\allowbreak n\_and\_cot/\allowbreak <model\_slug>}
-\end{itemize}
-
 \subsection{Test 05 - Final Pareto Confirmation}
 \label{subsec:test05}
 
@@ -417,10 +310,13 @@ Pareto frontier across all models and candidate policies.
 Unlike the preceding tests, which vary one hyperparameter dimension at a time,
 Test 05 evaluates combined agent policies: each configuration specifies the
 full set of per-step parameters assembled from the most promising candidates of
-the exploratory phase. Eight to ten configurations are evaluated per model,
-each combining one or more of the interventions from Tests 02--04: lookup
-Chain-of-Thought (varying \texttt{cot\_n} from 2 to~4), static lookup
-temperature tuning (\texttt{temp}~0.8), and reduced downstream token caps.
+the exploratory phase. A substantial part of the test consists of newly run
+combined policies designed specifically for this final confirmation stage,
+rather than only reusing rows from earlier experiments. Eight to ten
+configurations are evaluated per model, each combining one or more of the
+interventions from Tests 02--04: lookup Chain-of-Thought (varying
+\texttt{cot\_n} from 2 to~4), static lookup temperature tuning
+(\texttt{temp}~0.8), and reduced downstream token caps.
 
 The configuration families are model-specific:
 
@@ -460,36 +356,5 @@ the per-test tables for deployments bound by response-time limits. Energy
 is preferred as the headline axis because it simultaneously captures the
 sustainability dimension and, unlike wall-clock time, aggregates the CPU,
 GPU, and RAM contributions measured by CodeCarbon.
-
-\subsubsection{Deployment with Docker}
-
-Each model has a dedicated manifest. The command for \texttt{gemma4:e4b} is:
-
-\begin{verbatim}
-docker run --rm \
-    --gpus "device=0" \
-    --network=host \
-    -e OLLAMA_HOST=http://localhost:11434 \
-    -e OPENAI_API_KEY \
-    -v "$(pwd)/runs:/app/runs" \
-    data-agent \
-    evaluation/run_manifest_benchmark.py \
-    evaluation/benchmark_dataset.json \
-    evaluation/thesis_final_run/thesis_test05_gemma4_e4b_final_pareto.yaml \
-    --provider ollama \
-    --model gemma4:e4b \
-    --gt-judge-provider openai \
-    --gt-judge-model gpt-5.4 \
-    --save-dir runs/thesis_tests_final/05_final_pareto_confirmation/gemma4_e4b/rep01 \
-    --repetition 01/02 \
-    --resume
-\end{verbatim}
-
-The same pattern is repeated for \texttt{gemma4:26b} using
-\texttt{thesis\_\allowbreak test05\_\allowbreak gemma4\_\allowbreak 26b\_\allowbreak final\_pareto.yaml}, and for
-\texttt{mistral-small3.2:24b} using
-\texttt{thesis\_\allowbreak test05\_\allowbreak mistral\_\allowbreak small32\_\allowbreak 24b\_\allowbreak final\_pareto.yaml}, with
-the corresponding \texttt{--model} and \texttt{--save-dir} arguments updated
-accordingly.
 
 %-----------------------------------------------------------------------------
