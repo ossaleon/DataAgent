@@ -11,22 +11,21 @@ I Large Language Model (LLM) alimentano sempre più spesso interfacce in linguag
 verso dati strutturati, ma il loro impiego in produzione solleva questioni che vanno oltre
 l'accuratezza, ovvero la latenza di inferenza e il costo energetico. Per studiare questi
 aspetti, la tesi realizza un \textit{Sales Agent}: un sistema basato su LLM, orchestrato con
-LangGraph, che traduce una domanda di business in una query SQL eseguita su file Parquet tramite
-DuckDB, ne interpreta i risultati in forma testuale e, opzionalmente, genera un grafico. Una
-configurazione gerarchica in YAML espone i parametri di inferenza studiati negli esperimenti
+LangGraph, che traduce una domanda di business in una query SQL, ne interpreta i risultati in
+forma testuale e, opzionalmente, genera un grafico. Una
+configurazione gerarchica in YAML espone i parametri di inferenza studiati
 (parametri di campionamento, best-of-$N$, budget di token e profondità del raffinamento
-Chain-of-Thought) sia per modelli open-weight serviti localmente tramite Ollama, sia per modelli
-cloud tramite l'API OpenAI (qui usata unicamente per la valutazione LLM-as-judge). Il contributo
+Chain-of-Thought). Il contributo
 principale è un profiling sistematico che misura congiuntamente la qualità dell'output, il tempo
 di esecuzione e il consumo energetico per singolo step (tramite CodeCarbon). La qualità è
 valutata su 20 domande analitiche, stratificate su quattro livelli di difficoltà SQL, lungo tre
 dimensioni: un punteggio graduato di similarità tabellare rispetto alla ground truth per il recupero dei dati e due
 punteggi LLM-as-judge per l'analisi testuale e la visualizzazione. Cinque esperimenti a step
 isolato definiscono una baseline per tre modelli open-weight (Gemma~4~E4B, Gemma~4~26B,
-Mistral~Small~3.2~24B) e poi variano uno step dell'agente alla volta su parametri di
-campionamento, budget di token e compute a tempo di inferenza, concludendo con una conferma di
-Pareto. Gli esperimenti mirano anche a verificare l'assunzione secondo cui i modelli thinking
-più grandi siano sempre la soluzione migliore. I risultati mostrano invece che la sola scelta del modello non spiega le prestazioni: gli
+Mistral~Small~3.2~24B) e poi variano uno step dell'agente alla volta, concludendo con una
+conferma di Pareto. Sono inoltre progettati per verificare un'assunzione comune nel deployment
+locale di LLM, ovvero che i modelli thinking più grandi siano necessariamente la soluzione
+migliore. I risultati mostrano invece che la sola scelta del modello non spiega le prestazioni: gli
 effetti dominanti emergono dall'interazione tra famiglia del modello, step dell'agente,
 difficoltà del prompt e impostazioni di inferenza. Mistral è il modello non ottimizzato più
 efficiente ma crolla sui prompt di aggregazione più difficili; Gemma~26B è altamente

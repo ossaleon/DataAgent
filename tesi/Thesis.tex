@@ -60,6 +60,7 @@
 
 % OTHER PACKAGES
 \usepackage{float} % [H] forced float placement
+\usepackage{placeins} % \FloatBarrier: keep floats within their section
 \usepackage{amsthm,thmtools,xcolor} % Coloured "Theorem"
 \setlength{\arrayrulewidth}{0.8pt} % Thicker table borders, visible at any zoom level
 \usepackage{comment} % Comment part of code
@@ -127,26 +128,22 @@
 % -> abstract (only in English)
 \renewcommand{\abstract}{Large Language Models (LLMs) increasingly power natural language
 interfaces to structured data, yet deploying them in production raises concerns beyond
-accuracy, namely inference latency and energy cost. To study these concerns, this thesis builds
+accuracy, namely inference latency and energy cost. To study these, this thesis builds
 a \textit{Sales Agent}: an LLM-powered system, orchestrated with LangGraph, that translates a
-business question into a SQL query executed over Parquet files via DuckDB, interprets the
+business question into a SQL query, interprets the
 results in text, and optionally renders a chart. A hierarchical YAML
-configuration exposes the inference parameters studied in the experiments
-(sampling parameters, best-of-$N$, token budgets, and Chain-of-Thought
-refinement depth) across both open-weight
-models served locally via Ollama and cloud models via the OpenAI API (used here only for
-LLM-as-judge evaluation). The core contribution is
+configuration exposes the studied inference parameters (sampling parameters, best-of-$N$,
+token budgets, and Chain-of-Thought refinement depth). The core contribution is
 a systematic profiling that jointly measures output quality, execution time, and per-step energy
 consumption (via CodeCarbon). Quality is assessed over 20 analytical questions, stratified
-across four SQL difficulty levels, along three dimensions: a graded
-ground-truth table-similarity score for retrieval and two LLM-as-judge scores
-for analysis and visualisation. Five
-step-isolated experiments establish a baseline for three open-weight models (Gemma~4~E4B,
-Gemma~4~26B, Mistral~Small~3.2~24B) and then vary one agent step at a time across sampling
-parameters, token budgets, and inference-time compute, closing with a Pareto confirmation run.
-The experiments are designed also to test a common assumption in local LLM
-deployment: that larger thinking models are necessarily the best solution.
-The results show instead that model choice alone does not explain performance: the dominant effects
+across four SQL difficulty levels, along three dimensions: a graded ground-truth
+table-similarity score for retrieval and two LLM-as-judge scores for analysis and
+visualisation. Five step-isolated experiments establish a baseline for three open-weight
+models (Gemma~4~E4B, Gemma~4~26B, Mistral~Small~3.2~24B) and then vary one agent step at a time,
+closing with a Pareto confirmation run.
+They are also designed to test a common assumption in local LLM deployment, that larger
+thinking models are necessarily the best solution. The results show instead that model
+choice alone does not explain performance: the dominant effects
 arise from the interaction between model family, agent step, prompt difficulty, and
 inference-time settings. Mistral is the most efficient untuned model but collapses on the
 hardest aggregation prompts; Gemma~26B is highly tunable yet energetically costly; and
@@ -158,8 +155,8 @@ pays off only when its feedback matches the failure mode: it is the strongest in
 verifiable SQL lookup, but harmful for visualisation, where errors are semantic rather than
 executable. The thesis distills three recommendations for energy-aware LLM data agents: tune
 hyperparameters per agent step rather than globally, allocate inference-time compute by failure
-mode, and report accuracy and energy by prompt difficulty, since the best model for simple tasks
-is not the best for hard ones.}
+mode, and report accuracy and energy by prompt difficulty, since the best model for simple
+tasks is not the best for hard ones.}
 
 % -> key-words (only in English)
 \newcommand{\keywords}{LLM data agents, Energy-aware profiling, Quality-energy trade-off, Local open-weight LLMs, LLM-as-judge evaluation}
@@ -189,7 +186,7 @@ is not the best for hard ones.}
 \input{sections/07_bibliography}
 \input{sections/08_appendices}
 \input{sections/09_sommario}
-\input{sections/10_acknowledgements}
+%\input{sections/10_acknowledgements}
 
 %-------------------------------------------------------------------------
 %	END OF YOUR DOCUMENT

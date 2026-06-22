@@ -163,8 +163,8 @@ identifying what is missing, verifying decision rules, and making the final choi
 and outputs a single tool name. The routing is governed by three hard rules:
 (1)~\texttt{lookup\_sales\_data} must run before any analysis or visualisation;
 (2)~no tool may be selected more than once per execution;
-(3)~\texttt{end} is selected when at least two answers have been generated or all
-relevant tools have been executed.
+(3)~\texttt{end} is selected when both the textual analysis and the visualisation answers
+have been generated, or when all tools relevant to the user's request have been executed.
 Fuzzy string matching is applied to the raw LLM output to tolerate minor formatting
 variations.
 
@@ -172,9 +172,6 @@ variations.
 This node generates a SQL query from the user prompt and the database schema, executes
 it against the Parquet files via DuckDB, and stores the result in the \texttt{State}
 as both a CSV string and a Pandas \texttt{DataFrame}.
-When best-of-$n$ sampling is enabled (\texttt{StepConfig.n} $> 1$), the node generates
-$n$ candidate SQL queries at different temperature values and selects the one with the
-highest evaluation score before writing the result to the state.
 
 \paragraph{The \texttt{analyzing\_data} node.}
 Given the retrieved data and the original question, this node prompts the LLM to produce
@@ -204,7 +201,7 @@ goal is to communicate flow rather than to specify a system for code generation.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.65\textwidth]{Images/fig4_sequence.png}
+    \includegraphics[width=0.82\textwidth]{Images/fig4_sequence.png}
     \vspace{-6pt}
     \caption{Sequence diagram of a full Sales Agent execution.}
     \label{fig:sequence}
@@ -351,16 +348,21 @@ For steps with \texttt{StepConfig.cot\_n} $> 1$, the agent applies iterative
 Chain-of-Thought refinement. After the initial LLM call, the output is fed back into
 the same prompt through a \texttt{CoTRefinementLLM} wrapper. This wrapper appends a
 refinement block to every subsequent call, showing the model its previous response
-and asking it to either confirm it (if correct and complete) or produce an improved
-version. The loop runs for at most \texttt{cot\_n} total iterations, but stops early
-as soon as the output converges — i.e.\ when the textual similarity between two
-consecutive responses reaches or exceeds 0.95 — avoiding redundant refinement calls
-once the model has settled on a stable answer.
+and asking it to either reproduce it exactly when it is correct and complete — leaving
+the parts that are already correct unchanged and revising only the errors — or produce
+an improved version otherwise. The loop runs for at most \texttt{cot\_n} total iterations,
+but stops early as soon as the output converges — i.e.\ when the textual similarity
+between two consecutive responses reaches or exceeds 0.95, measured as the character-level
+\texttt{difflib.SequenceMatcher} ratio (defined as $2M/T$, where $T$ is the total number
+of characters in the two responses and $M$ is the number matched by the longest contiguous
+matching subsequences) — avoiding redundant refinement calls once the model has settled on
+a stable answer.
 
 Two refinement modes are available. In the standard mode, the model receives its
-previous output and can voluntarily refine it. In error-aware mode, triggered when
-the visualization code raises an exception during validation, the error message is
-explicitly included in the refinement block with a directive to fix it. This
+previous output and can voluntarily refine it. In error-aware mode, triggered whenever
+a step reports an execution error — either a SQL query that fails to execute in the
+lookup step or visualization code that raises an exception during validation — the error
+message is explicitly included in the refinement block with a directive to fix it. This
 self-correction loop allows the agent to recover from syntactically or semantically
 incorrect code without user intervention.
 
@@ -368,8 +370,10 @@ incorrect code without user intervention.
 \label{subsec:config}
 
 The Sales Agent exposes a hierarchical configuration system that controls every
-aspect of the agent's behaviour without requiring code changes. All settings are
-defined in a single YAML file and loaded at startup via \texttt{AgentConfig.from\_yaml()}.
+aspect of the agent's behaviour without requiring code changes. All behavioural settings
+are defined in a single YAML file, loaded at startup via \texttt{AgentConfig.from\_yaml()},
+which additionally discovers the per-table \texttt{*\_schema.yaml} files referenced by the
+\texttt{schema} section.
 
 \subsubsection{YAML Structure}
 
@@ -435,15 +439,22 @@ temperature~0.15, appropriate for an instruction-following model.
 \subsubsection{Runtime Overrides}
 
 The \texttt{run.step\_overrides} field allows temporary parameter changes for a
-single execution without modifying the base configuration. For example, setting
-\texttt{analyzing\_data.n: 3} and \texttt{temp\_max: 1.3} increases best-of-$n$
-sampling for the analysis step in that run only. Runtime overrides are mediated by
-a pluggable \texttt{ParameterProvider} abstraction, queried before each step to
-return the effective \texttt{StepConfig}: the default \texttt{DefaultProvider}
-returns the static YAML configuration unchanged, while the \texttt{interactive\_config}
-flag activates a \texttt{TerminalProvider} that prompts the user to accept or
-override the step parameters at runtime (falling back to the defaults when no
-interactive terminal is available), useful for exploratory experiments.
+single execution without modifying the base configuration: before the run starts,
+the agent deep-copies its configuration and applies the overrides on the copy. For
+example, setting \texttt{analyzing\_data.n: 3} together with \texttt{temp\_max: 1.3}
+enables best-of-$3$ sampling for the analysis step --- widening its temperature
+range --- in that run only.
+
+A separate, complementary mechanism is the pluggable \texttt{ParameterProvider}
+abstraction, queried before each step to return the effective \texttt{StepConfig}.
+The default \texttt{DefaultProvider} returns the configuration unchanged and is the
+provider in effect for all experiments reported in this thesis, which run
+non-interactively. The codebase also ships an optional \texttt{TerminalProvider}
+which, when the agent is launched from an interactive terminal (i.e.\ when standard
+input is a TTY), displays each step's parameters and lets the user accept or override
+them one by one before that step executes, falling back to the defaults otherwise.
+This interactive facility is intended for manual, exploratory use and is not exercised
+by the benchmark runs reported here.
 
 \subsection{Multi-Table Support and Dataset}
 \label{subsec:multitable}
@@ -702,7 +713,7 @@ $[1, 5]$ to $[0, 1]$:
 \end{equation}
 
 \paragraph{Visualisation Score (\texttt{vis\_score}).}
-The quality of the generated chart is evaluated by a second LLM judge (\texttt{gpt-5.4}, temperature 0) that receives
+The quality of the generated chart is evaluated by a second LLM judge (\texttt{gpt-5.4}, temperature 0.2) that receives
 the agent's chart configuration dictionary, the corresponding Matplotlib code, the
 ground-truth equivalents, and any explicit styling requirements attached to the
 benchmark item. The judge rates four criteria on a 1--5 scale:
@@ -754,55 +765,10 @@ For the analysis and visualisation steps, the no-GT evaluator uses an LLM judge
 that scores the output against the retrieved data and the original question, rather
 than against a reference text.
 
-\subsubsection{Output CSV}
-
-At the end of a benchmark run, all per-item results are aggregated into a single
-output CSV file. Each row corresponds to one benchmark item and
-contains the columns summarised in Table~\ref{tab:output_cols}.
-
-\begin{table}[H]
-\centering
-\arrayrulecolor{black}
-\begin{tabular}{|p{5cm}|p{7.5cm}|}
-\hline
-\rowcolor{bluePoli!30}
-\textbf{Column} & \textbf{Description} \T\B \\
-\hline
-\texttt{test\_case\_id}, \texttt{prompt}, \texttt{difficulty} & Item identifier, question text, difficulty level \T\B \\
-\hline
-\texttt{gen\_sql} & SQL query generated by the agent \T\B \\
-\hline
-\texttt{csv\_iou}, \texttt{text\_score}, \texttt{vis\_score} & GT-based scores for each step \T\B \\
-\hline
-\texttt{csv\_iou\_reasoning}, \texttt{text\_score\_reasoning}, \texttt{vis\_score\_reasoning} & Diagnostic text populated only when the corresponding GT score $< 1.0$ \T\B \\
-\hline
-\texttt{csv\_eval\_score}, \texttt{text\_eval\_score}, \texttt{vis\_eval\_score} & No-GT scores used by the BoN selector \T\B \\
-\hline
-\texttt{elapsed\_sec} & Total wall-clock time for the full run \T\B \\
-\hline
-\texttt{lookup/analyzing/} \texttt{vis\_time\_sec} & Per-step total wall-clock time \T\B \\
-\hline
-\texttt{lookup/analyzing/} \texttt{vis\_llm\_time\_sec} & Time spent in LLM calls per step (sum of BoN candidates, CoT iterations, and judge calls) \T\B \\
-\hline
-\texttt{\{step\}\_llm\_energy\_kwh}, \texttt{\{step\}\_llm\_{cpu|gpu|ram}\_} \texttt{energy\_kwh}, \texttt{\{step\}\_llm\_emissions\_co2} & Per-step energy of the LLM calls --- total, CPU, GPU and RAM energy (kWh) and CO$_2$ emissions (kg) --- for each of the 3 steps (5 fields $\times$ 3 steps; see the Energy Consumption Monitoring subsection below); \texttt{None} when CodeCarbon is disabled \T\B \\
-\hline
-\texttt{energy\_consumed\_kwh}, \texttt{cpu/gpu/ram\_energy\_kwh}, \texttt{emissions\_kg\_co2} & Run-level total energy and CO$_2$ covering the full agent invocation; \texttt{None} when CodeCarbon is disabled \T\B \\
-\hline
-\end{tabular}
-\caption{Main columns of the output CSV.}
-\label{tab:output_cols}
-\end{table}
-
-The reasoning columns (\texttt{csv\_iou\_reasoning}, \texttt{text\_score\_reasoning},
-\texttt{vis\_score\_reasoning}) are populated only when the corresponding score is
-below 1.0, and contain a diagnostic message explaining the mismatch — for example,
-row count differences, missing columns, or specific value discrepancies. These
-columns are intended to support rapid failure analysis without manual inspection of
-individual outputs.
-
 \subsubsection{Energy Consumption Monitoring}
 
-Energy consumption is tracked using CodeCarbon~\cite{lottick2019codecarbon}, an
+As already mentioned, energy consumption is tracked using
+CodeCarbon~\cite{lottick2019codecarbon}, an
 open-source library that measures CPU, GPU, and RAM energy draw during code
 execution and converts it to an estimated CO$_2$ equivalent based on the carbon
 intensity of the local power grid.
@@ -834,3 +800,44 @@ configuration. When enabled, the system operates two independent trackers:
 
 \noindent When \texttt{enable\_codecarbon} is false, all 20 energy columns are set
 to \texttt{None}.
+
+\subsubsection{Output CSV}
+
+At the end of a benchmark run, all per-item results are aggregated into a single
+output CSV file. Each row corresponds to one benchmark item and
+contains the columns summarised in Table~\ref{tab:output_cols}.
+
+\begin{table}[t!]
+\centering
+\arrayrulecolor{black}
+\begin{tabular}{|p{5cm}|p{7.5cm}|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Column} & \textbf{Description} \T\B \\
+\hline
+\texttt{test\_case\_id}, \texttt{prompt}, \texttt{difficulty} & Item identifier, question text, difficulty level \T\B \\
+\hline
+\texttt{gen\_sql} & SQL query generated by the agent \T\B \\
+\hline
+\texttt{csv\_iou}, \texttt{text\_score}, \texttt{vis\_score} & GT-based scores for each step \T\B \\
+\hline
+\texttt{csv\_iou\_reasoning}, \texttt{text\_score\_reasoning}, \texttt{vis\_score\_reasoning} & Diagnostic message explaining the mismatch populated only when the corresponding GT score $< 1.0$ \T\B \\
+\hline
+\texttt{csv\_eval\_score}, \texttt{text\_eval\_score}, \texttt{vis\_eval\_score} & No-GT scores used by the BoN selector \T\B \\
+\hline
+\texttt{elapsed\_sec} & Total wall-clock time for the full run \T\B \\
+\hline
+\texttt{lookup/analyzing/} \texttt{vis\_time\_sec} & Per-step total wall-clock time \T\B \\
+\hline
+\texttt{lookup/analyzing/} \texttt{vis\_llm\_time\_sec} & Time spent in LLM calls per step (sum of BoN candidates, CoT iterations, and judge calls) \T\B \\
+\hline
+\texttt{\{step\}\_llm\_energy\_kwh}, \texttt{\{step\}\_llm\_{cpu|gpu|ram}\_} \texttt{energy\_kwh}, \texttt{\{step\}\_llm\_emissions\_co2} & Per-step energy of the LLM calls --- total, CPU, GPU and RAM energy (kWh) and CO$_2$ emissions (kg) --- for each of the 3 steps (5 fields $\times$ 3 steps, as described in the Energy Consumption Monitoring subsection above); \texttt{None} when CodeCarbon is disabled \T\B \\
+\hline
+\texttt{energy\_consumed\_kwh}, \texttt{cpu/gpu/ram\_energy\_kwh}, \texttt{emissions\_kg\_co2} & Run-level total energy and CO$_2$ covering the full agent invocation; \texttt{None} when CodeCarbon is disabled \T\B \\
+\hline
+\end{tabular}
+\caption{Main columns of the output CSV.}
+\label{tab:output_cols}
+\end{table}
+
+\FloatBarrier

@@ -34,6 +34,7 @@ Failure at any step propagates downstream: an incorrect query yields a wrong
 result set, which in turn can produce a plausible-sounding but factually
 incorrect analysis.
 
+\paragraph{Connection to this work.}
 This thesis instantiates this class of systems as a \textit{Sales Agent}:
 an LLM-powered analytical workflow over a retail dataset that follows the
 same three-phase structure --- data retrieval, textual interpretation, and
@@ -84,6 +85,7 @@ DIN-SQL with GPT-4 reached 85.3\% execution accuracy on Spider, compared to
 67.4\% achieved by GPT-4 with direct few-shot prompting, demonstrating the
 benefit of task decomposition over end-to-end generation.
 
+\paragraph{Connection to this work.}
 This thesis treats SQL generation as a dedicated agent step that uses static
 few-shot examples and schema descriptions to ground the model in the available
 data.
@@ -196,7 +198,7 @@ Externalising the reasoning process reduces the likelihood of skipped steps
 or implicit assumptions, and improves accuracy on tasks that require multi-step
 inference such as arithmetic, symbolic reasoning, and structured query
 generation.
-Iterative CoT refinement extends this idea: the model's initial output is fed
+\textbf{Iterative CoT refinement} extends this idea: the model's initial output is fed
 back into the same prompt together with a directive to verify or improve it,
 forming a self-correction loop that can recover from minor errors without
 human intervention.
