@@ -289,17 +289,10 @@ run time while preserving the original difficulty distribution across
 all four SQL complexity levels (difficulty~1: 3~prompts, difficulty~2:
 4~prompts, difficulty~3: 5~prompts, difficulty~4: 3~prompts).
 
-The Test~02 figures include all complete runs available for the three models.
-Incomplete execution fragments are excluded from metric aggregation. Matched
-repeats are available for \texttt{gemma4:26b} and
-\texttt{mistral-small3.2:24b}; \texttt{gemma4:e4b} is included from the
-available complete run, so its exact value rankings are interpreted
-directionally.
-
 \subsubsection{Overall Resource Use}
 
 Table~\ref{tab:test02overall} reports the aggregate statistics averaged
-across all 153 configurations and available complete repeats. The gap from
+across all 153 configurations and repeats. The gap from
 Test~01 persists: \texttt{mistral-small3.2:24b} runs at 67.2~s and
 0.00416~kWh per prompt while \texttt{gemma4:26b} requires 189.0~s and
 0.01189~kWh. \texttt{gemma4:e4b} sits between them at 99.8~s and
@@ -335,7 +328,7 @@ however, reveal a useful cost ordering for the tuning campaign:
 is the expensive thinking MoE, and \texttt{gemma4:e4b} is the intermediate-cost
 small thinking model.
 
-As a stability check, the two models with matched repeats show small energy
+As a stability check, the matched repeats show small energy
 variance relative to the model-level cost gap. Quality variance is more visible,
 especially for \texttt{gemma4:26b}, so small deltas should not drive final
 parameter choices; the conclusions below focus on large, step-consistent
@@ -398,8 +391,7 @@ of~0.155, while the visualization step offers the largest reliable upside
 (best $\Delta = +0.068$). For \texttt{mistral-small3.2:24b}, by contrast, the
 lookup and visualization ranges are just~0.040 and~0.042. The only step where
 Mistral shows meaningful sensitivity is analysis, where
-\texttt{repeat\_penalty=1.2} causes a large quality drop ($-0.099$) and a
-latency penalty of about~90~s/prompt.
+\texttt{repeat\_penalty=1.2} causes a large quality drop ($-0.099$).
 
 \subsubsection{Quality Delta Heatmap by Parameter Family}
 \label{subsubsec:test02qualityheatmap}
@@ -413,11 +405,11 @@ red cells indicate that the best achievable value still degraded it.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.82\textwidth]{Images/test02v2_quality_delta_heatmap.png}
-    \caption{Test~02: best quality delta per (step, parameter) pair for all complete runs.}
+    \caption{Test~02: best quality delta per (step, parameter) pair for all runs.}
     \label{fig:test02_quality_heatmap}
 \end{figure}
 
-The \texttt{gemma4:e4b} block is now part of the main comparison. Its largest
+For \texttt{gemma4:e4b}, the largest
 signal is lookup tuning: \texttt{top\_p} values close to the baseline,
 especially \texttt{top\_p=0.94} and \texttt{top\_p=0.98}, improve prompt E2E
 quality by more than 0.11 while adding little energy. This supports the later
@@ -568,7 +560,7 @@ and latency delta.
 \label{tab:test02bestworst}
 \end{table}
 
-A notable feature of the improvement list is that the top rows now belong to
+A notable feature of the improvement list is that the top rows belong to
 \texttt{gemma4:e4b} lookup. This does not overturn the Gemma~26B visualization
 result, but it shows that the small thinking model has a high-upside and
 relatively cheap tuning lever. In particular, \texttt{top\_p=0.94} improves
@@ -580,8 +572,8 @@ consistent with the difficulty analysis below: when the small thinking model's
 analysis generation is destabilized, the damage concentrates on difficult
 prompts and can be large. The Mistral
 \texttt{analysis\_repeat\_penalty=1.2} configuration remains an important
-misconfiguration even though it no longer appears in the top four worst rows:
-it loses about~0.099 quality and adds about~90~s/prompt.
+misconfiguration even though it does not appear in the top four worst rows:
+it loses about~0.099 quality.
 
 \subsubsection{Per-Model Analysis}
 
@@ -654,7 +646,7 @@ under \texttt{repeat\_penalty=1.08}, and analysis at difficulty~4 can lose
 as much as~$-0.728$ under \texttt{temperature=1.2}. The pattern is clear:
 hard prompts amplify the effect of parameter tuning.
 
-\texttt{gemma4:26b} shows the same mechanism with matched repeats, but at a
+\texttt{gemma4:26b} shows the same mechanism, but at a
 smaller scale. It obtains large gains on weak slices, such as visualization at
 difficulty~1 ($+0.246$) and lookup at difficulty~1 ($+0.194$), while analysis
 at difficulty~4 can degrade by~$-0.312$. \texttt{mistral-small3.2:24b} remains
@@ -679,7 +671,7 @@ is a model-level property, not a step-level one:
           Sensitivity ranges reach~0.155 for lookup and~0.118 for analysis.
           The visualization step is the most rewarding target: all parameter
           families improve it, with the best configurations delivering up
-          to~$+6.8\%$ quality at near-zero energy overhead.
+          to~$+6.8\%$ quality at low energy overhead.
 
     \item \textbf{\texttt{mistral-small3.2:24b} is insensitive.}
           No parameter at any step moves quality by more than $+0.007$,
@@ -722,7 +714,7 @@ complete data for this test (3~repeats $\times$ 12~configs $\times$
 \begin{tabular}{|l|l|}
 \hline
 \rowcolor{bluePoli!30}
-\textbf{Agent step} & \textbf{\texttt{max\_tokens} values (baseline underlined)} \T\B \\
+\textbf{Agent step} & \textbf{\texttt{max\_tokens} values} \T\B \\
 \hline
 \texttt{lookup\_sales\_data}    & 2500 — 3000 — \underline{5000} — 8000 \T\B \\
 \hline
@@ -958,18 +950,27 @@ the baseline.
 \subsubsection{Accuracy by Prompt Difficulty}
 
 Figures~\ref{fig:test03_diff_sensitivity} and~\ref{fig:test03_diff_delta} examine
-whether the effect of \texttt{max\_tokens} varies with prompt difficulty.
+whether the effect of \texttt{max\_tokens} varies with prompt difficulty, from two
+complementary angles. Figure~\ref{fig:test03_diff_sensitivity} reports the
+\emph{sensitivity range} --- the gap between the best and worst quality across all
+token caps in each (model, step, difficulty) slice --- which measures how much the cap
+choice matters at all, in either direction. Figure~\ref{fig:test03_diff_delta} instead
+reports the \emph{best-cap delta} --- the quality gain of the best cap over the baseline
+cap (the best cap is annotated in each cell) --- which measures how much can be gained by
+re-tuning the cap relative to its default. The two views can diverge: a slice may show a
+large sensitivity range yet a near-zero best-cap delta when the baseline cap is already
+optimal but an overly tight cap would sharply degrade quality.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.90\textwidth]{Images/test03v2_difficulty_token_sensitivity.png}
+    \includegraphics[width=0.80\textwidth]{Images/test03v2_difficulty_token_sensitivity.png}
     \caption{Test~03: \texttt{max\_tokens} sensitivity by prompt difficulty for each model and step.}
     \label{fig:test03_diff_sensitivity}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.90\textwidth]{Images/test03v2_difficulty_best_cap_delta.png}
+    \includegraphics[width=0.80\textwidth]{Images/test03v2_difficulty_best_cap_delta.png}
     \caption{Test~03: best \texttt{max\_tokens} cap delta by prompt difficulty.}
     \label{fig:test03_diff_delta}
 \end{figure}
@@ -979,9 +980,11 @@ dial, and its impact is strongest on slices where the default cap causes
 truncation or malformed outputs. The most striking case is \texttt{gemma4:e4b}
 visualization at difficulty~4: reducing the cap from the 7000-token baseline to
 4000 raises quality by~$+0.355$, because the model generates overly long or
-structurally incorrect chart code at the default budget. Conversely, on flat
-slices such as \texttt{gemma4:e4b} lookup at difficulty~1, the cap has no effect
-regardless of its value (quality stays at~0.939). These results support using
+structurally incorrect chart code at the default budget. The two heatmap views can
+also diverge: at \texttt{gemma4:e4b} lookup difficulty~1 the default 5000-token cap is
+already optimal, so no larger cap improves quality (best-cap delta of~$+0.000$, quality
+staying at~0.939), yet the slice is far from insensitive --- dropping the cap to 3000
+collapses quality (a sensitivity range of~0.342). These results support using
 generous but not blindly maximal caps per agent: a cap that is too tight causes
 discrete failures on complex prompts, while an excessively high cap rarely helps
 and can encourage verbose outputs that reduce quality.
@@ -1041,17 +1044,30 @@ and text steps were near saturation, and its per-prompt cost is already
 the highest of the three models, making additional compute iterations
 particularly expensive relative to the expected gain.
 
-Before interpreting the cost curves, one resource anomaly was corrected in
-the analysis data. In \texttt{gemma4:e4b}, repeat~3 of
-\texttt{visualization\_cot\_n3} contained two rows with abnormal wall-clock
-time and energy, inconsistent with the same test cases in repeats~1 and~2.
-Only timing and energy columns were replaced with the mean of the two clean
-repetitions; quality scores, completion flags, and CoT execution diagnostics
-were left unchanged. This correction lowers the reported cost of
-\texttt{visualization\_cot\_n3}, but does not change the qualitative result:
-visualization CoT still degrades quality.
-
 \subsubsection{Aggregate Results}
+
+Table~\ref{tab:test04results} reports the CoT aggregate results per (model, step,
+depth), and highlights a clear asymmetry between the two CoT targets.
+For the lookup step, CoT consistently helps: \texttt{gemma4:e4b} gains
+up to $+0.203$ quality at \texttt{cot\_n=4} (with \texttt{csv\_iou}
+rising from~0.757 to~0.983), and \texttt{mistral-small3.2:24b} peaks
+at $+0.063$ at depth~3.
+The numerical peak for Gemma~E4B is therefore depth~4, but this should
+not be interpreted as evidence that four full refinement rounds are
+usually needed. As shown later in Table~\ref{tab:test04earlystop}, the
+requested depth~4 configuration executes only 2.50 iterations on average
+and reaches full depth in just 13.3\,\% of lookup rows. Depth~3 already
+fixes the hardest lookup slice (difficulty~4, $+0.524$ quality), and
+depth~2 captures most of the aggregate gain at lower cost.
+For the visualization step the pattern is reversed: quality degrades
+at every depth above~1 for both models, with \texttt{gemma4:e4b}
+losing up to $-0.115$ at depth~3.
+The energy columns show that visualization CoT adds little overhead in
+absolute terms (at most $+0.00059$~kWh from depth~1 to depth~4), yet
+every unit of that energy is wasted because quality declines at each
+step. Lookup CoT carries a larger energy cost (up to $+0.00193$~kWh at
+depth~4 for \texttt{gemma4:e4b}), but the quality gains are
+substantial enough to justify it.
 
 \begin{table}[H]
 \centering
@@ -1100,28 +1116,6 @@ visualization CoT still degrades quality.
 \label{tab:test04results}
 \end{table}
 
-The table highlights a clear asymmetry between the two CoT targets.
-For the lookup step, CoT consistently helps: \texttt{gemma4:e4b} gains
-up to $+0.203$ quality at \texttt{cot\_n=4} (with \texttt{csv\_iou}
-rising from~0.757 to~0.983), and \texttt{mistral-small3.2:24b} peaks
-at $+0.063$ at depth~3.
-The numerical peak for Gemma~E4B is therefore depth~4, but this should
-not be interpreted as evidence that four full refinement rounds are
-usually needed. As shown later in Table~\ref{tab:test04earlystop}, the
-requested depth~4 configuration executes only 2.50 iterations on average
-and reaches full depth in just 13.3\,\% of lookup rows. Depth~3 already
-fixes the hardest lookup slice (difficulty~4, $+0.524$ quality), and
-depth~2 captures most of the aggregate gain at lower cost.
-For the visualization step the pattern is reversed: quality degrades
-at every depth above~1 for both models, with \texttt{gemma4:e4b}
-losing up to $-0.115$ at depth~3.
-The energy columns show that visualization CoT adds little overhead in
-absolute terms (at most $+0.00059$~kWh from depth~1 to depth~4), yet
-every unit of that energy is wasted because quality declines at each
-step. Lookup CoT carries a larger energy cost (up to $+0.00193$~kWh at
-depth~4 for \texttt{gemma4:e4b}), but the quality gains are
-substantial enough to justify it.
-
 \subsubsection{Accuracy vs.\ Requested CoT Depth}
 
 Figure~\ref{fig:test04_cot_depth} plots overall pipeline quality against
@@ -1134,35 +1128,24 @@ the requested \texttt{cot\_n} value for both steps and both models.
     \label{fig:test04_cot_depth}
 \end{figure}
 
-The Gemma~E4B lookup curve deserves particular attention: the gain from
-\texttt{cot\_n=1} to \texttt{cot\_n=2} ($+18.6$ quality points) is the
-largest single-step improvement observed across all four tests for any
-configuration change on this model. This directly addresses the
-SQL-generation fragility diagnosed in Test~01: iterative refinement
-allows the model to correct erroneous SQL constructs through
-self-criticism, achieving a \texttt{csv\_iou} of~0.954 at
-\texttt{cot\_n=2} compared to~0.757 at baseline.
+The Gemma~E4B lookup curve deserves particular attention: the \texttt{cot\_n=1} to
+\texttt{cot\_n=2} gain ($+18.6$ quality points) is the largest single-step
+improvement across all four tests for this model. It directly addresses the
+SQL-generation fragility diagnosed in Test~01 --- iterative refinement
+corrects erroneous SQL through self-criticism, raising \texttt{csv\_iou}
+from~0.757 at baseline to~0.954 at \texttt{cot\_n=2}.
 
-The visualization curves tell the opposite story. Both models show a
-monotonic quality decline as the requested depth increases: for
-\texttt{gemma4:e4b} the drop reaches $-0.115$ at \texttt{cot\_n=3},
-while \texttt{mistral-small3.2:24b} loses $-0.033$ at depth~4.
-Unlike SQL, where the model can verify its output against a concrete
-execution result, chart code has no analogous feedback signal: the
-self-criticism loop has no reliable criterion to judge correctness and
-tends to over-edit working code, introducing regressions rather than
-fixing them. In several failed visualization examples the problem is not
-that the Python code cannot run, but that the generated chart does not
-match the exact plot requested by the user: wrong grouping, wrong split,
-or a subtly different chart semantics. Execution feedback does not expose
-this semantic mismatch, so additional CoT steps can reinforce an already
-wrong interpretation. This is consistent with a broader caution for CoT:
-additional reasoning is useful only when the feedback signal is aligned
-with the target property being evaluated.\footnote{A final literature pass
-should add a specific citation here for cases where Chain-of-Thought or
-self-refinement can hurt performance when the task does not benefit from
-additional reasoning, or when the verification signal is misaligned with
-the evaluation target.}
+The visualization curves tell the opposite story: quality declines
+monotonically with depth for both models, reaching $-0.115$ at
+\texttt{cot\_n=3} for \texttt{gemma4:e4b} and $-0.033$ at depth~4 for
+\texttt{mistral-small3.2:24b}. Self-criticism improves SQL queries but
+degrades chart code: the typical
+visualization failure is semantic --- the Python runs fine, yet the chart does
+not match the requested plot (wrong grouping, wrong split, or subtly different
+semantics) --- and the loop, lacking a reliable criterion for chart
+correctness, over-edits working code and introduces regressions. This is
+consistent with a broader caution for CoT: self-refinement helps only when the
+model can reliably verify the property being evaluated~\cite{huang2024selfcorrect}.
 
 \subsubsection{Quality-Energy Pareto of CoT Configurations}
 
@@ -1171,20 +1154,18 @@ $(\Delta\,\text{energy}, \Delta\,\text{quality})$ plane.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{Images/test04v2_compute_expansion_pareto.png}
+    \includegraphics[width=0.75\textwidth]{Images/test04v2_compute_expansion_pareto.png}
     \caption{Test~04: quality delta vs.\ energy delta per CoT configuration.}
     \label{fig:test04_pareto}
 \end{figure}
 
-The scatter divides cleanly into two clusters. All lookup CoT
-configurations land in the upper-right quadrant: quality improves and
-energy increases, but the ratio is favourable — \texttt{gemma4:e4b}
-achieves its largest gain ($+0.203$) at \texttt{cot\_n=4} with a
-moderate overhead, while \texttt{mistral-small3.2:24b} reaches $+0.063$
-at depth~3 at much lower absolute cost.
-All visualization CoT configurations land in the lower-right quadrant:
-every additional iteration costs energy and degrades quality
-simultaneously, making CoT a strictly dominated strategy for chart
+The scatter divides cleanly into two clusters. Lookup CoT configurations
+land in the upper-right quadrant --- quality and energy both rise, but the
+ratio is favourable: \texttt{gemma4:e4b} gains $+0.203$ at \texttt{cot\_n=4}
+with moderate overhead, and \texttt{mistral-small3.2:24b} reaches $+0.063$ at
+depth~3 at much lower absolute cost. Visualization CoT configurations land in
+the lower-right quadrant: every extra iteration costs energy and degrades
+quality at once, making CoT a strictly dominated strategy for chart
 generation.
 
 \subsubsection{Direct Step-Metric Gain vs.\ Extra Energy}
@@ -1195,7 +1176,7 @@ against the energy overhead.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{Images/test04v2_agent_metric_gain_cost.png}
+    \includegraphics[width=0.75\textwidth]{Images/test04v2_agent_metric_gain_cost.png}
     \caption{Test~04: direct step-metric delta vs.\ energy delta per CoT configuration.}
     \label{fig:test04_metric_cost}
 \end{figure}

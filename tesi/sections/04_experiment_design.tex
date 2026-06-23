@@ -346,15 +346,16 @@ The primary metrics are \texttt{quality\_mean}, prompt-level end-to-end
 quality (which penalises missing downstream scores caused by upstream
 failures), completion rate, elapsed time, and energy per prompt.
 
+\paragraph{Energy as the efficiency axis.}
 Although execution time and energy are both recorded, they are treated as
 two readings of the same underlying cost rather than as independent axes.
 On fixed inference hardware the accelerator draws a near-constant average
 power during generation, so per-prompt energy is, to first order, a fixed
 multiple of wall-clock latency; the baseline campaign confirms this, with
 the per-model latency and energy rankings coinciding to within about five
-percentage points. The quality--cost trade-offs and Pareto frontiers in
+percentage points. \textit{The quality--cost trade-offs and Pareto frontiers in
 Section~\ref{sec:experiments} therefore use energy per prompt as the single
-representative efficiency axis, while absolute latency is still reported in
+representative efficiency axis}, while absolute latency is still reported in
 the per-test tables for deployments bound by response-time limits. Energy
 is preferred as the headline axis because it simultaneously captures the
 sustainability dimension and, unlike wall-clock time, aggregates the CPU,
