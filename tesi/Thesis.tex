@@ -41,6 +41,9 @@
 \usepackage{tabularx}
 \usepackage{longtable} % tables that can span several pages
 \usepackage{colortbl}
+% Wrapping table column whose cells break long monospace tokens at underscores
+\newcommand{\ubreak}{\textunderscore\allowbreak}
+\newcolumntype{Y}[1]{>{\raggedright\arraybackslash\let\_\ubreak}p{#1}}
 
 % PACKAGES FOR ALGORITHMS (PSEUDO-CODE)
 \usepackage{algorithm}

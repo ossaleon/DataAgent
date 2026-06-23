@@ -49,7 +49,7 @@ To address this, two additional quality views are used throughout this test:
 \subsubsection{Aggregate Results}
 
 Table~\ref{tab:test01aggregate} summarises the key metrics averaged over the
-three repeats. By official quality \texttt{mistral-small3.2:24b} leads (0.900)
+three repeats. By official quality \texttt{mistral-\allowbreak small3.2:24b} leads (0.900)
 with \texttt{gemma4:e4b} close behind (0.867), while \texttt{gemma4:26b}
 scores notably lower (0.792) due to a weak visualization component. The
 component E2E metric, which counts missing expected scores as zero, narrows
@@ -65,7 +65,7 @@ reaches~0.821, while Gemma~26B trails at~0.772.
 \rowcolor{bluePoli!30}
 \textbf{Model} & \textbf{Official} & \textbf{Comp.~E2E} & \textbf{Prompt~E2E} & \textbf{csv E2E} & \textbf{text E2E} & \textbf{vis E2E} & \textbf{Mean sec} & \textbf{Mean kWh} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 0.900 & 0.827 & 0.844 & 0.899 & 0.800 & 0.783 & 48.9 & 0.00601 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & 0.900 & 0.827 & 0.844 & 0.899 & 0.800 & 0.783 & 48.9 & 0.00601 \T\B \\
 \hline
 \texttt{gemma4:e4b}           & 0.867 & 0.821 & 0.835 & 0.903 & 0.792 & 0.769 & 75.4 & 0.00883 \T\B \\
 \hline
@@ -78,7 +78,7 @@ reaches~0.821, while Gemma~26B trails at~0.772.
 \end{table}
 
 These aggregate values already define the baseline quality--energy ordering.
-\texttt{mistral-small3.2:24b} is the strongest baseline because it combines
+\texttt{mistral-\allowbreak small3.2:24b} is the strongest baseline because it combines
 the highest strict quality with the lowest energy cost.
 \texttt{gemma4:e4b} reaches a nearly identical component E2E quality
 (0.821 vs.\ 0.827) but at 1.47$\times$ the energy and 1.54$\times$ the
@@ -123,11 +123,11 @@ scores because they depend on generated-token length and GPU runtime state.
 \hline
 \texttt{gemma4:26b}           & rep~03 & 0.757 & 0.787 & 0.016185 & 131.9 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & rep~01 & 0.823 & 0.839 & 0.006016 & 49.0 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & rep~01 & 0.823 & 0.839 & 0.006016 & 49.0 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & rep~02 & 0.819 & 0.834 & 0.006039 & 49.0 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & rep~02 & 0.819 & 0.834 & 0.006039 & 49.0 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & rep~03 & 0.839 & 0.859 & 0.005973 & 48.6 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & rep~03 & 0.839 & 0.859 & 0.005973 & 48.6 \T\B \\
 \hline
 \end{tabular}%
 }
@@ -154,7 +154,7 @@ expected scores concentrated on a small number of difficult prompts.
 \hline
 \texttt{gemma4:26b}           & 60 & 60 & 58 & 40 & 0 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 60 & 60 & 54 & 36 & 0 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & 60 & 60 & 54 & 36 & 0 \T\B \\
 \hline
 \end{tabular}
 \caption{Test~01: pipeline output counts per model over three repeats (42 visualization slots expected per model).}
@@ -162,9 +162,9 @@ expected scores concentrated on a small number of difficult prompts.
 \end{table}
 
 Of the 42~visualization slots expected per model (14~per repeat), completion
-ranges from 85.7\,\% for \texttt{mistral-small3.2:24b} (36 of 42) to
+ranges from 85.7\,\% for \texttt{mistral-\allowbreak small3.2:24b} (36 of 42) to
 95.2\,\% for \texttt{gemma4:26b} (40 of 42). Missing expected score slots
-are concentrated on difficulty-4 prompts: \texttt{mistral-small3.2:24b}
+are concentrated on difficulty-4 prompts: \texttt{mistral-\allowbreak small3.2:24b}
 incurs 12~missing slots on prompts~4 and~17 (6~each, both scoring 0.000
 across all repeats), while \texttt{gemma4:e4b} incurs 8~missing slots across
 prompts~17, 4, and~9.
@@ -192,7 +192,7 @@ The figure reveals distinct failure modes across the three models:
           its visualization E2E score (0.500) is by far the lowest of the
           three, making visualization the primary drag on its aggregate quality.
 
-    \item \texttt{mistral-small3.2:24b} achieves the best visualization score
+    \item \texttt{mistral-\allowbreak small3.2:24b} achieves the best visualization score
           (0.783) and a solid text score (0.800), but its CSV accuracy (0.899)
           reflects complete SQL failures on difficulty-4 prompts that recur
           deterministically across all three repeats.
@@ -234,7 +234,7 @@ visualization agent on two prompts:
 These failures suggest that the larger Gemma model requires targeted
 visualization tuning, as explored in Tests~02 and~03.
 
-\paragraph{\texttt{mistral-small3.2:24b}.}
+\paragraph{\texttt{mistral-\allowbreak small3.2:24b}.}
 The model incurs the largest number of missing expected score slots (12),
 all concentrated on difficulty-4 prompts~4 and~17 (6~slots each). Both
 prompts require nested monthly revenue aggregation across store segmentation
@@ -249,7 +249,7 @@ The main findings of Test~01 can be summarised as follows:
 
 \begin{enumerate}
     \item \textbf{Mistral Small is the Pareto baseline.}
-          \texttt{mistral-small3.2:24b} achieves the highest component E2E
+          \texttt{mistral-\allowbreak small3.2:24b} achieves the highest component E2E
           quality (0.827), the lowest latency (48.9~s/prompt), and the lowest
           energy (0.00601~kWh/prompt). It serves as the primary efficiency
           reference for all subsequent tests.
@@ -293,7 +293,7 @@ all four SQL complexity levels (difficulty~1: 3~prompts, difficulty~2:
 
 Table~\ref{tab:test02overall} reports the aggregate statistics averaged
 across all 153 configurations and repeats. The gap from
-Test~01 persists: \texttt{mistral-small3.2:24b} runs at 67.2~s and
+Test~01 persists: \texttt{mistral-\allowbreak small3.2:24b} runs at 67.2~s and
 0.00416~kWh per prompt while \texttt{gemma4:26b} requires 189.0~s and
 0.01189~kWh. \texttt{gemma4:e4b} sits between them at 99.8~s and
 0.00578~kWh per prompt.
@@ -314,7 +314,7 @@ performance.
 \hline
 \texttt{gemma4:26b}           & 0.8325 & 189.0 & 0.01189 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 0.8783 & \phantom{0}67.2 & 0.00416 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & 0.8783 & \phantom{0}67.2 & 0.00416 \T\B \\
 \hline
 \end{tabular}
 \caption{Test~02: aggregate resource use averaged across all 153 OFAT configurations.}
@@ -324,7 +324,7 @@ performance.
 The mean quality values here are not intended as model rankings because they
 average both good and deliberately poor off-baseline configurations. They do,
 however, reveal a useful cost ordering for the tuning campaign:
-\texttt{mistral-small3.2:24b} is the low-energy control, \texttt{gemma4:26b}
+\texttt{mistral-\allowbreak small3.2:24b} is the low-energy control, \texttt{gemma4:26b}
 is the expensive thinking MoE, and \texttt{gemma4:e4b} is the intermediate-cost
 small thinking model.
 
@@ -369,11 +369,11 @@ quality when varying a single step.
 \hline
 \texttt{gemma4:26b} & Visualization & 0.8121 & $+$0.0679 & $-$0.0342 & 0.102 & \texttt{repeat\_penalty\_1} & \texttt{top\_p\_0.8} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup       & 0.8861 & $+$0.0042 & $-$0.0362 & 0.040 & \texttt{repeat\_penalty\_1.3} & \texttt{repeat\_last\_n\_80} \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Lookup       & 0.8861 & $+$0.0042 & $-$0.0362 & 0.040 & \texttt{repeat\_penalty\_1.3} & \texttt{repeat\_last\_n\_80} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Analysis     & 0.8861 & $+$0.0069 & $-$0.0986 & 0.106 & \texttt{top\_k\_56} & \texttt{repeat\_penalty\_1.2} \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Analysis     & 0.8861 & $+$0.0069 & $-$0.0986 & 0.106 & \texttt{top\_k\_56} & \texttt{repeat\_penalty\_1.2} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 0.8889 & $+$0.0014 & $-$0.0401 & 0.042 & \texttt{repeat\_last\_n\_56} & \texttt{temperature\_0.1} \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Visualization & 0.8889 & $+$0.0014 & $-$0.0401 & 0.042 & \texttt{repeat\_last\_n\_56} & \texttt{temperature\_0.1} \T\B \\
 \hline
 \end{tabular}%
 }
@@ -388,7 +388,7 @@ worst setting. This is too large to treat as a minor side effect: the small
 thinking model is strongly parameter-sensitive.
 For \texttt{gemma4:26b}, the lookup step still has a large sensitivity range
 of~0.155, while the visualization step offers the largest reliable upside
-(best $\Delta = +0.068$). For \texttt{mistral-small3.2:24b}, by contrast, the
+(best $\Delta = +0.068$). For \texttt{mistral-\allowbreak small3.2:24b}, by contrast, the
 lookup and visualization ranges are just~0.040 and~0.042. The only step where
 Mistral shows meaningful sensitivity is analysis, where
 \texttt{repeat\_penalty=1.2} causes a large quality drop ($-0.099$).
@@ -428,7 +428,7 @@ reveals an important asymmetry: reducing temperature below~1.0 hurts the
 analysis agent's text generation more than it helps it. The model's
 thinking mechanism appears to rely on a degree of sampling diversity that
 is lost when temperature is lowered, a behaviour that does not apply to
-the non-thinking \texttt{mistral-small3.2:24b}.
+the non-thinking \texttt{mistral-\allowbreak small3.2:24b}.
 
 \subsubsection{Direct Step-Metric Delta Heatmap}
 
@@ -472,7 +472,7 @@ also save or cost energy.
 \end{figure}
 
 The three models occupy structurally different regions of the plot.
-\texttt{mistral-small3.2:24b} configurations form a narrow vertical
+\texttt{mistral-\allowbreak small3.2:24b} configurations form a narrow vertical
 band near $\Delta E = 0$: quality varies across parameter choices but
 energy consumption remains nearly constant, reflecting the model's
 efficient architecture.
@@ -604,9 +604,9 @@ the most fragile: temperature changes in particular push the model into
 degenerate outputs, and the safe operating window for this step is
 narrow around the baseline.
 
-\paragraph{\texttt{mistral-small3.2:24b}.}
+\paragraph{\texttt{mistral-\allowbreak small3.2:24b}.}
 
-\texttt{mistral-small3.2:24b} is almost entirely insensitive to the
+\texttt{mistral-\allowbreak small3.2:24b} is almost entirely insensitive to the
 parameters tested. The best achievable quality delta at any step is
 $+0.007$, which is within the small-delta uncertainty range. The model's
 low baseline temperature (0.15) and the non-thinking architecture
@@ -649,7 +649,7 @@ hard prompts amplify the effect of parameter tuning.
 \texttt{gemma4:26b} shows the same mechanism, but at a
 smaller scale. It obtains large gains on weak slices, such as visualization at
 difficulty~1 ($+0.246$) and lookup at difficulty~1 ($+0.194$), while analysis
-at difficulty~4 can degrade by~$-0.312$. \texttt{mistral-small3.2:24b} remains
+at difficulty~4 can degrade by~$-0.312$. \texttt{mistral-\allowbreak small3.2:24b} remains
 flatter across difficulty levels, confirming it as a robust baseline but also
 showing why static OFAT tuning finds little upside for this model.
 
@@ -673,7 +673,7 @@ is a model-level property, not a step-level one:
           families improve it, with the best configurations delivering up
           to~$+6.8\%$ quality at low energy overhead.
 
-    \item \textbf{\texttt{mistral-small3.2:24b} is insensitive.}
+    \item \textbf{\texttt{mistral-\allowbreak small3.2:24b} is insensitive.}
           No parameter at any step moves quality by more than $+0.007$,
           confirming that this model's efficiency advantage from Test~01
           is robust to misconfiguration but also leaves little room for
@@ -755,7 +755,7 @@ benefits from the compression imposed by a shorter budget. This is the
 only (step, model) combination in the entire experiment where reducing
 the cap below the baseline yields a \emph{non-trivial} positive quality
 effect: a handful of other pairs also peak below their baseline cap
-(\texttt{gemma4:e4b} visualization, $+0.009$; \texttt{mistral-small3.2:24b}
+(\texttt{gemma4:e4b} visualization, $+0.009$; \texttt{mistral-\allowbreak small3.2:24b}
 visualization, $+0.006$, and analysis, $+0.004$; \texttt{gemma4:e4b}
 analysis, $+0.001$; see Table~\ref{tab:test03capsummary}), but by margins
 small enough to be indistinguishable from measurement noise.
@@ -770,7 +770,7 @@ visualization quality gain discussed below, which however is corroborated
 by a direct \texttt{vis\_score} improvement of~$+0.054$ that does clear
 the same practical threshold.
 
-\texttt{mistral-small3.2:24b} shows a flat, plateau-like profile across
+\texttt{mistral-\allowbreak small3.2:24b} shows a flat, plateau-like profile across
 all three steps: the total quality range is $0.025$ for analysis,
 $0.015$ for lookup, and only $0.010$ for visualization, all within or
 near the small-delta uncertainty range.
@@ -812,7 +812,7 @@ finding: using the configuration that offers the most output space
 actually produces the worst chart code. The model appears to ramble or
 abandon its output structure when given excessive budget.
 
-The direct metrics of \texttt{mistral-small3.2:24b} mirror the quality
+The direct metrics of \texttt{mistral-\allowbreak small3.2:24b} mirror the quality
 plateau: \texttt{csv\_iou} is virtually constant across all lookup caps
 (range~$0.0002$), and \texttt{vis\_score} varies by at most~$0.021$.
 The token budget is simply not a binding constraint for this model.
@@ -844,7 +844,7 @@ collapse at 10000~tokens was observed. A tight cap does not necessarily
 help either, since low budgets can trigger truncated chart code that
 fails at execution. The model sits in a narrow feasible window.
 
-\texttt{mistral-small3.2:24b} maintains a stable completion rate across
+\texttt{mistral-\allowbreak small3.2:24b} maintains a stable completion rate across
 all tested caps ($92.6\%$ overall), with no step or cap value producing
 a notable drop. This further confirms that the model is robust to token
 budget choices and does not require careful cap tuning to avoid
@@ -935,11 +935,11 @@ the baseline.
 \hline
 \texttt{gemma4:26b}           & Analysis      & 0.027 & 0.021 & 7{,}000 & 4{,}000  & $+$0.020 & \phantom{$+$}0.000 & 5{,}000 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 0.010 & 0.021 & 7{,}000 & 5{,}000  & $+$0.006 & \phantom{$+$}0.000 & 10{,}000 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Visualization & 0.010 & 0.021 & 7{,}000 & 5{,}000  & $+$0.006 & \phantom{$+$}0.000 & 10{,}000 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Analysis      & 0.025 & 0.063 & 7{,}000 & 5{,}000  & $+$0.004 & $+$0.004 & 4{,}000 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Analysis      & 0.025 & 0.063 & 7{,}000 & 5{,}000  & $+$0.004 & $+$0.004 & 4{,}000 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup        & 0.015 & 0.000 & 5{,}000 & 5{,}000  & \phantom{$+$}0.000 & \phantom{$+$}0.000 & 2{,}500 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Lookup        & 0.015 & 0.000 & 5{,}000 & 5{,}000  & \phantom{$+$}0.000 & \phantom{$+$}0.000 & 2{,}500 \T\B \\
 \hline
 \end{tabular}%
 }
@@ -1036,7 +1036,7 @@ iterations, where \texttt{cot\_n}~$= 1$ is the single-call baseline. An
 early-stop mechanism halts the loop when the model signals that the
 previous output is already satisfactory, so the executed depth can be
 lower than the requested depth. The test was run on
-\texttt{gemma4:e4b} and \texttt{mistral-small3.2:24b} only
+\texttt{gemma4:e4b} and \texttt{mistral-\allowbreak small3.2:24b} only
 (3~repeats $\times$ 8~configs $\times$ 10~prompts = 240~rows each).
 \texttt{gemma4:26b} was excluded because its main weakness (visualization)
 was already addressed by the token-budget increase in Test~03, its SQL
@@ -1050,7 +1050,7 @@ Table~\ref{tab:test04results} reports the CoT aggregate results per (model, step
 depth), and highlights a clear asymmetry between the two CoT targets.
 For the lookup step, CoT consistently helps: \texttt{gemma4:e4b} gains
 up to $+0.203$ quality at \texttt{cot\_n=4} (with \texttt{csv\_iou}
-rising from~0.757 to~0.983), and \texttt{mistral-small3.2:24b} peaks
+rising from~0.757 to~0.983), and \texttt{mistral-\allowbreak small3.2:24b} peaks
 at $+0.063$ at depth~3.
 The numerical peak for Gemma~E4B is therefore depth~4, but this should
 not be interpreted as evidence that four full refinement rounds are
@@ -1094,21 +1094,21 @@ substantial enough to justify it.
 \hline
 \texttt{gemma4:e4b} & \texttt{vis\_cot\_n4}     & Vis.   & 4 & 0.7438 & $-$0.0128 & $-$0.0536 & 0.00339 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n1} & Lookup & 1 & 0.8562 & \phantom{$+$}0.0000 & \phantom{$+$}0.0000 & 0.00236 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n1} & Lookup & 1 & 0.8562 & \phantom{$+$}0.0000 & \phantom{$+$}0.0000 & 0.00236 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2} & Lookup & 2 & 0.8958 & $+$0.0396 & $+$0.0333 & 0.00271 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & Lookup & 2 & 0.8958 & $+$0.0396 & $+$0.0333 & 0.00271 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n3} & Lookup & 3 & 0.9188 & $+$0.0626 & $+$0.0898 & 0.00293 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3} & Lookup & 3 & 0.9188 & $+$0.0626 & $+$0.0898 & 0.00293 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n4} & Lookup & 4 & 0.8944 & $+$0.0382 & $+$0.0333 & 0.00279 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n4} & Lookup & 4 & 0.8944 & $+$0.0382 & $+$0.0333 & 0.00279 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{vis\_cot\_n1}    & Vis.   & 1 & 0.8597 & \phantom{$+$}0.0000 & \phantom{$+$}0.0000 & 0.00262 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{vis\_cot\_n1}    & Vis.   & 1 & 0.8597 & \phantom{$+$}0.0000 & \phantom{$+$}0.0000 & 0.00262 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{vis\_cot\_n2}    & Vis.   & 2 & 0.8542 & $-$0.0056 & $-$0.0119 & 0.00267 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{vis\_cot\_n2}    & Vis.   & 2 & 0.8542 & $-$0.0056 & $-$0.0119 & 0.00267 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{vis\_cot\_n3}    & Vis.   & 3 & 0.8401 & $-$0.0196 & $-$0.0060 & 0.00274 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{vis\_cot\_n3}    & Vis.   & 3 & 0.8401 & $-$0.0196 & $-$0.0060 & 0.00274 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{vis\_cot\_n4}    & Vis.   & 4 & 0.8264 & $-$0.0333 & $-$0.0060 & 0.00280 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{vis\_cot\_n4}    & Vis.   & 4 & 0.8264 & $-$0.0333 & $-$0.0060 & 0.00280 \T\B \\
 \hline
 \end{tabular}%
 }
@@ -1135,10 +1135,10 @@ SQL-generation fragility diagnosed in Test~01 --- iterative refinement
 corrects erroneous SQL through self-criticism, raising \texttt{csv\_iou}
 from~0.757 at baseline to~0.954 at \texttt{cot\_n=2}.
 
-The visualization curves tell the opposite story: quality declines
+For visualization the pattern reverses: quality declines
 monotonically with depth for both models, reaching $-0.115$ at
 \texttt{cot\_n=3} for \texttt{gemma4:e4b} and $-0.033$ at depth~4 for
-\texttt{mistral-small3.2:24b}. Self-criticism improves SQL queries but
+\texttt{mistral-\allowbreak small3.2:24b}. Self-criticism improves SQL queries but
 degrades chart code: the typical
 visualization failure is semantic --- the Python runs fine, yet the chart does
 not match the requested plot (wrong grouping, wrong split, or subtly different
@@ -1162,7 +1162,7 @@ $(\Delta\,\text{energy}, \Delta\,\text{quality})$ plane.
 The scatter divides cleanly into two clusters. Lookup CoT configurations
 land in the upper-right quadrant --- quality and energy both rise, but the
 ratio is favourable: \texttt{gemma4:e4b} gains $+0.203$ at \texttt{cot\_n=4}
-with moderate overhead, and \texttt{mistral-small3.2:24b} reaches $+0.063$ at
+with moderate overhead, and \texttt{mistral-\allowbreak small3.2:24b} reaches $+0.063$ at
 depth~3 at much lower absolute cost. Visualization CoT configurations land in
 the lower-right quadrant: every extra iteration costs energy and degrades
 quality at once, making CoT a strictly dominated strategy for chart
@@ -1219,7 +1219,7 @@ Table~\ref{tab:test04earlystop}) the executed depth saturates near~2, so
 requesting depth~3 or~4 only marginally increases the realised cost over
 depth~2: \texttt{gemma4:e4b} lookup energy rises from $0.00346$ to
 $0.00444$~kWh between requested depths~2 and~4 ($+28\%$, not $+100\%$),
-and \texttt{mistral-small3.2:24b} lookup energy at depth~4
+and \texttt{mistral-\allowbreak small3.2:24b} lookup energy at depth~4
 ($0.00279$~kWh) is in fact below depth~3 ($0.00293$~kWh). CoT depth
 therefore remains a predictable compute lever, but the saturation of the
 executed depth makes the realised cost plateau rather than scale linearly
@@ -1284,21 +1284,21 @@ Table~\ref{tab:test04earlystop} summarises the execution diagnostics.
 \hline
 \texttt{gemma4:e4b}           & Visualization & 4 & \phantom{0}53.3\,\% & 2.69 & 75.0\,\%           & \phantom{0}25.0\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup        & 1 & 100.0\,\% & 1.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Lookup        & 1 & 100.0\,\% & 1.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup        & 2 & 100.0\,\% & 2.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Lookup        & 2 & 100.0\,\% & 2.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup        & 3 & 100.0\,\% & 2.17 & 83.3\,\%           & \phantom{0}16.7\,\% \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Lookup        & 3 & 100.0\,\% & 2.17 & 83.3\,\%           & \phantom{0}16.7\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Lookup        & 4 & 100.0\,\% & 2.27 & 90.0\,\%           & \phantom{0}10.0\,\% \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Lookup        & 4 & 100.0\,\% & 2.27 & 90.0\,\%           & \phantom{0}10.0\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 1 & \phantom{0}60.0\,\% & 1.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Visualization & 1 & \phantom{0}60.0\,\% & 1.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 2 & \phantom{0}60.0\,\% & 2.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Visualization & 2 & \phantom{0}60.0\,\% & 2.00 & \phantom{0}0.0\,\% & 100.0\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 3 & \phantom{0}60.0\,\% & 2.17 & 83.3\,\%           & \phantom{0}16.7\,\% \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Visualization & 3 & \phantom{0}60.0\,\% & 2.17 & 83.3\,\%           & \phantom{0}16.7\,\% \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & Visualization & 4 & \phantom{0}60.0\,\% & 2.33 & 83.3\,\%           & \phantom{0}16.7\,\% \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & Visualization & 4 & \phantom{0}60.0\,\% & 2.33 & 83.3\,\%           & \phantom{0}16.7\,\% \T\B \\
 \hline
 \end{tabular}%
 }
@@ -1324,7 +1324,7 @@ CoT depth is most effective precisely where the baseline model is weakest. For
 \texttt{gemma4:e4b} lookup, difficulty-4 prompts benefit from a $+0.524$ quality
 gain at \texttt{cot\_n=3} --- the largest single-slice gain in the entire test
 --- while difficulty-1 prompts show no gain from additional iterations. The same
-asymmetry holds for \texttt{mistral-small3.2:24b}: difficulty-4 lookup gains
+asymmetry holds for \texttt{mistral-\allowbreak small3.2:24b}: difficulty-4 lookup gains
 $+0.365$ at \texttt{cot\_n=3}, while difficulties~1 through~3 show only marginal
 changes ($+0.002$ to $+0.023$). This pattern is consistent with the
 SQL-feedback mechanism of CoT: executable results can correct errors on complex
@@ -1344,6 +1344,9 @@ comparing static temperature settings, Best-of-3 temperature ranges
 The Best-of-3 design uses three candidates so that the pairwise no-GT selector
 faces a genuine multi-candidate ranking problem, and tests three temperature
 ranges: narrow $[0.8,1.0]$, medium $[0.6,1.0]$, and wide $[0.3,1.0]$.
+\texttt{lookup\_cot\_n2} is included as a reference because it was the strongest
+lookup intervention identified in Test~04, providing a yardstick against which
+the Best-of-N strategies can be judged.
 
 \begin{table}[H]
 \centering
@@ -1408,12 +1411,15 @@ more effective compute-expansion strategy for \texttt{gemma4:e4b}.
         \centering
         \includegraphics[width=\linewidth]{Images/test04b_v2_lookup_bon_selection.png}
     \end{minipage}
-    \caption{Test~04b Best-of-3 analysis. The Pareto view shows that
-    static \texttt{lookup\_temp\_0.8} and \texttt{lookup\_cot\_n2} are the
-    non-dominated lookup interventions, while the selector diagnostics show
-    that Best-of-N still chooses the first candidate in most runs.}
+    \caption{Test~04b Best-of-3 analysis: quality--energy Pareto view (left)
+    and no-GT selector diagnostics (right).}
     \label{fig:test04b_corrected}
 \end{figure}
+
+As Figure~\ref{fig:test04b_corrected} shows, the Pareto view identifies static
+\texttt{lookup\_temp\_0.8} and \texttt{lookup\_cot\_n2} as the non-dominated
+lookup interventions, while the selector diagnostics confirm that Best-of-N
+still chooses the first candidate in most runs.
 
 \subsubsection{Summary}
 
@@ -1444,7 +1450,7 @@ more effective compute-expansion strategy for \texttt{gemma4:e4b}.
           \texttt{cot\_n=4} should not be the default: it rarely reaches
           the fourth iteration and its extra aggregate gain is small
           relative to the additional cost and variance. For
-          \texttt{mistral-small3.2:24b}, \texttt{cot\_n=3} is the nominal
+          \texttt{mistral-\allowbreak small3.2:24b}, \texttt{cot\_n=3} is the nominal
           quality peak ($+0.063$), but the gain over depth~2 is much
           smaller than the Gemma gain and most high-depth runs stop early.
           Depth~3 should therefore be reserved for maximum lookup quality,
@@ -1500,21 +1506,21 @@ lookup temperature (0.8), and lower token caps for the downstream steps.
 \hline
 \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_temp\_0p8\_low\_cost\_tokens} & 0.9287 & 100.0\,\% & 0.00645 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{combined\_cot\_static} & 0.9206 & 98.1\,\% & 0.00449 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static} & 0.9206 & 98.1\,\% & 0.00449 \T\B \\
 \hline
 \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_temp\_0p8} & 0.9189 & 100.0\,\% & 0.00633 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.9188 & 100.0\,\% & 0.00293 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.9188 & 100.0\,\% & 0.00293 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2\_efficient\_tokens} & 0.9168 & 98.1\,\% & 0.00445 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2\_efficient\_tokens} & 0.9168 & 98.1\,\% & 0.00445 \T\B \\
 \hline
 \texttt{gemma4:26b} & \texttt{visualization\_max\_tokens\_10000} & 0.9123 & 100.0\,\% & 0.00399 \T\B \\
 \hline
 \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4} & 0.8972 & 100.0\,\% & 0.00444 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.8958 & 95.1\,\% & 0.00271 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.8958 & 95.1\,\% & 0.00271 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{analysis\_top\_k\_56} & 0.8931 & 95.2\,\% & 0.00414 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{analysis\_top\_k\_56} & 0.8931 & 95.2\,\% & 0.00414 \T\B \\
 \hline
 \texttt{gemma4:26b} & \texttt{combined\_static\_direct} & 0.8720 & 100.0\,\% & 0.00998 \T\B \\
 \hline
@@ -1549,24 +1555,49 @@ directly in the final run and configurations reused from earlier tests.
 \begin{table}[H]
 \centering
 \arrayrulecolor{black}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{|l|l|c|c|c|}
+\small
+\begin{tabular}{|Y{2.7cm}|Y{5cm}|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
 \textbf{Model} & \textbf{Config} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.8958 & 95.1\,\% & 0.00271 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.8958 & 95.1\,\% & 0.00271 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.9188 & 100.0\,\% & 0.00293 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.9188 & 100.0\,\% & 0.00293 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & \texttt{combined\_cot\_static} & 0.9206 & 98.1\,\% & 0.00449 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static} & 0.9206 & 98.1\,\% & 0.00449 \T\B \\
 \hline
-\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} & 0.9371 & 100.0\,\% & 0.00602 \T\B \\
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & 0.9371 & 100.0\,\% & 0.00602 \T\B \\
 \hline
-\end{tabular}%
-}
+\end{tabular}
 \caption{Test~05: non-dominated candidate configurations for prompt E2E quality vs.\ energy.}
 \label{tab:test05pareto}
+\end{table}
+
+Table~\ref{tab:test05paretoparams} reports the per-step parameters that define
+these four frontier configurations, listing only the settings that deviate from
+each model's baseline.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\small
+\begin{tabular}{|Y{2.7cm}|Y{3.2cm}|Y{3cm}|Y{2.5cm}|Y{2.5cm}|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Config} & \textbf{Lookup} & \textbf{Analysis} & \textbf{Visualization} \T\B \\
+\hline
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & \texttt{cot\_n=2} & baseline & baseline \T\B \\
+\hline
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3} & \texttt{cot\_n=3} & baseline & baseline \T\B \\
+\hline
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static} & \texttt{cot\_n=3}, \texttt{repeat\_penalty=1.3} & \texttt{top\_k=56} & \texttt{repeat\_last\_n=56} \T\B \\
+\hline
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & \texttt{cot\_n=2}, \texttt{temp=0.8} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=4000} \T\B \\
+\hline
+\end{tabular}
+\caption{Test~05: per-step parameters of the non-dominated frontier configurations.}
+\label{tab:test05paretoparams}
 \end{table}
 
 The frontier has a clear structure. Mistral defines the low-energy region:
@@ -1611,24 +1642,49 @@ hard-prompt endpoint.
 \begin{table}[H]
 \centering
 \arrayrulecolor{black}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{|c|l|l|c|c|c|}
+\small
+\begin{tabular}{|c|Y{3.3cm}|Y{2.4cm}|c|c|c|}
 \hline
 \rowcolor{bluePoli!30}
 \textbf{Difficulty} & \textbf{Best model/config} & \textbf{Role} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
 \hline
-1 & \texttt{mistral} / \texttt{combined\_cot\_static\_tokens} & lowest-cost high-quality & 0.979 & 100.0\,\% & 0.00376 \T\B \\
+1 & \texttt{mistral} / \texttt{combined\_cot\_static\_\allowbreak tokens} & lowest-cost high-quality & 0.979 & 100.0\,\% & 0.00376 \T\B \\
 \hline
-2 & \texttt{mistral} / \texttt{lookup\_cot\_n3\_efficient\_tokens} & lowest-cost high-quality & 0.979 & 100.0\,\% & 0.00481 \T\B \\
+2 & \texttt{mistral} / \texttt{lookup\_cot\_n3\_\allowbreak efficient\_tokens} & lowest-cost high-quality & 0.979 & 100.0\,\% & 0.00481 \T\B \\
 \hline
-3 & \texttt{gemma4:e4b} / \texttt{lookup\_cot\_n4\_temp\_0p8\_low\_cost\_tokens} & highest quality & 0.946 & 100.0\,\% & 0.00609 \T\B \\
+3 & \texttt{gemma4:e4b} / \texttt{lookup\_cot\_n4\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & highest quality & 0.946 & 100.0\,\% & 0.00609 \T\B \\
 \hline
-4 & \texttt{gemma4:e4b} / \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} & hard-prompt endpoint & 0.919 & 100.0\,\% & 0.00704 \T\B \\
+4 & \texttt{gemma4:e4b} / \texttt{lookup\_cot\_n2\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & hard-prompt endpoint & 0.919 & 100.0\,\% & 0.00704 \T\B \\
 \hline
-\end{tabular}%
-}
+\end{tabular}
 \caption{Test~05: representative best configurations by prompt difficulty.}
 \label{tab:test05difficulty}
+\end{table}
+
+Table~\ref{tab:test05difficultyparams} reports the per-step parameters of these
+difficulty-specific best configurations, again listing only the settings that
+deviate from each model's baseline.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\small
+\begin{tabular}{|c|Y{2.6cm}|Y{2.8cm}|Y{2.8cm}|Y{2.4cm}|Y{2.4cm}|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Diff.} & \textbf{Model} & \textbf{Config} & \textbf{Lookup} & \textbf{Analysis} & \textbf{Visualization} \T\B \\
+\hline
+1 & \texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static\_\allowbreak tokens} & \texttt{cot\_n=3}, \texttt{repeat\_penalty=1.3}, \texttt{max\_tokens=3000} & \texttt{top\_k=56}, \texttt{max\_tokens=5000} & \texttt{repeat\_last\_n=56}, \texttt{max\_tokens=5000} \T\B \\
+\hline
+2 & \texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3\_\allowbreak efficient\_tokens} & \texttt{cot\_n=3}, \texttt{max\_tokens=3000} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=5000} \T\B \\
+\hline
+3 & \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & \texttt{cot\_n=4}, \texttt{temp=0.8} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=4000} \T\B \\
+\hline
+4 & \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & \texttt{cot\_n=2}, \texttt{temp=0.8} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=4000} \T\B \\
+\hline
+\end{tabular}
+\caption{Test~05: per-step parameters of the representative best configurations by prompt difficulty.}
+\label{tab:test05difficultyparams}
 \end{table}
 
 The prompt-difficulty view is essential for interpreting the final Pareto
