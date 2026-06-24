@@ -161,6 +161,55 @@ This table is useful for the thesis because it separates two claims:
 - If the goal is maximum aggregate strict quality, `mistral-small3.2:24b` is strongest in this final baseline run.
 - If the goal is the best quality-energy tradeoff, Mistral remains better: the quality loss is small while the energy and latency savings are large.
 
+## Radar Summary
+
+The radar plot summarizes the baseline model profiles across aggregate quality,
+agent-step quality, prompt difficulty, reliability, and energy efficiency. The
+quality and reliability axes use a fixed anchored scale:
+
+```text
+normalized = clamp((raw - 0.4) / 0.6, 0, 1)
+```
+
+Energy uses an anchored inverse kWh scale:
+
+```text
+normalized = clamp((0.017 - kWh_per_prompt) / 0.013, 0, 1)
+```
+
+The lower `0.4` anchor avoids forcing weak-but-informative component scores to
+zero, while still making genuine weak points visible.
+
+Radar axes:
+
+- `Overall`: strict prompt-level E2E quality, averaging expected SQL/text/visual slots per prompt; missing expected scores count as `0`.
+- `SQL`: strict `csv_iou` over prompts with data GT; missing expected data scores count as `0`.
+- `Text`: strict `text_score` over prompts with analysis GT; missing expected text scores count as `0`.
+- `Vis`: strict `vis_score` over prompts with visualization GT; missing expected visualization scores count as `0`.
+- `D1-2`: strict prompt-level E2E quality averaged over difficulty 1 and 2 prompts.
+- `D3`: strict prompt-level E2E quality averaged over difficulty 3 prompts.
+- `D4`: strict prompt-level E2E quality averaged over difficulty 4 prompts.
+- `Completion`: completed expected GT score slots divided by all expected GT score slots.
+- `No hard fail`: fraction of prompts with strict prompt-level quality greater than `0`.
+- `Energy eff.`: anchored inverse energy score from kWh per prompt; higher is better.
+
+![Test 01 radar summary](plots/test01_final_radar_summary.png)
+
+Raw radar values:
+
+| Model | Overall | SQL | Text | Vis | D1-2 | D3 | D4 | Completion | No hard fail | kWh / prompt | Energy eff. |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gemma E4B | 0.835 | 0.903 | 0.792 | 0.769 | 0.914 | 0.848 | 0.634 | 0.951 | 0.933 | 0.00883 | 0.629 |
+| Gemma 26B MoE | 0.814 | 0.928 | 0.890 | 0.500 | 0.738 | 0.858 | 0.910 | 0.975 | 0.950 | 0.01667 | 0.026 |
+| Mistral Small 3.2 24B | 0.844 | 0.899 | 0.800 | 0.783 | 0.956 | 0.911 | 0.474 | 0.926 | 0.900 | 0.00601 | 0.845 |
+
+The radar view makes the baseline tradeoff compact. Mistral has the best
+energy-efficiency profile and is strongest on easy-to-medium prompts, but its
+difficulty-4 axis collapses. Gemma 26B has the opposite profile: strong SQL,
+text, completion, and hard-prompt behavior, but weak visualization and poor
+energy efficiency. Gemma E4B is the most balanced thinking baseline, although
+it is still more expensive than Mistral.
+
 ## Step-Level Cost
 
 Mean per-step LLM time:

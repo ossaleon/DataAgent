@@ -44,6 +44,36 @@ every run, execution time and energy consumption --- tracked per step using
 CodeCarbon~\cite{lottick2019codecarbon} --- are recorded alongside quality scores, providing
 actionable guidance for deploying LLM agents under latency or sustainability constraints.
 
+The thesis is guided by the following research questions:
+\begin{itemize}
+    \item \textbf{RQ1}: How do the evaluated locally hosted LLMs compare in terms of
+          end-to-end output quality, execution latency, and energy consumption when used
+          as the backbone of a multi-step data-analysis agent?
+    \item \textbf{RQ2}: How sensitive are the individual agent steps --- data lookup,
+          textual analysis, and visualisation --- to changes in sampling parameters and
+          output-token budgets?
+    \item \textbf{RQ3}: Under which conditions does additional inference-time
+          computation, through iterative refinement or best-of-$N$ sampling, improve
+          output quality sufficiently to justify its additional latency and energy cost?
+    \item \textbf{RQ4}: How does SQL-query difficulty influence the relative performance
+          of the evaluated models and the resulting quality--energy trade-off?
+    \item \textbf{RQ5}: Which evaluated model and inference-setting combinations provide
+          the most favourable empirical trade-offs between strict end-to-end quality,
+          completion, latency, and local energy consumption?
+\end{itemize}
+
+Accordingly, the main contributions of this work are:
+\begin{itemize}
+    \item a configurable multi-step data-analysis agent for querying structured retail
+          data through natural language;
+    \item a profiling pipeline that records per-step quality, latency, and energy
+          measurements for local LLM executions;
+    \item a controlled sensitivity analysis across model--step pairs, separating the
+          effect of lookup, analysis, and visualisation parameters;
+    \item empirical deployment recommendations derived from strict end-to-end quality,
+          completion, latency, and energy trade-offs.
+\end{itemize}
+
 The document is organised as follows:
 \begin{itemize}
     \item Section~\ref{sec:stateofart} reviews related work on LLM agents for structured

@@ -67,17 +67,17 @@ CoT remained the better quality intervention because it corrects SQL using
 execution feedback rather than relying only on sampling diversity.
 
 The final Pareto confirmation combines the best insights from the earlier
-tests. The final non-dominated frontier consists mostly of low-energy Mistral candidates
-and one high-quality Gemma~E4B endpoint.
-Selected screening rows from the earlier tests are retained as provenance for
-these candidates, but the final recommendations are drawn only from
-full-benchmark measurements.
+tests. Among the evaluated candidate configurations, the non-dominated frontier
+consists mostly of low-energy Mistral candidates and one high-quality
+Gemma~E4B endpoint. Configurations selected from earlier tests and configurations
+measured specifically for Test~05 are treated as a single candidate set when they
+share the same judging setup.
 The best final Gemma~E4B configuration combines lookup CoT, a lower lookup
 temperature, and efficient downstream token caps; it reaches the highest
 strict prompt quality with full completion. Mistral remains the natural
 choice for low-energy execution, especially on easy-to-medium prompts.
 Gemma~26B improves with tuning, but its energy cost keeps it off the final
-full-benchmark Pareto frontier.
+evaluated Pareto frontier.
 
 Overall, the thesis supports three practical recommendations for LLM data
 agents. First, tune parameters per agent step rather than globally. Second,

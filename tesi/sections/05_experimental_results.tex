@@ -86,6 +86,73 @@ latency. \texttt{gemma4:26b} is Pareto-dominated at baseline: it records the
 lowest strict quality while consuming 2.77$\times$ the energy of Mistral, with
 its visualization score (0.500) being the primary drag.
 
+\subsubsection{Radar Summary}
+
+Figure~\ref{fig:test01_radar_summary} summarizes the baseline profiles across
+overall quality, step-level quality, prompt difficulty, reliability, and energy
+efficiency. Quality and reliability axes are normalized with the fixed anchored
+scale $\mathrm{clip}((x - 0.4)/0.6, 0, 1)$, where 0.4 represents a very weak
+result and 1.0 an excellent result. The energy-efficiency axis uses the
+anchored inverse scale $\mathrm{clip}((0.017 - \mathrm{kWh})/0.013, 0, 1)$.
+
+The radar axes are defined as follows:
+\begin{itemize}
+    \item \textbf{Overall}: strict prompt-level E2E quality, averaging expected
+          SQL, text, and visualization slots per prompt; missing expected
+          scores count as zero.
+    \item \textbf{SQL}: strict \texttt{csv\_iou} over prompts with data ground
+          truth; missing expected data scores count as zero.
+    \item \textbf{Text}: strict \texttt{text\_score} over prompts with analysis
+          ground truth; missing expected text scores count as zero.
+    \item \textbf{Vis}: strict \texttt{vis\_score} over prompts with
+          visualization ground truth; missing expected visualization scores
+          count as zero.
+    \item \textbf{D1--2}, \textbf{D3}, and \textbf{D4}: strict prompt-level E2E
+          quality averaged over prompts with difficulty 1--2, 3, and 4
+          respectively.
+    \item \textbf{Completion}: completed expected GT score slots divided by all
+          expected GT score slots.
+    \item \textbf{No hard fail}: fraction of prompts with strict prompt-level
+          quality greater than zero.
+    \item \textbf{Energy eff.}: anchored inverse energy score from kWh per
+          prompt; higher is better.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.78\textwidth]{Images/test01_final_radar_summary.png}
+    \caption{Test~01: radar summary of baseline model profiles. Quality and reliability axes use the fixed 0.4--1.0 scale; energy uses anchored inverse kWh per prompt.}
+    \label{fig:test01_radar_summary}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Overall} & \textbf{SQL} & \textbf{Text} & \textbf{Vis} & \textbf{D1--2} & \textbf{D3} & \textbf{D4} & \textbf{Compl.} & \textbf{No hard fail} & \textbf{kWh} & \textbf{Energy eff.} \T\B \\
+\hline
+\texttt{gemma4:e4b} & 0.835 & 0.903 & 0.792 & 0.769 & 0.914 & 0.848 & 0.634 & 0.951 & 0.933 & 0.00883 & 0.629 \T\B \\
+\hline
+\texttt{gemma4:26b} & 0.814 & 0.928 & 0.890 & 0.500 & 0.738 & 0.858 & 0.910 & 0.975 & 0.950 & 0.01667 & 0.026 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 0.844 & 0.899 & 0.800 & 0.783 & 0.956 & 0.911 & 0.474 & 0.926 & 0.900 & 0.00601 & 0.845 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~01: raw values used to build the radar summary.}
+\label{tab:test01radarraw}
+\end{table}
+
+The radar view makes the baseline trade-off compact. Mistral has the best
+energy-efficiency profile and is strongest on easy-to-medium prompts, but its
+difficulty-4 axis collapses. Gemma~26B has the opposite profile: strong SQL,
+text, completion, and hard-prompt behavior, but weak visualization and poor
+energy efficiency. Gemma~E4B is the most balanced thinking baseline, although
+it is still more expensive than Mistral.
+
 \subsubsection{Repeat Stability}
 
 Figure~\ref{fig:test01_repeat_stability} and Table~\ref{tab:test01repeatstability}
@@ -1531,11 +1598,60 @@ lookup temperature (0.8), and lower token caps for the downstream steps.
 \end{table}
 
 The larger Gemma~26B MoE improves over its own baseline, but it does not
-appear on the strict prompt-quality Pareto frontier. Its best combined candidate
+appear on the strict prompt-quality Pareto frontier among the evaluated
+candidate configurations. Its best combined candidate
 (\texttt{combined\_static\_direct}) reaches prompt quality~0.872, improving
 the Test~01 baseline by~$+0.058$ while reducing energy by~0.00668~kWh per
 prompt, but this is still dominated by cheaper and more accurate candidates
 from Mistral and Gemma~E4B in the final candidate set.
+
+\subsubsection{Radar Summary}
+
+Figure~\ref{fig:test05_radar_summary} compares one runnable final
+representative per model: \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens}
+for Gemma~E4B, \texttt{combined\_static\_direct} for Gemma~26B, and
+\texttt{combined\_cot\_static} for Mistral. The same configuration is used for
+all axes of a model, so the plot represents executable policies rather than
+per-axis oracle choices. Quality and reliability axes use the same fixed
+0.4--1.0 normalization as Test~01, while energy uses the anchored inverse kWh
+scale. The radar axes follow the definitions introduced in the Test~01 radar
+summary.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.78\textwidth]{Images/test05_final_run_radar_summary.png}
+    \caption{Test~05: radar summary of the selected final representative configuration for each model.}
+    \label{fig:test05_radar_summary}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|c|c|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Model} & \textbf{Overall} & \textbf{SQL} & \textbf{Text} & \textbf{Vis} & \textbf{D1--2} & \textbf{D3} & \textbf{D4} & \textbf{Compl.} & \textbf{No hard fail} & \textbf{kWh} & \textbf{Energy eff.} \T\B \\
+\hline
+\texttt{gemma4:e4b} & 0.937 & 0.999 & 0.916 & 0.857 & 0.944 & 0.939 & 0.919 & 1.000 & 1.000 & 0.00602 & 0.845 \T\B \\
+\hline
+\texttt{gemma4:26b} & 0.872 & 0.968 & 0.963 & 0.551 & 0.891 & 0.851 & 0.865 & 1.000 & 1.000 & 0.00998 & 0.540 \T\B \\
+\hline
+\texttt{mistral-small3.2:24b} & 0.921 & 0.974 & 0.888 & 0.871 & 0.960 & 0.929 & 0.818 & 0.981 & 0.975 & 0.00449 & 0.962 \T\B \\
+\hline
+\end{tabular}%
+}
+\caption{Test~05: raw values used to build the final representative radar summary.}
+\label{tab:test05radarraw}
+\end{table}
+
+The radar view shows why the final recommendation is split by operating
+priority. Gemma~E4B is the most complete high-quality profile, especially on
+difficulty-4 prompts and reliability. Mistral remains the best
+energy-efficient profile and stays close on overall quality, but is weaker on
+hard prompts. Gemma~26B keeps strong SQL, text, and reliability axes, yet its
+visualization axis and energy cost prevent it from becoming the final Pareto
+recommendation.
 
 \subsubsection{Final Pareto Frontier}
 
@@ -1548,7 +1664,7 @@ directly in the final run and configurations reused from earlier tests.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.88\textwidth]{Images/test05_final_run_unified_candidate_pareto.png}
-    \caption{Test~05: unified candidate Pareto frontier.}
+    \caption{Test~05: unified Pareto frontier among the evaluated candidate configurations.}
     \label{fig:test05_pareto}
 \end{figure}
 
@@ -1619,7 +1735,7 @@ The best Mistral candidate improves quality by~$+0.077$ and reduces energy
 by~0.00152~kWh per prompt. Gemma~26B also improves, but from a weaker
 baseline and at higher absolute cost; it is therefore useful
 as evidence that targeted tuning helps large MoE models, but not as the final
-Pareto recommendation.
+recommendation within the evaluated Pareto set.
 
 \subsubsection{Pareto Frontier by Prompt Difficulty}
 
@@ -1661,32 +1777,6 @@ hard-prompt endpoint.
 \label{tab:test05difficulty}
 \end{table}
 
-Table~\ref{tab:test05difficultyparams} reports the per-step parameters of these
-difficulty-specific best configurations, again listing only the settings that
-deviate from each model's baseline.
-
-\begin{table}[H]
-\centering
-\arrayrulecolor{black}
-\small
-\begin{tabular}{|c|Y{2.6cm}|Y{2.8cm}|Y{2.8cm}|Y{2.4cm}|Y{2.4cm}|}
-\hline
-\rowcolor{bluePoli!30}
-\textbf{Diff.} & \textbf{Model} & \textbf{Config} & \textbf{Lookup} & \textbf{Analysis} & \textbf{Visualization} \T\B \\
-\hline
-1 & \texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static\_\allowbreak tokens} & \texttt{cot\_n=3}, \texttt{repeat\_penalty=1.3}, \texttt{max\_tokens=3000} & \texttt{top\_k=56}, \texttt{max\_tokens=5000} & \texttt{repeat\_last\_n=56}, \texttt{max\_tokens=5000} \T\B \\
-\hline
-2 & \texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3\_\allowbreak efficient\_tokens} & \texttt{cot\_n=3}, \texttt{max\_tokens=3000} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=5000} \T\B \\
-\hline
-3 & \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & \texttt{cot\_n=4}, \texttt{temp=0.8} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=4000} \T\B \\
-\hline
-4 & \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & \texttt{cot\_n=2}, \texttt{temp=0.8} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=4000} \T\B \\
-\hline
-\end{tabular}
-\caption{Test~05: per-step parameters of the representative best configurations by prompt difficulty.}
-\label{tab:test05difficultyparams}
-\end{table}
-
 The prompt-difficulty view is essential for interpreting the final Pareto
 front. A single aggregate score would suggest that Mistral and Gemma~E4B are
 close competitors with different energy profiles. The difficulty split shows
@@ -1694,6 +1784,11 @@ why: Mistral is the best economic choice on easy and medium prompts, but its
 hard-prompt completion and quality remain lower. Gemma~E4B becomes preferable
 when the workload includes difficult SQL aggregation prompts and the objective
 is robust completion rather than minimum energy.
+Figures~\ref{fig:test05_difficulty_pareto}--\ref{fig:test05_difficulty_pareto_d4}
+make the same transition visible as a sequence of frontiers: difficulties~1
+and~2 are Mistral-only frontiers, difficulty~3 introduces Gemma~E4B as the
+high-quality endpoint, and difficulty~4 separates the cheap Mistral repair
+points from the more reliable Gemma~E4B hard-prompt endpoint.
 
 \subsubsection{Summary}
 
@@ -1705,9 +1800,9 @@ is robust completion rather than minimum energy.
 
     \item \textbf{The final Pareto front is not a pure model-size ranking.}
           The larger Gemma~26B MoE improves with targeted tuning but remains
-          dominated in the quality-energy frontier.
+          dominated in the evaluated quality-energy frontier.
 
-    \item \textbf{Mistral is the low-energy frontier.}
+    \item \textbf{Mistral defines the low-energy part of the evaluated frontier.}
           Combined Mistral configurations occupy the cheapest non-dominated
           region, especially when moderate lookup CoT is added.
 

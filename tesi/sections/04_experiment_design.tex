@@ -26,7 +26,8 @@ aspect of model behaviour or configuration:
           through candidate selection.
     \item \textbf{Test 05 --- Final Pareto Confirmation}: evaluates the most
           promising combined configurations from Tests~02--04 on the full
-          benchmark to establish the definitive quality-versus-energy Pareto frontier.
+          benchmark to establish the quality-versus-energy Pareto
+          frontier among the evaluated candidate configurations.
 \end{itemize}
 
 The campaign was carried out across two hardware environments.
@@ -108,6 +109,48 @@ GPU driver       & 555.42.02 \T\B \\
 \end{tabular}
 \caption{Secondary server hardware and software specifications (Tests 03, 04, 04b).}
 \label{tab:server_local}
+\end{table}
+
+In addition to the hardware profile, the main software and model provenance
+metadata needed to reproduce the experiments are summarised in
+Table~\ref{tab:reproducibility_metadata}. The Python and CodeCarbon entries
+refer to the benchmark execution environment used by the project. The Ollama
+version, CUDA runtime compatibility, and model digest/quantization entries are
+host-side properties: they must be recorded on the machine that serves the
+models, because they are determined by the installed Ollama binary and by the
+model artefacts present in the local Ollama cache.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Item} & \textbf{Value or provenance command} \T\B \\
+\hline
+Python runtime & Python~3.12.13, executed from the Docker image based on
+\texttt{python:3.12-slim}; verified with \texttt{python --version}. \T\B \\
+\hline
+CodeCarbon & CodeCarbon~3.2.1; verified with
+\texttt{python -c "import codecarbon; print(codecarbon.\_\_version\_\_)"}. \T\B \\
+\hline
+Ollama server & Host-side Ollama service; the exact version is recorded with
+\texttt{ollama --version} on the inference server. \T\B \\
+\hline
+Model digest and quantization & Recorded per evaluated model with
+\texttt{ollama show <model> --verbose}, where \texttt{<model>} is one of
+\texttt{gemma4:e4b}, \texttt{gemma4:26b}, or
+\texttt{mistral-small3.2:24b}. This command reports the local model digest and
+quantization used by Ollama. \T\B \\
+\hline
+CUDA runtime / driver compatibility & The DataAgent Docker image does not
+bundle a CUDA toolkit; GPU inference is performed by the host Ollama service
+through the NVIDIA driver. The driver and CUDA compatibility are recorded with
+\texttt{nvidia-smi} on the inference server. \T\B \\
+\hline
+\end{tabularx}
+\caption{Software and model provenance metadata required to reproduce the experiments.}
+\label{tab:reproducibility_metadata}
 \end{table}
 
 Ollama runs as a persistent background service on the host machine, exposing a
@@ -307,8 +350,8 @@ Best-of-N is actually choosing among alternatives.
 
 Test 05 is the final evaluation stage. Its purpose is to confirm whether the
 best configurations identified in Tests 02--04 maintain their advantage on the
-full 20-prompt benchmark, and to establish the definitive quality-versus-energy
-Pareto frontier across all models and candidate policies.
+full 20-prompt benchmark, and to establish the quality-versus-energy
+Pareto frontier among the evaluated model and candidate-policy combinations.
 
 Unlike the preceding tests, which vary one hyperparameter dimension at a time,
 Test 05 evaluates combined agent policies: each configuration specifies the
@@ -353,7 +396,8 @@ On fixed inference hardware the accelerator draws a near-constant average
 power during generation, so per-prompt energy is, to first order, a fixed
 multiple of wall-clock latency; the baseline campaign confirms this, with
 the per-model latency and energy rankings coinciding to within about five
-percentage points. \textit{The quality--cost trade-offs and Pareto frontiers in
+percentage points. The quality--cost trade-offs and candidate-set Pareto
+frontiers in
 Section~\ref{sec:experiments} therefore use energy per prompt as the single
 representative efficiency axis}, while absolute latency is still reported in
 the per-test tables for deployments bound by response-time limits. Energy

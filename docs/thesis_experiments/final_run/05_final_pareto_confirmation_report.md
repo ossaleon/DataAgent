@@ -138,6 +138,51 @@ reducing energy relative to their own baselines. This is strongest for Gemma
 E4B, where lookup repair both increases completion and reduces the cost of
 failed or overlong downstream behavior.
 
+## Radar Summary
+
+The radar plot compares one runnable final representative per model. For each
+model, the same configuration is used for every axis:
+
+| Model | Radar representative |
+| --- | --- |
+| Gemma E4B | `lookup_cot_n2_temp_0p8_low_cost_tokens` |
+| Gemma 26B MoE | `combined_static_direct` |
+| Mistral Small 3.2 24B | `combined_cot_static` |
+
+Quality and reliability axes use the fixed scale
+`clamp((raw - 0.4) / 0.6, 0, 1)`, while energy efficiency uses
+`clamp((0.017 - kWh_per_prompt) / 0.013, 0, 1)`.
+
+Radar axes:
+
+- `Overall`: strict prompt-level E2E quality, averaging expected SQL/text/visual slots per prompt; missing expected scores count as `0`.
+- `SQL`: strict `csv_iou` over prompts with data GT; missing expected data scores count as `0`.
+- `Text`: strict `text_score` over prompts with analysis GT; missing expected text scores count as `0`.
+- `Vis`: strict `vis_score` over prompts with visualization GT; missing expected visualization scores count as `0`.
+- `D1-2`: strict prompt-level E2E quality averaged over difficulty 1 and 2 prompts.
+- `D3`: strict prompt-level E2E quality averaged over difficulty 3 prompts.
+- `D4`: strict prompt-level E2E quality averaged over difficulty 4 prompts.
+- `Completion`: completed expected GT score slots divided by all expected GT score slots.
+- `No hard fail`: fraction of prompts with strict prompt-level quality greater than `0`.
+- `Energy eff.`: anchored inverse energy score from kWh per prompt; higher is better.
+
+![Test 05 radar summary](plots/test05_final_run_radar_summary.png)
+
+Raw radar values:
+
+| Model | Overall | SQL | Text | Vis | D1-2 | D3 | D4 | Completion | No hard fail | kWh / prompt | Energy eff. |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gemma E4B | 0.937 | 0.999 | 0.916 | 0.857 | 0.944 | 0.939 | 0.919 | 1.000 | 1.000 | 0.00602 | 0.845 |
+| Gemma 26B MoE | 0.872 | 0.968 | 0.963 | 0.551 | 0.891 | 0.851 | 0.865 | 1.000 | 1.000 | 0.00998 | 0.540 |
+| Mistral Small 3.2 24B | 0.921 | 0.974 | 0.888 | 0.871 | 0.960 | 0.929 | 0.818 | 0.981 | 0.975 | 0.00449 | 0.962 |
+
+The radar view shows why the final recommendation is split by operating
+priority. Gemma E4B is the most complete high-quality profile, especially on
+difficulty-4 prompts and reliability. Mistral remains the best energy-efficient
+profile and stays close on overall quality, but is weaker on hard prompts.
+Gemma 26B keeps strong SQL/text and reliability axes, yet its visualization
+axis and energy cost prevent it from becoming the final Pareto recommendation.
+
 ## Prompt Difficulty
 
 Difficulty 4 is the most important split because it contains the hardest
@@ -154,6 +199,37 @@ Representative best configurations by difficulty:
 | 2 | Mistral / `lookup_cot_n3_efficient_tokens` | lowest-cost high-quality | 0.979 | 100.0% | 0.00481 |
 | 3 | Gemma E4B / `lookup_cot_n4_temp_0p8_low_cost_tokens` | highest quality | 0.946 | 100.0% | 0.00609 |
 | 4 | Gemma E4B / `lookup_cot_n2_temp_0p8_low_cost_tokens` | hard-prompt endpoint | 0.919 | 100.0% | 0.00704 |
+
+The following plots split the Pareto view by prompt difficulty. Each plot uses
+the full-benchmark confirmation rows for that difficulty: Test 01 baselines and
+the final Test 05 candidate runs. This keeps every difficulty-specific frontier
+on the same benchmark support while preserving the unified candidate
+interpretation above.
+
+![Test 05 Pareto frontier for difficulty 1](plots/test05_final_run_pareto_difficulty_1.png)
+
+Difficulty 1 is a Mistral-only frontier. The useful choice is mainly an energy
+trade-off inside the same model family: the cheapest frontier point is already
+high quality, while `combined_cot_static_tokens` gives the best score at a
+small energy increase.
+
+![Test 05 Pareto frontier for difficulty 2](plots/test05_final_run_pareto_difficulty_2.png)
+
+Difficulty 2 is also controlled by Mistral. Efficient static/token settings are
+the low-energy points, while `lookup_cot_n3_efficient_tokens` gives the highest
+quality on this slice.
+
+![Test 05 Pareto frontier for difficulty 3](plots/test05_final_run_pareto_difficulty_3.png)
+
+Difficulty 3 is the transition region. Mistral remains the low-energy side of
+the frontier, but Gemma E4B becomes the high-quality endpoint once lookup CoT,
+temperature 0.8, and low-cost token caps are combined.
+
+![Test 05 Pareto frontier for difficulty 4](plots/test05_final_run_pareto_difficulty_4.png)
+
+Difficulty 4 is the decisive hard-prompt case. Mistral can remain cheaper, but
+the tuned Gemma E4B endpoint is the only frontier point with both high quality
+and full completion.
 
 ## Figures
 

@@ -230,10 +230,12 @@ registers all Parquet files as named SQL tables. It then builds the schema conte
 — either the full column-level description or, when the number of tables exceeds
 \texttt{compact\_threshold}, the output of the two-step table selection procedure
 described in Section~\ref{subsec:multitable}. The LLM receives the schema context
-together with the user prompt and a Chain-of-Thought SQL generation prompt, and
-produces a SQL query. The query is executed via \texttt{duckdb.execute()}, and the
-result is stored in the \texttt{State} as both a CSV string (\texttt{data}) and a
-Pandas \texttt{DataFrame} (\texttt{data\_df}).
+together with the user prompt and a structured SQL-generation prompt containing
+DuckDB-specific instructions, common mistakes to avoid, and few-shot examples.
+It then produces a SQL query. The query is executed via
+\texttt{duckdb.execute()}, and the result is stored in the \texttt{State} as both
+a CSV string (\texttt{data}) and a Pandas \texttt{DataFrame}
+(\texttt{data\_df}).
 
 Before passing the retrieved data to the analysis step, the system enriches it with
 pre-computed aggregate statistics: for every numeric column, the sum, minimum,
