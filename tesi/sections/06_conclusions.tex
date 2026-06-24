@@ -30,10 +30,7 @@ visualization cap from 7000 to 10000 tokens improves \texttt{vis\_score}
 with negligible energy cost, and the curve does not yet show a clear
 plateau. Gemma~E4B behaves differently: adding too much token headroom can
 reduce quality, especially in lookup and visualization, so it requires
-bounded caps rather than simply larger ones. \st{Mistral, by contrast, is almost
-insensitive to both static sampling parameters and token caps: no parameter at
-any step moves its quality by more than about one point, so moderate budgets
-and default sampling are enough for stable outputs.} Mistral by contrast, is comparatively insensitive to token-cap changes and obtains only modest positive gains from static sampling adjustments, although poorly chosen settings can still cause noticeable degradation. This robustness makes it a
+bounded caps rather than simply larger ones. Mistral by contrast, is comparatively insensitive to token-cap changes and obtains only modest positive gains from static sampling adjustments, although poorly chosen settings can still cause noticeable degradation. This robustness makes it a
 safe baseline, but also means static hyperparameter search offers it little
 room for improvement.
 
