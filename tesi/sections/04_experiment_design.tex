@@ -4,6 +4,13 @@
 \section{Experiment Design}
 \label{sec:experimentdesign}
 
+This section defines the experimental protocol used to evaluate the Sales
+Agent. It first describes the common execution environment and then details
+five experiments: the baseline model comparison, the per-agent sensitivity
+analysis, the \texttt{max\_tokens} ladder, the compute-expansion tests based on
+CoT depth and Best-of-N sampling, and the final Pareto confirmation over the
+evaluated candidate configurations.
+
 The experimental campaign is structured into five experiments, each isolating a distinct
 aspect of model behaviour or configuration:
 
@@ -399,7 +406,7 @@ the per-model latency and energy rankings coinciding to within about five
 percentage points. The quality--cost trade-offs and candidate-set Pareto
 frontiers in
 Section~\ref{sec:experiments} therefore use energy per prompt as the single
-representative efficiency axis}, while absolute latency is still reported in
+representative efficiency axis, while absolute latency is still reported in
 the per-test tables for deployments bound by response-time limits. Energy
 is preferred as the headline axis because it simultaneously captures the
 sustainability dimension and, unlike wall-clock time, aggregates the CPU,

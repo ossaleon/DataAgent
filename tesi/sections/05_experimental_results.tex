@@ -4,6 +4,13 @@
 \section{Experimental Results}
 \label{sec:experiments}
 
+This section presents the empirical results of the five experiments introduced
+in Chapter~\ref{sec:experimentdesign}. It first compares the baseline models,
+then analyses per-agent parameter sensitivity, token-budget effects, and
+inference-time compute expansion. The section closes with the final Pareto
+confirmation, including model-level summaries, quality-energy frontiers, and
+prompt-difficulty analyses over the evaluated candidate configurations.
+
 \subsection{Test 01 - Baseline Model Comparison}
 \label{subsec:res01}
 
@@ -1651,7 +1658,7 @@ difficulty-4 prompts and reliability. Mistral remains the best
 energy-efficient profile and stays close on overall quality, but is weaker on
 hard prompts. Gemma~26B keeps strong SQL, text, and reliability axes, yet its
 visualization axis and energy cost prevent it from becoming the final Pareto
-recommendation.
+recommendation within the evaluated candidate set.
 
 \subsubsection{Final Pareto Frontier}
 
@@ -1739,16 +1746,16 @@ recommendation within the evaluated Pareto set.
 
 \subsubsection{Pareto Frontier by Prompt Difficulty}
 
-The final Pareto picture changes when the benchmark is split by difficulty.
+The evaluated Pareto picture changes when the benchmark is split by difficulty.
 Table~\ref{tab:test05difficulty} reports the representative best
 configurations inside each difficulty level.
 
-On difficulty~1 and~2 prompts, Mistral dominates the frontier: it is both
+On difficulty~1 and~2 prompts, Mistral dominates the evaluated frontier: it is both
 cheap and highly accurate, reaching prompt quality close to~0.98 in the best
-configurations. On difficulty~3 the frontier becomes mixed: Mistral remains
+configurations. On difficulty~3 the evaluated frontier becomes mixed: Mistral remains
 the most efficient, but Gemma~E4B reaches the highest quality once lookup CoT
 and static lookup temperature are combined. Difficulty~4 is the decisive
-case. The best Mistral frontier point on this slice reaches quality~0.831
+case. The best Mistral evaluated-frontier point on this slice reaches quality~0.831
 with 90.9\,\% completion at 0.00475~kWh per prompt. The Gemma~E4B final candidate
 reaches quality~0.919 with full completion at 0.00704~kWh per prompt. Gemma
 26B also remains strong on hard prompts (\texttt{lookup\_cot\_n3} reaches
@@ -1777,6 +1784,34 @@ hard-prompt endpoint.
 \label{tab:test05difficulty}
 \end{table}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/test05_final_run_pareto_difficulty_1.png}
+    \caption{Test~05: difficulty~1 quality--energy Pareto frontier among the evaluated candidates.}
+    \label{fig:test05_difficulty_pareto}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/test05_final_run_pareto_difficulty_2.png}
+    \caption{Test~05: difficulty~2 quality--energy Pareto frontier among the evaluated candidates.}
+    \label{fig:test05_difficulty_pareto_d2}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/test05_final_run_pareto_difficulty_3.png}
+    \caption{Test~05: difficulty~3 quality--energy Pareto frontier among the evaluated candidates.}
+    \label{fig:test05_difficulty_pareto_d3}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/test05_final_run_pareto_difficulty_4.png}
+    \caption{Test~05: difficulty~4 quality--energy Pareto frontier among the evaluated candidates.}
+    \label{fig:test05_difficulty_pareto_d4}
+\end{figure}
+
 The prompt-difficulty view is essential for interpreting the final Pareto
 front. A single aggregate score would suggest that Mistral and Gemma~E4B are
 close competitors with different energy profiles. The difficulty split shows
@@ -1786,7 +1821,7 @@ when the workload includes difficult SQL aggregation prompts and the objective
 is robust completion rather than minimum energy.
 Figures~\ref{fig:test05_difficulty_pareto}--\ref{fig:test05_difficulty_pareto_d4}
 make the same transition visible as a sequence of frontiers: difficulties~1
-and~2 are Mistral-only frontiers, difficulty~3 introduces Gemma~E4B as the
+and~2 are Mistral-only evaluated frontiers, difficulty~3 introduces Gemma~E4B as the
 high-quality endpoint, and difficulty~4 separates the cheap Mistral repair
 points from the more reliable Gemma~E4B hard-prompt endpoint.
 
