@@ -331,8 +331,8 @@ $-0.123$, and lowering temperature below~1.0 actively hurts its analysis --- evi
 thinking model relies on sampling diversity. Mistral, by contrast, is essentially insensitive:
 no parameter at any step moves quality by more than $+0.007$, so its efficiency is robust to
 misconfiguration but offers almost no tuning upside (its one real risk is a
-\texttt{repeat\_penalty}~$=1.2$ analysis setting that loses $0.099$ quality and adds
-$\sim$90~s/prompt). Two cross-cutting findings stand out: quality-improving settings barely
+\texttt{repeat\_penalty}~$=1.2$ analysis setting that loses $0.099$ quality). Two
+cross-cutting findings stand out: quality-improving settings barely
 move energy (tuning is mostly a quality concern, not a cost one), and prompt difficulty
 \emph{amplifies} tuning effects --- the largest swings concentrate on difficulty-4 prompts for
 both thinking models. Figure~\ref{fig:es_test02_heatmap} summarises, per (step, parameter)
