@@ -1,0 +1,108 @@
+# Post-submission rerun of Mistral Small 3.2 24B Test 05 candidates that were
+# reused from earlier tests in the submitted final Pareto analysis.
+#
+# Use with:
+#   --model mistral-small3.2:24b
+#   --dataset evaluation/benchmark_dataset.json
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: baseline
+    vary_step: all_steps
+    axis: reused_test01_baseline
+    description: "Test 01 full-agent baseline rerun on the final machine."
+    steps: {}
+
+  - name: analysis_top_k_56
+    vary_step: analyzing_data
+    axis: reused_test02_static_sensitivity
+    description: "Test 02 analysis top_k=56, preserving the Test 02 repeat-penalty baseline."
+    steps:
+      lookup_sales_data: {repeat_penalty: 1.1, repeat_last_n: 64}
+      analyzing_data: {top_k_min: 56, top_k_max: 56, repeat_penalty: 1.1, repeat_last_n: 64}
+      create_visualization: {repeat_penalty: 1.1, repeat_last_n: 64}
+
+  - name: lookup_repeat_penalty_1p3
+    vary_step: lookup_sales_data
+    axis: reused_test02_static_sensitivity
+    description: "Test 02 lookup repeat_penalty=1.3, preserving the Test 02 repeat-penalty baseline."
+    steps:
+      lookup_sales_data: {repeat_penalty: 1.3, repeat_last_n: 64}
+      analyzing_data: {repeat_penalty: 1.1, repeat_last_n: 64}
+      create_visualization: {repeat_penalty: 1.1, repeat_last_n: 64}
+
+  - name: visualization_repeat_last_n_56
+    vary_step: create_visualization
+    axis: reused_test02_static_sensitivity
+    description: "Test 02 visualization repeat_last_n=56, preserving the Test 02 repeat-penalty baseline."
+    steps:
+      lookup_sales_data: {repeat_penalty: 1.1, repeat_last_n: 64}
+      analyzing_data: {repeat_penalty: 1.1, repeat_last_n: 64}
+      create_visualization: {repeat_penalty: 1.1, repeat_last_n: 56}
+
+  - name: lookup_cot_n2
+    vary_step: lookup_sales_data
+    axis: reused_test04_cot_depth
+    description: "Test 04 lookup CoT depth two."
+    steps:
+      lookup_sales_data: {cot_n: 2}
+
+  - name: lookup_cot_n3
+    vary_step: lookup_sales_data
+    axis: reused_test04_cot_depth
+    description: "Test 04 lookup CoT depth three."
+    steps:
+      lookup_sales_data: {cot_n: 3}
+
+  - name: lookup_cot_n4
+    vary_step: lookup_sales_data
+    axis: reused_test04_cot_depth
+    description: "Test 04 lookup CoT depth four."
+    steps:
+      lookup_sales_data: {cot_n: 4}
+
