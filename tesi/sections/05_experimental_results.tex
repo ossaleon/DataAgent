@@ -1747,8 +1747,16 @@ recommendation within the evaluated Pareto set.
 \subsubsection{Pareto Frontier by Prompt Difficulty}
 
 The evaluated Pareto picture changes when the benchmark is split by difficulty.
-Table~\ref{tab:test05difficulty} reports the representative best
-configurations inside each difficulty level.
+For each level the quality--energy frontier is recomputed over that difficulty's
+benchmark rows, and one representative non-dominated configuration is selected
+from it. The selection criterion is not fixed: it follows the most useful
+operating point for the slice, named in the \textit{Role} column of
+Table~\ref{tab:test05difficulty}. On the easy difficulties~1 and~2, where many
+configurations already reach near-top quality, the representative is the
+\emph{lowest-cost high-quality} point (the cheapest configuration among those
+attaining the best quality); on difficulty~3 it is the \emph{highest-quality}
+point; and on the decisive difficulty~4 it is the \emph{hard-prompt endpoint},
+the configuration that pairs the highest quality with full completion.
 
 On difficulty~1 and~2 prompts, Mistral dominates the evaluated frontier: it is both
 cheap and highly accurate, reaching prompt quality close to~0.98 in the best
@@ -1782,6 +1790,32 @@ hard-prompt endpoint.
 \end{tabular}
 \caption{Test~05: representative best configurations by prompt difficulty.}
 \label{tab:test05difficulty}
+\end{table}
+
+Table~\ref{tab:test05difficultyparams} reports the per-step parameters of these
+difficulty-specific best configurations, again listing only the settings that
+deviate from each model's baseline.
+
+\begin{table}[H]
+\centering
+\arrayrulecolor{black}
+\small
+\begin{tabular}{|c|Y{2.6cm}|Y{2.8cm}|Y{2.8cm}|Y{2.4cm}|Y{2.4cm}|}
+\hline
+\rowcolor{bluePoli!30}
+\textbf{Diff.} & \textbf{Model} & \textbf{Config} & \textbf{Lookup} & \textbf{Analysis} & \textbf{Visualization} \T\B \\
+\hline
+1 & \texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static\_\allowbreak tokens} & \texttt{cot\_n=3}, \texttt{repeat\_penalty=1.3}, \texttt{max\_tokens=3000} & \texttt{top\_k=56}, \texttt{max\_tokens=5000} & \texttt{repeat\_last\_n=56}, \texttt{max\_tokens=5000} \T\B \\
+\hline
+2 & \texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3\_\allowbreak efficient\_tokens} & \texttt{cot\_n=3}, \texttt{max\_tokens=3000} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=5000} \T\B \\
+\hline
+3 & \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & \texttt{cot\_n=4}, \texttt{temp=0.8} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=4000} \T\B \\
+\hline
+4 & \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & \texttt{cot\_n=2}, \texttt{temp=0.8} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=4000} \T\B \\
+\hline
+\end{tabular}
+\caption{Test~05: per-step parameters of the representative best configurations by prompt difficulty.}
+\label{tab:test05difficultyparams}
 \end{table}
 
 \begin{figure}[H]

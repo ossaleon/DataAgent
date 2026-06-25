@@ -30,7 +30,7 @@ agent under varying configurations. A benchmark of 20 analytical questions, stra
 four SQL difficulty levels, is used to evaluate output quality across three complementary
 dimensions: a graded ground-truth table-similarity score for data retrieval
 accuracy, an LLM-as-judge score for the natural language analysis, and a
-further LLM-based score for visualisation correctness. A central motivation is
+further LLM-based score for visualization correctness. A central motivation is
 to test whether larger thinking models are always the best choice, or whether
 smaller thinking models and larger non-thinking models can be more efficient
 once the agent steps are tuned. The evaluation is structured as a sequence of five step-isolated
@@ -50,7 +50,7 @@ The thesis is guided by the following research questions:
           end-to-end output quality, execution latency, and energy consumption when used
           as the backbone of a multi-step data-analysis agent?
     \item \textbf{RQ2}: How sensitive are the individual agent steps --- data lookup,
-          textual analysis, and visualisation --- to changes in sampling parameters and
+          textual analysis, and visualization --- to changes in sampling parameters and
           output-token budgets?
     \item \textbf{RQ3}: Under which conditions does additional inference-time
           computation, through iterative refinement or best-of-$N$ sampling, improve
@@ -62,6 +62,7 @@ The thesis is guided by the following research questions:
           completion, latency, and local energy consumption?
 \end{itemize}
 
+\medskip
 Accordingly, the main contributions of this work are:
 \begin{itemize}
     \item a configurable multi-step data-analysis agent for querying structured retail
@@ -69,11 +70,12 @@ Accordingly, the main contributions of this work are:
     \item a profiling pipeline that records per-step quality, latency, and energy
           measurements for local LLM executions;
     \item a controlled sensitivity analysis across model--step pairs, separating the
-          effect of lookup, analysis, and visualisation parameters;
+          effect of lookup, analysis, and visualization parameters;
     \item empirical deployment recommendations derived from strict end-to-end quality,
           completion, latency, and energy trade-offs.
 \end{itemize}
 
+\medskip
 The document is organised as follows:
 \begin{itemize}
     \item Section~\ref{sec:stateofart} reviews related work on LLM agents for structured

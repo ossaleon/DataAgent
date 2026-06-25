@@ -4,7 +4,7 @@
 
 This appendix lists all 20 benchmark prompts used to evaluate the Sales Agent,
 grouped by difficulty level. Each entry reports: the natural language question
-given as input to the agent; the visualisation directive (if any); the reference
+given as input to the agent; the visualization directive (if any); the reference
 SQL query used to generate the ground-truth result set; and the reference analysis
 text used to evaluate the agent's textual output.
 
@@ -13,7 +13,7 @@ text used to evaluate the agent's textual output.
 %----------------------------------------------------------------------
 
 \paragraph{Prompt 1.}
-Difficulty: 1 \quad Visualisation goal: none.\\[2pt]
+Difficulty: 1 \quad Visualization goal: none.\\[2pt]
 \textit{``Return the top 5 stores by total revenue, identified by store number.''}
 
 \textbf{Reference SQL:}
@@ -33,7 +33,7 @@ Store 1650: \$580,443.01; Store 1210: \$508,393.77.
 \bigskip
 
 \paragraph{Prompt 2.}
-Difficulty: 1 \quad Visualisation goal: bar chart comparing total revenue for promo and non-promo sales in 2023.\\[2pt]
+Difficulty: 1 \quad Visualization goal: bar chart comparing total revenue for promo and non-promo sales in 2023.\\[2pt]
 \textit{``Show promo vs non-promo revenue in 2023 as a bar chart.''}
 
 \textbf{Reference SQL:}
@@ -54,7 +54,7 @@ Non-promo sales generated \$5,316,412.07 in 2023, vs \$99,706.86 for promo sales
 \bigskip
 
 \paragraph{Prompt 3.}
-Difficulty: 1 \quad Visualisation goal: none.\\[2pt]
+Difficulty: 1 \quad Visualization goal: none.\\[2pt]
 \textit{``Return the top 10 product class codes by total units sold in 2023.''}
 
 \textbf{Reference SQL:}
@@ -75,7 +75,7 @@ Product class 22850 leads with 89,229 units sold in 2023, followed by 22975
 \bigskip
 
 \paragraph{Prompt 4.}
-Difficulty: 1 \quad Visualisation goal: bar chart of the top 8 stores ranked by total units sold in 2022.\\[2pt]
+Difficulty: 1 \quad Visualization goal: bar chart of the top 8 stores ranked by total units sold in 2022.\\[2pt]
 \textit{``Show the top 8 stores by total units sold in 2022 as a bar chart, identifying each store by its store number.''}
 
 \textbf{Reference SQL:}
@@ -97,7 +97,7 @@ Store 2970 leads with 23,580 units; the eighth-ranked store (1540) sold 14,517 u
 %----------------------------------------------------------------------
 
 \paragraph{Prompt 5.}
-Difficulty: 2 \quad Visualisation goal: line chart with date on the $x$-axis and daily sales value on the $y$-axis.\\[2pt]
+Difficulty: 2 \quad Visualization goal: line chart with date on the $x$-axis and daily sales value on the $y$-axis.\\[2pt]
 \textit{``Show me the sales in Nov 2021.''}
 
 \textbf{Reference SQL:}
@@ -117,7 +117,7 @@ with a total of \$499,984.43 across 29 days.
 \bigskip
 
 \paragraph{Prompt 6.}
-Difficulty: 2 \quad Visualisation goal: line chart showing monthly revenue trends for 2023.\\[2pt]
+Difficulty: 2 \quad Visualization goal: line chart showing monthly revenue trends for 2023.\\[2pt]
 \textit{``Show the 12 months of 2023 with total revenue and total units sold.''}
 
 \textbf{Reference SQL:}
@@ -138,7 +138,7 @@ The 12 months of 2023 show total revenue ranging from \$353,284.21 (July) to
 \bigskip
 
 \paragraph{Prompt 7.}
-Difficulty: 2 \quad Visualisation goal: none.\\[2pt]
+Difficulty: 2 \quad Visualization goal: none.\\[2pt]
 \textit{``Return the top 10 sales days in 2023 with total revenue and total units sold.''}
 
 \textbf{Reference SQL:}
@@ -160,7 +160,7 @@ tenth-ranked day is 2023-12-16 with \$34,630.77 and 2,435 units.
 \bigskip
 
 \paragraph{Prompt 8.}
-Difficulty: 2 \quad Visualisation goal: line chart showing monthly revenue for product class code 22975 in 2022.\\[2pt]
+Difficulty: 2 \quad Visualization goal: line chart showing monthly revenue for product class code 22975 in 2022.\\[2pt]
 \textit{``Show monthly revenue for product class code 22975 in 2022 as a line chart.''}
 
 \textbf{Reference SQL:}
@@ -181,7 +181,7 @@ Monthly revenue for product class 22975 in 2022 ranges from \$73,802.56 (July) t
 \bigskip
 
 \paragraph{Prompt 9.}
-Difficulty: 2 \quad Visualisation goal: grouped bar chart showing monthly revenue in 2023 split between promo and non-promo sales.\\[2pt]
+Difficulty: 2 \quad Visualization goal: grouped bar chart showing monthly revenue in 2023 split between promo and non-promo sales.\\[2pt]
 \textit{``Show monthly revenue split by promo flag for 2023 as a grouped bar chart.''}
 
 \textbf{Reference SQL:}
@@ -207,7 +207,7 @@ June, and July had no promo sales.
 %----------------------------------------------------------------------
 
 \paragraph{Prompt 10.}
-Difficulty: 3 \quad Visualisation goal: bar chart showing total revenue per brand for 2023, ordered from highest to lowest.\\[2pt]
+Difficulty: 3 \quad Visualization goal: bar chart showing total revenue per brand for 2023, ordered from highest to lowest.\\[2pt]
 \textit{``Show total revenue by product brand for 2023 as a bar chart.''}
 
 \textbf{Reference SQL:}
@@ -230,7 +230,7 @@ brands is \$5,416,118.93.
 \bigskip
 
 \paragraph{Prompt 11.}
-Difficulty: 3 \quad Visualisation goal: bar chart of store cities with total 2022 revenue above \$200{,}000, ordered from highest to lowest.\\[2pt]
+Difficulty: 3 \quad Visualization goal: bar chart of store cities with total 2022 revenue above \$200{,}000, ordered from highest to lowest.\\[2pt]
 \textit{``Show store cities where total revenue in 2022 exceeded 200{,}000 as a bar chart.''}
 
 \textbf{Reference SQL:}
@@ -254,7 +254,7 @@ remaining four — Dallas, Las Vegas, San Diego, and San Antonio — range betwe
 \bigskip
 
 \paragraph{Prompt 12.}
-Difficulty: 3 \quad Visualisation goal: bar chart showing total 2023 revenue by store type.\\[2pt]
+Difficulty: 3 \quad Visualization goal: bar chart showing total 2023 revenue by store type.\\[2pt]
 \textit{``Show total revenue by store type for 2023 as a bar chart.''}
 
 \textbf{Reference SQL:}
@@ -275,7 +275,7 @@ Hypermarket (\$1,188,793.49), and Convenience (\$714,323.60).
 \bigskip
 
 \paragraph{Prompt 13.}
-Difficulty: 3 \quad Visualisation goal: bar chart showing total units sold by product category in 2023.\\[2pt]
+Difficulty: 3 \quad Visualization goal: bar chart showing total units sold by product category in 2023.\\[2pt]
 \textit{``Show total units sold by product category for 2023 as a bar chart.''}
 
 \textbf{Reference SQL:}
@@ -296,7 +296,7 @@ Household (57,576), Personal Care (38,045), and Snacks (24,817).
 \bigskip
 
 \paragraph{Prompt 14.}
-Difficulty: 3 \quad Visualisation goal: none.\\[2pt]
+Difficulty: 3 \quad Visualization goal: none.\\[2pt]
 \textit{``Return the top 3 brands by realized average selling price in 2023, where average price is computed as total revenue divided by total units sold, along with total units sold per brand.''}
 
 \textbf{Reference SQL:}
@@ -321,7 +321,7 @@ The top 3 brands by average realized price are CrunchTime (18.2241), GlowUp
 \bigskip
 
 \paragraph{Prompt 15.}
-Difficulty: 3 \quad Visualisation goal: none.\\[2pt]
+Difficulty: 3 \quad Visualization goal: none.\\[2pt]
 \textit{``Return the top 8 cities by total revenue in 2023.''}
 
 \textbf{Reference SQL:}
@@ -343,7 +343,7 @@ Washington leads with \$331,128.83; the eighth-ranked city (Seattle) generated
 \bigskip
 
 \paragraph{Prompt 16.}
-Difficulty: 3 \quad Visualisation goal: grouped bar chart comparing 2023 revenue by region for organic and non-organic products.\\[2pt]
+Difficulty: 3 \quad Visualization goal: grouped bar chart comparing 2023 revenue by region for organic and non-organic products.\\[2pt]
 \textit{``Show 2023 revenue by region comparing Organic and Non-Organic products as a grouped bar chart.''}
 
 \textbf{Reference SQL:}
@@ -369,7 +369,7 @@ revenue outpaces Organic by roughly 5:1 across all four regions.
 %----------------------------------------------------------------------
 
 \paragraph{Prompt 17.}
-Difficulty: 4 \quad Visualisation goal: grouped bar chart comparing average monthly revenue per region between 2022 and 2023.\\[2pt]
+Difficulty: 4 \quad Visualization goal: grouped bar chart comparing average monthly revenue per region between 2022 and 2023.\\[2pt]
 \textit{``Compare average monthly revenue between store regions for 2022 and 2023.''}
 
 \textbf{Reference SQL:}
@@ -400,7 +400,7 @@ slight decline from 2022 to 2023.
 \bigskip
 
 \paragraph{Prompt 18.}
-Difficulty: 4 \quad Visualisation goal: grouped bar chart comparing average monthly revenue by store type between 2022 and 2023.\\[2pt]
+Difficulty: 4 \quad Visualization goal: grouped bar chart comparing average monthly revenue by store type between 2022 and 2023.\\[2pt]
 \textit{``Compare average monthly revenue between store types for 2022 and 2023.''}
 
 \textbf{Reference SQL:}
@@ -430,7 +430,7 @@ remains first in 2023 (\$14,881.74). All store types show a slight decline from
 \bigskip
 
 \paragraph{Prompt 19.}
-Difficulty: 4 \quad Visualisation goal: bar chart showing the promo revenue share as a percentage of total revenue for each product category in 2023.\\[2pt]
+Difficulty: 4 \quad Visualization goal: bar chart showing the promo revenue share as a percentage of total revenue for each product category in 2023.\\[2pt]
 \textit{``Show promo revenue share by product category for 2023 as a bar chart, expressing the share as a percentage of total revenue.''}
 
 \textbf{Reference SQL:}
@@ -454,7 +454,7 @@ no promo sales.
 \bigskip
 
 \paragraph{Prompt 20.}
-Difficulty: 4 \quad Visualisation goal: none.\\[2pt]
+Difficulty: 4 \quad Visualization goal: none.\\[2pt]
 \textit{``Return the top 10 region-category combinations by year-over-year revenue growth from 2022 to 2023, showing revenue for both years and the growth expressed as a percentage rounded to 2 decimal places.''}
 
 \textbf{Reference SQL:}

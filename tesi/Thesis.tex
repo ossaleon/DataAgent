@@ -58,9 +58,8 @@
 % PACKAGES FOR THE APPENDIX
 \usepackage{appendix}
 
-% PACKAGES FOR ITEMIZE & ENUMERATES 
+% PACKAGES FOR ITEMIZE & ENUMERATES
 \usepackage{enumitem}
-\usepackage{soul}
 
 % OTHER PACKAGES
 \usepackage{float} % [H] forced float placement
@@ -142,7 +141,7 @@ a systematic profiling that jointly measures output quality, execution time, and
 consumption (via CodeCarbon). Quality is assessed over 20 analytical questions, stratified
 across four SQL difficulty levels, along three dimensions: a graded ground-truth
 table-similarity score for retrieval and two LLM-as-judge scores for analysis and
-visualisation. Five step-isolated experiments establish a baseline for three open-weight
+visualization. Five step-isolated experiments establish a baseline for three open-weight
 models (Gemma~4~E4B, Gemma~4~26B, Mistral~Small~3.2~24B) and then vary one agent step at a time,
 closing with a Pareto confirmation run.
 They are also designed to test a common assumption in local LLM deployment, that larger
@@ -156,7 +155,7 @@ highest strict quality and joins low-energy Mistral on the final Pareto frontier
 analysis further shows that hyperparameter effects are strongly step-specific, that larger token
 budgets help only genuinely truncated model-step pairs, and that Chain-of-Thought refinement
 pays off only when its feedback matches the failure mode: it is the strongest intervention for
-verifiable SQL lookup, but harmful for visualisation, where errors are semantic rather than
+verifiable SQL lookup, but harmful for visualization, where errors are semantic rather than
 executable. The thesis distills three recommendations for energy-aware LLM data agents: tune
 hyperparameters per agent step rather than globally, allocate inference-time compute by failure
 mode, and report accuracy and energy by prompt difficulty, since the best model for simple
