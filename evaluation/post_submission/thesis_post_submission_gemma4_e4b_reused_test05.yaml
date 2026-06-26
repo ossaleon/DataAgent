@@ -1,0 +1,106 @@
+# Post-submission rerun of Gemma E4B Test 05 candidates that were reused
+# from earlier tests in the submitted final Pareto analysis.
+#
+# Use with:
+#   --model gemma4:e4b
+#   --dataset evaluation/benchmark_dataset.json
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: baseline
+    vary_step: all_steps
+    axis: reused_test01_baseline
+    description: "Test 01 full-agent baseline rerun on the final machine."
+    steps: {}
+
+  - name: analysis_max_tokens_5000
+    vary_step: analyzing_data
+    axis: reused_test03_max_tokens
+    description: "Test 03 analysis max_tokens=5000 with lookup/visualization generous."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 5000}
+      create_visualization: {max_tokens: 10000}
+
+  - name: visualization_max_tokens_4000
+    vary_step: create_visualization
+    axis: reused_test03_max_tokens
+    description: "Test 03 visualization max_tokens=4000 with lookup/analysis generous."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {max_tokens: 4000}
+
+  - name: lookup_cot_n2
+    vary_step: lookup_sales_data
+    axis: reused_test04_cot_depth
+    description: "Test 04 lookup CoT depth two."
+    steps:
+      lookup_sales_data: {cot_n: 2}
+
+  - name: lookup_cot_n4
+    vary_step: lookup_sales_data
+    axis: reused_test04_cot_depth
+    description: "Test 04 lookup CoT depth four."
+    steps:
+      lookup_sales_data: {cot_n: 4}
+
+  - name: lookup_temp_0p3
+    vary_step: lookup_sales_data
+    axis: reused_test04b_lookup_temperature
+    description: "Test 04b static lookup temperature 0.3."
+    steps:
+      lookup_sales_data: {temp_min: 0.3, temp_max: 0.3}
+
+  - name: lookup_temp_0p8
+    vary_step: lookup_sales_data
+    axis: reused_test04b_lookup_temperature
+    description: "Test 04b static lookup temperature 0.8."
+    steps:
+      lookup_sales_data: {temp_min: 0.8, temp_max: 0.8}
+

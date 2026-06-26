@@ -1,0 +1,148 @@
+# Post-submission Test 05 refinement for gemma4:26b.
+#
+# Purpose:
+#   Focus on the weak visualization axis observed in the final Test 05 radar
+#   plot. These whole-agent configurations keep lookup/analysis generous while
+#   testing larger visualization caps and the best visualization sampling signals.
+#
+# Use with:
+#   --model gemma4:26b
+#   --dataset evaluation/benchmark_dataset.json
+
+defaults:
+  lookup_sales_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 5000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  analyzing_data:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  create_visualization:
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: vis_tokens_10000_reference
+    vary_step: all_steps
+    axis: visualization_token_budget
+    description: "Reference full-dataset rerun of the strongest Test 03 visualization-token direction."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {max_tokens: 10000}
+
+  - name: vis_tokens_12000
+    vary_step: all_steps
+    axis: visualization_token_budget
+    description: "Visualization max_tokens=12000 with generous lookup and analysis."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {max_tokens: 12000}
+
+  - name: vis_tokens_14000
+    vary_step: all_steps
+    axis: visualization_token_budget
+    description: "Visualization max_tokens=14000 with generous lookup and analysis."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {max_tokens: 14000}
+
+  - name: vis_tokens_16000
+    vary_step: all_steps
+    axis: visualization_token_budget
+    description: "Visualization max_tokens=16000 to test whether the 26B visualization curve has plateaued."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {max_tokens: 16000}
+
+  - name: vis_topk20_tokens12000
+    vary_step: all_steps
+    axis: visualization_sampling_tokens
+    description: "Best Test 05 visualization top_k signal with a larger visualization cap."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {top_k_min: 20, top_k_max: 20, max_tokens: 12000}
+
+  - name: vis_topk20_tokens14000
+    vary_step: all_steps
+    axis: visualization_sampling_tokens
+    description: "Top_k=20 visualization repair with a 14000-token cap."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {top_k_min: 20, top_k_max: 20, max_tokens: 14000}
+
+  - name: vis_repeat_penalty_1_tokens12000
+    vary_step: all_steps
+    axis: visualization_sampling_tokens
+    description: "Repeat penalty 1.0 visualization repair with a 12000-token cap."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {repeat_penalty: 1.0, repeat_last_n: 64, max_tokens: 12000}
+
+  - name: vis_repeat_penalty_1p03_tokens12000
+    vary_step: all_steps
+    axis: visualization_sampling_tokens
+    description: "Best direct visualization-score repeat penalty from Test 02 with a larger token cap."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {repeat_penalty: 1.03, repeat_last_n: 64, max_tokens: 12000}
+
+  - name: vis_temp0p95_topk20_tokens12000
+    vary_step: all_steps
+    axis: visualization_sampling_tokens
+    description: "Difficulty-3 temperature signal plus top_k=20 and 12000 visualization tokens."
+    steps:
+      lookup_sales_data: {max_tokens: 8000}
+      analyzing_data: {max_tokens: 10000}
+      create_visualization: {temp_min: 0.95, temp_max: 0.95, top_k_min: 20, top_k_max: 20, max_tokens: 12000}
+
+  - name: vis_static_topk20_rp1p03_tokens14000
+    vary_step: all_steps
+    axis: visualization_repair_combined
+    description: "Most aggressive visualization repair: strong upstream static settings plus top_k=20, repeat_penalty=1.03, and 14000 visualization tokens."
+    steps:
+      lookup_sales_data: {repeat_penalty: 1.3, repeat_last_n: 64, max_tokens: 8000}
+      analyzing_data: {top_k_min: 24, top_k_max: 24, max_tokens: 10000}
+      create_visualization: {temp_min: 0.95, temp_max: 0.95, top_k_min: 20, top_k_max: 20, repeat_penalty: 1.03, repeat_last_n: 64, max_tokens: 14000}
+
