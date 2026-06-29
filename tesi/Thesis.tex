@@ -149,9 +149,11 @@ thinking models are necessarily the best solution. The results show instead that
 choice alone does not explain performance: the dominant effects
 arise from the interaction between model family, agent step, prompt difficulty, and
 inference-time settings. Mistral is the most efficient untuned model but collapses on the
-hardest aggregation prompts; Gemma~26B is highly tunable yet energetically costly; and
-Gemma~E4B, repaired through lookup Chain-of-Thought refinement at a lower temperature, attains the
-highest strict quality and joins low-energy Mistral on the final Pareto frontier. The sensitivity
+hardest aggregation prompts; once its lookup step is repaired through Chain-of-Thought
+refinement, however, it attains the highest strict quality and defines the final Pareto
+frontier. Gemma~26B is highly tunable yet energetically costly, and
+Gemma~E4B, repaired through lookup Chain-of-Thought refinement at a lower temperature, remains a
+very close high-quality alternative but is dominated once energy is counted. The sensitivity
 analysis further shows that hyperparameter effects are strongly step-specific, that larger token
 budgets help only genuinely truncated model-step pairs, and that Chain-of-Thought refinement
 pays off only when its feedback matches the failure mode: it is the strongest intervention for

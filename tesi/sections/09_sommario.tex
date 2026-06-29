@@ -28,10 +28,12 @@ locale di LLM, ovvero che i modelli thinking più grandi siano necessariamente l
 migliore. I risultati mostrano invece che la sola scelta del modello non spiega le prestazioni: gli
 effetti dominanti emergono dall'interazione tra famiglia del modello, step dell'agente,
 difficoltà del prompt e impostazioni di inferenza. Mistral è il modello non ottimizzato più
-efficiente ma crolla sui prompt di aggregazione più difficili; Gemma~26B è altamente
-ottimizzabile ma energeticamente costoso; Gemma~E4B, corretto con raffinamento Chain-of-Thought
-sullo step di lookup a temperatura più bassa, raggiunge la qualità strict più alta e affianca
-Mistral, a basso consumo, sulla frontiera di Pareto finale. L'analisi di sensitività mostra
+efficiente ma crolla sui prompt di aggregazione più difficili; tuttavia, una volta corretto il
+suo step di lookup con il raffinamento Chain-of-Thought, raggiunge la qualità strict più alta e
+definisce la frontiera di Pareto finale. Gemma~26B è altamente ottimizzabile ma energeticamente
+costoso; Gemma~E4B, corretto con raffinamento Chain-of-Thought sullo step di lookup a temperatura
+più bassa, rimane un'alternativa ad alta qualità molto vicina ma è dominato una volta considerata
+l'energia. L'analisi di sensitività mostra
 inoltre che gli effetti degli iperparametri sono fortemente specifici per step, che budget di
 token più ampi aiutano solo le coppie modello-step realmente troncate, e che il raffinamento
 Chain-of-Thought conviene solo quando il suo feedback corrisponde al tipo di errore: è

@@ -374,20 +374,29 @@ The configuration families are model-specific:
           (\texttt{cot\_n}~2 or~4), low-temperature lookup
           (\texttt{temp}~0.8), and reduced token caps across downstream
           steps;
-    \item \texttt{gemma4:26b} --- visualization-focused candidates with
-          larger visualization token budgets, top-$k$ sampling
-          (\texttt{top\_k}~20), repetition-penalty variants, lookup CoT
-          (\texttt{cot\_n}~2 or~3), and combined static parameter sets;
+    \item \texttt{gemma4:26b} --- visualization-focused repair candidates
+          that keep the lookup and analysis steps fixed and generous while
+          varying only the visualization step: larger visualization token
+          budgets (10000--16000), top-$k$ sampling (\texttt{top\_k}~20),
+          repetition-penalty variants (\texttt{repeat\_penalty}~1.0 and~1.03),
+          and a lower visualization temperature (\texttt{temp}~0.95), plus one
+          most-aggressive candidate that additionally adds static upstream
+          settings;
     \item \texttt{mistral-small3.2:24b} --- lookup CoT (\texttt{cot\_n}~2
           or~3) with efficient token budgets, and combined static parameter
           sets with varied token caps.
 \end{itemize}
 
 The final candidate set combines the Test~01 baselines, the newly measured
-combined Test~05 policies, and useful configurations that had already been
-measured in Tests~02--04. This reuse is intentional: the purpose of Test~05 is
-to compare the best available candidate policies, not to duplicate every
-configuration whose result was already known under the same judging setup.
+combined Test~05 policies, and useful configurations originally explored in
+Tests~02--04. The reuse is intentional but selective: rather than re-running
+every configuration, results that remain directly comparable are reused as
+they are, while a subset of earlier configurations is re-run for this final
+stage. These re-runs do not change the configuration parameters; their sole
+purpose is to measure the candidates in the same execution environment (the
+same server) as the newly run combined policies, so that every point on the
+final Pareto frontier is compared under identical execution conditions rather
+than across measurements taken on different machines or runs.
 
 The primary metrics are \texttt{quality\_mean}, prompt-level end-to-end
 quality (which penalises missing downstream scores caused by upstream

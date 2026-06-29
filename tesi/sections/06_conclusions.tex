@@ -70,8 +70,8 @@ is defined by Mistral candidates. The best final Mistral configuration combines
 lookup CoT with the model's efficient generation profile, reaching the highest
 strict prompt quality with full completion at low energy. Gemma~E4B remains a
 very close high-quality alternative, especially on difficulty~3 prompts, but
-it is slightly more expensive and slightly lower in strict aggregate quality in
-the final candidate set. Gemma~26B improves when the visualization step is
+it is slightly more expensive and slightly lower in strict aggregate quality.
+Gemma~26B improves when the visualization step is
 given more token headroom, confirming the Test~03 signal that its plotting
 agent was under-supported, but the improvement only aligns its performance
 partially and its energy cost keeps it off the final evaluated Pareto frontier.
@@ -81,10 +81,17 @@ hard-prompt suites may still expose different trends and remain an important
 next step.
 
 Overall, the thesis supports three practical recommendations for LLM data
-agents. First, tune parameters per agent step rather than globally. Second,
-allocate compute according to the failure mode: token headroom for steps
-that are genuinely truncated, CoT for SQL lookup where feedback is
-verifiable, and conservative generation for visualization when the main
-error is semantic mismatch. Third, report accuracy and energy by prompt
-difficulty, because the best model for simple tasks is not necessarily the
-best model for hard analytical questions.
+agents:
+
+\begin{enumerate}
+    \item \textbf{Tune parameters per agent step rather than globally.}
+
+    \item \textbf{Allocate compute according to the failure mode:} token
+          headroom for steps that are genuinely truncated, CoT for SQL lookup
+          where feedback is verifiable, and conservative generation for
+          visualization when the main error is semantic mismatch.
+
+    \item \textbf{Report accuracy and energy by prompt difficulty,} because
+          the best model for simple tasks is not necessarily the best model
+          for hard analytical questions.
+\end{enumerate}
