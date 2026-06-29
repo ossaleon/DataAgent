@@ -360,11 +360,12 @@ Test 05 evaluates combined agent policies: each configuration specifies the
 full set of per-step parameters assembled from the most promising candidates of
 the exploratory phase. A substantial part of the test consists of newly run
 combined policies designed specifically for this final confirmation stage,
-rather than only reusing rows from earlier experiments. Eight to ten
+rather than only reusing rows from earlier experiments. Roughly 10--15
 configurations are evaluated per model, each combining one or more of the
 interventions from Tests 02--04: lookup Chain-of-Thought (varying
 \texttt{cot\_n} from 2 to~4), static lookup temperature tuning
-(\texttt{temp}~0.8), and reduced downstream token caps.
+(\texttt{temp}~0.8), adjusted repetition controls, and step-specific token
+budgets.
 
 The configuration families are model-specific:
 
@@ -373,9 +374,10 @@ The configuration families are model-specific:
           (\texttt{cot\_n}~2 or~4), low-temperature lookup
           (\texttt{temp}~0.8), and reduced token caps across downstream
           steps;
-    \item \texttt{gemma4:26b} --- visualization top-$k$ sampling
-          (\texttt{top\_k}~20), lookup CoT (\texttt{cot\_n}~2 or~3),
-          combined static parameter sets, and reduced token caps;
+    \item \texttt{gemma4:26b} --- visualization-focused candidates with
+          larger visualization token budgets, top-$k$ sampling
+          (\texttt{top\_k}~20), repetition-penalty variants, lookup CoT
+          (\texttt{cot\_n}~2 or~3), and combined static parameter sets;
     \item \texttt{mistral-small3.2:24b} --- lookup CoT (\texttt{cot\_n}~2
           or~3) with efficient token budgets, and combined static parameter
           sets with varied token caps.
@@ -384,7 +386,7 @@ The configuration families are model-specific:
 The final candidate set combines the Test~01 baselines, the newly measured
 combined Test~05 policies, and useful configurations that had already been
 measured in Tests~02--04. This reuse is intentional: the purpose of Test~05 is
-to compare the best available candidate policies, not to rerun every
+to compare the best available candidate policies, not to duplicate every
 configuration whose result was already known under the same judging setup.
 
 The primary metrics are \texttt{quality\_mean}, prompt-level end-to-end

@@ -367,23 +367,22 @@ therefore the best low-cost option, while CoT remains the stronger quality inter
 \paragraph{Final trade-off (Test 05).}
 Combining the per-step interventions yields the unified quality--energy frontier of
 Figure~\ref{fig:es_pareto}. The frontier is \emph{not} a model-size ranking. Mistral with
-lookup CoT defines the low-energy region (quality up to 0.921 at 0.0029--0.0045~kWh), while
-Gemma~E4B --- repaired through lookup CoT at a lower temperature with leaner downstream token
-caps --- defines the high-quality endpoint: 0.937 prompt quality at full completion.
-Crucially, against the untuned baselines this is not a quality-for-energy trade but a genuine
-Pareto improvement: the best Gemma~E4B candidate raises prompt quality by $+0.102$ \emph{and}
-cuts energy (0.00602 vs.\ 0.00883~kWh), and the best Mistral candidate likewise gains $+0.077$
-quality at lower energy (0.00449 vs.\ 0.00602~kWh), so both recommended configurations
-dominate their own Test~01 baselines on both axes. The Gemma~E4B endpoint still costs about
-34\,\% more energy than the cheapest Mistral candidate (0.00602 vs.\ 0.00449~kWh), and
-Gemma~26B improves with tuning but stays dominated once energy counts. Splitting by difficulty
-explains the trade-off, and reliability --- not just score --- is what separates the two
-leaders. On easy-to-medium prompts Mistral is the best economic choice (quality $\approx
-0.98$). On the hardest difficulty-4 prompts, however, Mistral plateaus at 0.831 quality and
-\emph{fails to complete} about 9\,\% of prompts (90.9\,\% completion), whereas the repaired
-Gemma~E4B reaches 0.919 quality at full completion. Gemma~E4B therefore becomes preferable
-whenever the workload includes hard SQL aggregations and robust completion matters more than
-minimum energy: the best model for simple tasks is not the best for hard ones.
+lookup CoT defines the evaluated frontier, from the cheapest useful points around
+0.0036~kWh to the highest-quality endpoint: 0.9395 prompt quality, full completion,
+and 0.00453~kWh per prompt. Gemma~E4B --- repaired through lookup CoT at a lower
+temperature with leaner downstream token caps --- remains extremely close
+(0.9371 prompt quality at full completion), but it is slightly more expensive and
+therefore dominated in the final quality--energy plane. Gemma~26B is explicitly
+tested with larger visualization-token budgets following Test~03, and this aligns
+its weak visualization profile upward (best visualization score 0.674, best prompt
+quality 0.911), but the repair is incomplete and the energy cost keeps it off the
+frontier. Splitting by difficulty explains the remaining nuance. Mistral is the best
+evaluated endpoint on difficulties~1, 2, and~4, while Gemma~E4B is the
+highest-quality endpoint on difficulty~3. The difficulty-4 result does not imply
+that Mistral would necessarily remain preferable for arbitrarily harder prompts;
+it shows that, on the evaluated hard-prompt slice, lookup-CoT Mistral is the best
+observed quality--energy choice, while broader hard-prompt testing remains a
+natural next step.
 
 \begin{figure}[t]
     \centering
@@ -404,14 +403,14 @@ the dominant effects emerge from the interaction between model family, agent ste
 difficulty, and inference-time parameters. The untuned baseline favours Mistral~Small for its
 efficiency, but the difficulty split reveals what the aggregate hides --- it collapses on the
 hardest SQL aggregations, exactly where targeted lookup repair lets the compact Gemma~E4B
-overtake it. This repair comes specifically from CoT refinement, which exploits executable
+compete with it. This repair comes specifically from CoT refinement, which exploits executable
 SQL feedback; best-of-$N$ sampling, by contrast, was limited by the local selector, which
 still preferred the first candidate in most Best-of-3 runs. After tuning, the
-quality--energy frontier is shared between low-energy Mistral
-candidates and a single high-quality Gemma~E4B endpoint, while the larger Gemma~26B
-improves yet stays dominated once energy is counted. Notably, the recommended configurations
-dominate their own untuned baselines on both axes --- higher quality at lower energy --- so
-per-step tuning is a genuine improvement rather than a quality-for-energy trade.
+quality--energy frontier is defined by Mistral candidates, while Gemma~E4B remains a very
+close high-quality alternative and the larger Gemma~26B improves yet stays dominated once
+energy is counted. Notably, the recommended configurations improve substantially over their
+untuned baselines, so per-step tuning is a genuine improvement rather than a simple
+quality-for-energy trade.
 
 From this evidence the thesis distils three practical recommendations for energy-aware LLM
 data agents:

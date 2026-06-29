@@ -1554,18 +1554,22 @@ configuration selected for the final Pareto analysis, including configurations
 whose measurements were already available from Tests~02--04. These rows are not
 treated as a separate pool: they are part of Test~05 by design, because the
 goal of the final test is to compare the best available candidate policies
-without rerunning configurations that had already been measured with the same
+without duplicating measurements that were already available under the same
 judge.
 
 \subsubsection{Overall Ranking}
 
 Table~\ref{tab:test05ranking} reports the highest-ranking configurations by
 strict prompt E2E quality. The strongest candidate is
-\texttt{gemma4:e4b} with \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens}:
-it reaches prompt quality~0.937 with full completion, while consuming
-0.00602~kWh per prompt. This configuration combines the three interventions
-that proved useful in the earlier tests: lookup CoT for SQL repair, a lower
-lookup temperature (0.8), and lower token caps for the downstream steps.
+\texttt{mistral-small3.2:24b} with \texttt{lookup\_cot\_n2}: it reaches
+prompt quality~0.9395 with full completion while consuming only
+0.00453~kWh per prompt. Gemma~E4B remains extremely close:
+\texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} reaches
+quality~0.9371 with full completion, but at higher energy. The top-ranked
+rows therefore show that the final recommendation is not simply a
+thinking-model preference: a larger non-thinking model with a repaired lookup
+step can be both cheaper and slightly more accurate on the evaluated full
+benchmark.
 
 \begin{table}[H]
 \centering
@@ -1576,6 +1580,8 @@ lookup temperature (0.8), and lower token caps for the downstream steps.
 \rowcolor{bluePoli!30}
 \textbf{Model} & \textbf{Config} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
 \hline
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.9395 & 100.0\,\% & 0.00453 \T\B \\
+\hline
 \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens} & 0.9371 & 100.0\,\% & 0.00602 \T\B \\
 \hline
 \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_temp\_0p8\_low\_cost\_tokens} & 0.9287 & 100.0\,\% & 0.00645 \T\B \\
@@ -1584,19 +1590,19 @@ lookup temperature (0.8), and lower token caps for the downstream steps.
 \hline
 \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_temp\_0p8} & 0.9189 & 100.0\,\% & 0.00633 \T\B \\
 \hline
-\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.9188 & 100.0\,\% & 0.00293 \T\B \\
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_low\_cost\_tokens} & 0.9176 & 100.0\,\% & 0.00636 \T\B \\
 \hline
 \texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2\_efficient\_tokens} & 0.9168 & 98.1\,\% & 0.00445 \T\B \\
 \hline
-\texttt{gemma4:26b} & \texttt{visualization\_max\_tokens\_10000} & 0.9123 & 100.0\,\% & 0.00399 \T\B \\
+\texttt{gemma4:26b} & \texttt{vis\_repeat\_penalty\_1p03\_tokens12000} & 0.9110 & 100.0\,\% & 0.01006 \T\B \\
 \hline
-\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4} & 0.8972 & 100.0\,\% & 0.00444 \T\B \\
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_temp\_0p8} & 0.9109 & 100.0\,\% & 0.00609 \T\B \\
 \hline
-\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.8958 & 95.1\,\% & 0.00271 \T\B \\
+\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4} & 0.9046 & 100.0\,\% & 0.00640 \T\B \\
 \hline
-\texttt{mistral-\allowbreak small3.2:24b} & \texttt{analysis\_top\_k\_56} & 0.8931 & 95.2\,\% & 0.00414 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3\_efficient\_tokens} & 0.9015 & 98.1\,\% & 0.00452 \T\B \\
 \hline
-\texttt{gemma4:26b} & \texttt{combined\_static\_direct} & 0.8720 & 100.0\,\% & 0.00998 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.8983 & 98.1\,\% & 0.00455 \T\B \\
 \hline
 \end{tabular}%
 }
@@ -1604,20 +1610,21 @@ lookup temperature (0.8), and lower token caps for the downstream steps.
 \label{tab:test05ranking}
 \end{table}
 
-The larger Gemma~26B MoE improves over its own baseline, but it does not
-appear on the strict prompt-quality Pareto frontier among the evaluated
-candidate configurations. Its best combined candidate
-(\texttt{combined\_static\_direct}) reaches prompt quality~0.872, improving
-the Test~01 baseline by~$+0.058$ while reducing energy by~0.00668~kWh per
-prompt, but this is still dominated by cheaper and more accurate candidates
-from Mistral and Gemma~E4B in the final candidate set.
+The larger Gemma~26B MoE was evaluated with visualization-focused candidates
+that follow the Test~03 insight: the visualization step benefits from a larger
+token budget. The best 26B candidate, \texttt{vis\_repeat\_penalty\_1p03\_tokens12000},
+raises the visualization score to~0.674 and reaches prompt quality~0.911 with
+full completion. This is a clear alignment improvement over the weaker
+visualization profile observed earlier, but it is not enough to enter the
+quality-energy frontier because the energy cost remains around
+0.010~kWh per prompt.
 
 \subsubsection{Radar Summary}
 
 Figure~\ref{fig:test05_radar_summary} compares one runnable final
 representative per model: \texttt{lookup\_cot\_n2\_temp\_0p8\_low\_cost\_tokens}
-for Gemma~E4B, \texttt{combined\_static\_direct} for Gemma~26B, and
-\texttt{combined\_cot\_static} for Mistral. The same configuration is used for
+for Gemma~E4B, \texttt{vis\_repeat\_penalty\_1p03\_tokens12000} for
+Gemma~26B, and \texttt{lookup\_cot\_n2} for Mistral. The same configuration is used for
 all axes of a model, so the plot represents executable policies rather than
 per-axis oracle choices. Quality and reliability axes use the same fixed
 0.4--1.0 normalization as Test~01, while energy uses the anchored inverse kWh
@@ -1642,9 +1649,9 @@ summary.
 \hline
 \texttt{gemma4:e4b} & 0.937 & 0.999 & 0.916 & 0.857 & 0.944 & 0.939 & 0.919 & 1.000 & 1.000 & 0.00602 & 0.845 \T\B \\
 \hline
-\texttt{gemma4:26b} & 0.872 & 0.968 & 0.963 & 0.551 & 0.891 & 0.851 & 0.865 & 1.000 & 1.000 & 0.00998 & 0.540 \T\B \\
+\texttt{gemma4:26b} & 0.911 & 0.999 & 0.963 & 0.674 & 0.933 & 0.871 & 0.932 & 1.000 & 1.000 & 0.01006 & 0.534 \T\B \\
 \hline
-\texttt{mistral-small3.2:24b} & 0.921 & 0.974 & 0.888 & 0.871 & 0.960 & 0.929 & 0.818 & 0.981 & 0.975 & 0.00449 & 0.962 \T\B \\
+\texttt{mistral-small3.2:24b} & 0.940 & 0.998 & 0.897 & 0.911 & 0.962 & 0.893 & 0.969 & 1.000 & 1.000 & 0.00453 & 0.959 \T\B \\
 \hline
 \end{tabular}%
 }
@@ -1652,21 +1659,23 @@ summary.
 \label{tab:test05radarraw}
 \end{table}
 
-The radar view shows why the final recommendation is split by operating
-priority. Gemma~E4B is the most complete high-quality profile, especially on
-difficulty-4 prompts and reliability. Mistral remains the best
-energy-efficient profile and stays close on overall quality, but is weaker on
-hard prompts. Gemma~26B keeps strong SQL, text, and reliability axes, yet its
-visualization axis and energy cost prevent it from becoming the final Pareto
-recommendation within the evaluated candidate set.
+The radar view shows why the final recommendation shifts toward Mistral in
+the unified candidate set. Mistral combines the strongest overall score, the
+best visualization score, difficulty-4 robustness, full completion, and the
+best energy efficiency. Gemma~E4B remains very close on overall quality and is
+the strongest difficulty-3 profile, but it no longer owns the high-quality
+endpoint once the full candidate set is considered. Gemma~26B keeps excellent
+SQL, text, and reliability axes, and its visualization axis improves after the
+larger visualization-token setting, but the repair remains incomplete and
+energy efficiency is lower.
 
 \subsubsection{Final Pareto Frontier}
 
 Figure~\ref{fig:test05_pareto} and Table~\ref{tab:test05pareto} show the
 non-dominated configurations when maximising strict prompt E2E quality and
 minimising energy per prompt. This is a single unified frontier over the full
-Test~05 candidate set: no distinction is made between configurations measured
-directly in the final run and configurations reused from earlier tests.
+Test~05 candidate set. The result is more decisive than the aggregate ranking:
+all non-dominated points belong to the Mistral family.
 
 \begin{figure}[H]
     \centering
@@ -1684,13 +1693,19 @@ directly in the final run and configurations reused from earlier tests.
 \rowcolor{bluePoli!30}
 \textbf{Model} & \textbf{Config} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
 \hline
-\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.8958 & 95.1\,\% & 0.00271 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{visualization\_repeat\_last\_n\_56} & 0.8429 & 92.6\,\% & 0.00364 \T\B \\
 \hline
-\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3} & 0.9188 & 100.0\,\% & 0.00293 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_static\_best\_efficient\_tokens} & 0.8434 & 92.6\,\% & 0.00364 \T\B \\
+\hline
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{max\_tokens\_quality} & 0.8531 & 92.6\,\% & 0.00365 \T\B \\
+\hline
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static\_tokens} & 0.8902 & 96.3\,\% & 0.00441 \T\B \\
+\hline
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2\_efficient\_tokens} & 0.9168 & 98.1\,\% & 0.00445 \T\B \\
 \hline
 \texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static} & 0.9206 & 98.1\,\% & 0.00449 \T\B \\
 \hline
-\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & 0.9371 & 100.0\,\% & 0.00602 \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & 0.9395 & 100.0\,\% & 0.00453 \T\B \\
 \hline
 \end{tabular}
 \caption{Test~05: non-dominated candidate configurations for prompt E2E quality vs.\ energy.}
@@ -1698,7 +1713,7 @@ directly in the final run and configurations reused from earlier tests.
 \end{table}
 
 Table~\ref{tab:test05paretoparams} reports the per-step parameters that define
-these four frontier configurations, listing only the settings that deviate from
+these frontier configurations, listing only the settings that deviate from
 each model's baseline.
 
 \begin{table}[H]
@@ -1710,65 +1725,61 @@ each model's baseline.
 \rowcolor{bluePoli!30}
 \textbf{Model} & \textbf{Config} & \textbf{Lookup} & \textbf{Analysis} & \textbf{Visualization} \T\B \\
 \hline
-\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & \texttt{cot\_n=2} & baseline & baseline \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{visualization\_repeat\_last\_n\_56} & baseline & baseline & \texttt{repeat\_last\_n=56} \T\B \\
 \hline
-\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3} & \texttt{cot\_n=3} & baseline & baseline \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_static\_best\_efficient\_tokens} & \texttt{repeat\_penalty=1.3}, \texttt{max\_tokens=3000} & \texttt{top\_k=56}, \texttt{max\_tokens=5000} & \texttt{repeat\_last\_n=56}, \texttt{max\_tokens=5000} \T\B \\
+\hline
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{max\_tokens\_quality} & baseline & \texttt{max\_tokens=5000} & \texttt{max\_tokens=5000} \T\B \\
+\hline
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static\_tokens} & \texttt{cot\_n=3}, \texttt{repeat\_penalty=1.3}, \texttt{max\_tokens=3000} & \texttt{top\_k=56}, \texttt{max\_tokens=5000} & \texttt{repeat\_last\_n=56}, \texttt{max\_tokens=5000} \T\B \\
+\hline
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2\_efficient\_tokens} & \texttt{cot\_n=2}, \texttt{max\_tokens=3000} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=5000} \T\B \\
 \hline
 \texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static} & \texttt{cot\_n=3}, \texttt{repeat\_penalty=1.3} & \texttt{top\_k=56} & \texttt{repeat\_last\_n=56} \T\B \\
 \hline
-\texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & \texttt{cot\_n=2}, \texttt{temp=0.8} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=4000} \T\B \\
+\texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & \texttt{cot\_n=2} & baseline & baseline \T\B \\
 \hline
 \end{tabular}
 \caption{Test~05: per-step parameters of the non-dominated frontier configurations.}
 \label{tab:test05paretoparams}
 \end{table}
 
-The frontier has a clear structure. Mistral defines the low-energy region:
-lookup CoT creates two very efficient candidate points
-(\texttt{cot\_n=2} and \texttt{cot\_n=3}), and
-\texttt{combined\_cot\_static} extends the same family to slightly higher
-energy and quality. Gemma~E4B defines the high-quality endpoint: its best
-candidate costs about 34\,\% more energy than the strongest Mistral combined
-candidate (0.00602 vs.\ 0.00449~kWh), but raises prompt quality from 0.921
-to~0.937 and reaches full completion. This is the strongest final evidence
-that the small thinking model can become the best accuracy-oriented choice
-when the fragile lookup step is repaired. Gemma~26B has useful repaired
-configurations, especially the visualization-token candidate, but these are
-dominated once energy is included.
-
-Relative to its Test~01 baseline, the best Gemma~E4B candidate improves
-prompt quality by~$+0.102$ while reducing energy by~0.00281~kWh per prompt.
-The best Mistral candidate improves quality by~$+0.077$ and reduces energy
-by~0.00152~kWh per prompt. Gemma~26B also improves, but from a weaker
-baseline and at higher absolute cost; it is therefore useful
-as evidence that targeted tuning helps large MoE models, but not as the final
-recommendation within the evaluated Pareto set.
+The frontier has a clear structure. Mistral occupies both the cheapest
+non-dominated region and the highest-quality endpoint. Static visualization
+and token-budget candidates define the low-energy frontier around
+0.00364--0.00365~kWh per prompt. Adding lookup CoT then moves the frontier
+upward: \texttt{lookup\_cot\_n2\_efficient\_tokens} and
+\texttt{combined\_cot\_static} approach the 0.92 quality region, while
+\texttt{lookup\_cot\_n2} reaches the highest evaluated quality, full
+completion, and 0.00453~kWh per prompt. Gemma~E4B is still practically close
+to this endpoint, but it is slightly lower in strict quality and more
+expensive. Gemma~26B improves with the visualization repair, but its roughly
+0.010~kWh per-prompt cost keeps it dominated once energy is part of the
+decision criterion.
 
 \subsubsection{Pareto Frontier by Prompt Difficulty}
 
 The evaluated Pareto picture changes when the benchmark is split by difficulty.
 For each level the quality--energy frontier is recomputed over that difficulty's
 benchmark rows, and one representative non-dominated configuration is selected
-from it. The selection criterion is not fixed: it follows the most useful
-operating point for the slice, named in the \textit{Role} column of
-Table~\ref{tab:test05difficulty}. On the easy difficulties~1 and~2, where many
-configurations already reach near-top quality, the representative is the
-\emph{lowest-cost high-quality} point (the cheapest configuration among those
-attaining the best quality); on difficulty~3 it is the \emph{highest-quality}
-point; and on the decisive difficulty~4 it is the \emph{hard-prompt endpoint},
-the configuration that pairs the highest quality with full completion.
+from it. Table~\ref{tab:test05difficulty} reports the high-quality endpoint
+for each difficulty slice: the configuration that reaches the strongest strict
+prompt quality among the evaluated candidates while preserving full completion
+on that slice.
 
-On difficulty~1 and~2 prompts, Mistral dominates the evaluated frontier: it is both
-cheap and highly accurate, reaching prompt quality close to~0.98 in the best
-configurations. On difficulty~3 the evaluated frontier becomes mixed: Mistral remains
-the most efficient, but Gemma~E4B reaches the highest quality once lookup CoT
-and static lookup temperature are combined. Difficulty~4 is the decisive
-case. The best Mistral evaluated-frontier point on this slice reaches quality~0.831
-with 90.9\,\% completion at 0.00475~kWh per prompt. The Gemma~E4B final candidate
-reaches quality~0.919 with full completion at 0.00704~kWh per prompt. Gemma
-26B also remains strong on hard prompts (\texttt{lookup\_cot\_n3} reaches
-0.917), but at 0.01296~kWh per prompt it is dominated by the Gemma~E4B
-hard-prompt endpoint.
+On difficulty~1 and~2 prompts, Mistral dominates the evaluated frontier: it is
+both cheap and highly accurate, reaching prompt quality close to~0.98 in the
+best configurations. On difficulty~3 the evaluated frontier becomes mixed:
+Mistral remains the most efficient, but Gemma~E4B reaches the highest quality
+once lookup CoT and static lookup temperature are combined. Difficulty~4 is
+the most important change in the final candidate set. Mistral
+\texttt{lookup\_cot\_n2} reaches quality~0.969 with full completion at
+0.00526~kWh per prompt, while the best Gemma~E4B hard-prompt candidate reaches
+quality~0.919 at higher energy. This does not prove that Mistral will remain
+preferable for arbitrarily harder prompts; it only shows that, for the
+evaluated difficulty-4 benchmark slice, the lookup-CoT Mistral candidate is
+the best observed hard-prompt endpoint. Larger or more adversarial hard-prompt
+sets remain an important follow-up.
 
 \begin{table}[H]
 \centering
@@ -1779,13 +1790,13 @@ hard-prompt endpoint.
 \rowcolor{bluePoli!30}
 \textbf{Difficulty} & \textbf{Best model/config} & \textbf{Role} & \textbf{Prompt~E2E} & \textbf{Completion} & \textbf{kWh/prompt} \T\B \\
 \hline
-1 & \texttt{mistral} / \texttt{combined\_cot\_static\_\allowbreak tokens} & lowest-cost high-quality & 0.979 & 100.0\,\% & 0.00376 \T\B \\
+1 & \texttt{mistral} / \texttt{baseline} & high-quality endpoint & 0.979 & 100.0\,\% & 0.00333 \T\B \\
 \hline
-2 & \texttt{mistral} / \texttt{lookup\_cot\_n3\_\allowbreak efficient\_tokens} & lowest-cost high-quality & 0.979 & 100.0\,\% & 0.00481 \T\B \\
+2 & \texttt{mistral} / \texttt{lookup\_cot\_n3\_\allowbreak efficient\_tokens} & high-quality endpoint & 0.979 & 100.0\,\% & 0.00481 \T\B \\
 \hline
 3 & \texttt{gemma4:e4b} / \texttt{lookup\_cot\_n4\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & highest quality & 0.946 & 100.0\,\% & 0.00609 \T\B \\
 \hline
-4 & \texttt{gemma4:e4b} / \texttt{lookup\_cot\_n2\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & hard-prompt endpoint & 0.919 & 100.0\,\% & 0.00704 \T\B \\
+4 & \texttt{mistral} / \texttt{lookup\_cot\_n2} & high-quality endpoint & 0.969 & 100.0\,\% & 0.00526 \T\B \\
 \hline
 \end{tabular}
 \caption{Test~05: representative best configurations by prompt difficulty.}
@@ -1805,13 +1816,13 @@ deviate from each model's baseline.
 \rowcolor{bluePoli!30}
 \textbf{Diff.} & \textbf{Model} & \textbf{Config} & \textbf{Lookup} & \textbf{Analysis} & \textbf{Visualization} \T\B \\
 \hline
-1 & \texttt{mistral-\allowbreak small3.2:24b} & \texttt{combined\_cot\_static\_\allowbreak tokens} & \texttt{cot\_n=3}, \texttt{repeat\_penalty=1.3}, \texttt{max\_tokens=3000} & \texttt{top\_k=56}, \texttt{max\_tokens=5000} & \texttt{repeat\_last\_n=56}, \texttt{max\_tokens=5000} \T\B \\
+1 & \texttt{mistral-\allowbreak small3.2:24b} & \texttt{baseline} & baseline & baseline & baseline \T\B \\
 \hline
 2 & \texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n3\_\allowbreak efficient\_tokens} & \texttt{cot\_n=3}, \texttt{max\_tokens=3000} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=5000} \T\B \\
 \hline
 3 & \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n4\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & \texttt{cot\_n=4}, \texttt{temp=0.8} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=4000} \T\B \\
 \hline
-4 & \texttt{gemma4:e4b} & \texttt{lookup\_cot\_n2\_\allowbreak temp\_0p8\_\allowbreak low\_cost\_tokens} & \texttt{cot\_n=2}, \texttt{temp=0.8} & \texttt{max\_tokens=5000} & \texttt{max\_tokens=4000} \T\B \\
+4 & \texttt{mistral-\allowbreak small3.2:24b} & \texttt{lookup\_cot\_n2} & \texttt{cot\_n=2} & baseline & baseline \T\B \\
 \hline
 \end{tabular}
 \caption{Test~05: per-step parameters of the representative best configurations by prompt difficulty.}
@@ -1849,15 +1860,18 @@ deviate from each model's baseline.
 The prompt-difficulty view is essential for interpreting the final Pareto
 front. A single aggregate score would suggest that Mistral and Gemma~E4B are
 close competitors with different energy profiles. The difficulty split shows
-why: Mistral is the best economic choice on easy and medium prompts, but its
-hard-prompt completion and quality remain lower. Gemma~E4B becomes preferable
-when the workload includes difficult SQL aggregation prompts and the objective
-is robust completion rather than minimum energy.
+why the final Mistral recommendation is stronger than a purely low-cost
+argument: Mistral leads on difficulties~1, 2, and~4, while Gemma~E4B remains
+the highest-quality endpoint on difficulty~3. The difficulty-4 result should
+be read with the scope of the benchmark in mind. It shows that Mistral
+\texttt{lookup\_cot\_n2} handles the evaluated hard prompts very well, but it
+does not eliminate the possibility that larger or more complex hard-prompt
+sets could again favor the thinking-model family.
 Figures~\ref{fig:test05_difficulty_pareto}--\ref{fig:test05_difficulty_pareto_d4}
 make the same transition visible as a sequence of frontiers: difficulties~1
-and~2 are Mistral-only evaluated frontiers, difficulty~3 introduces Gemma~E4B as the
-high-quality endpoint, and difficulty~4 separates the cheap Mistral repair
-points from the more reliable Gemma~E4B hard-prompt endpoint.
+and~2 are Mistral-led evaluated frontiers, difficulty~3 introduces Gemma~E4B
+as the high-quality endpoint, and difficulty~4 returns to a Mistral endpoint
+for the evaluated hard-prompt slice.
 
 \subsubsection{Summary}
 
@@ -1868,20 +1882,21 @@ points from the more reliable Gemma~E4B hard-prompt endpoint.
           already available from earlier tests.
 
     \item \textbf{The final Pareto front is not a pure model-size ranking.}
-          The larger Gemma~26B MoE improves with targeted tuning but remains
-          dominated in the evaluated quality-energy frontier.
+          The larger Gemma~26B MoE improves with visualization-focused tuning
+          but remains dominated in the evaluated quality-energy frontier.
 
-    \item \textbf{Mistral defines the low-energy part of the evaluated frontier.}
-          Combined Mistral configurations occupy the cheapest non-dominated
-          region, especially when moderate lookup CoT is added.
+    \item \textbf{Mistral defines the evaluated frontier.}
+          Mistral configurations occupy both the low-energy region and the
+          highest-quality endpoint once lookup CoT is added.
 
-    \item \textbf{Gemma~E4B is the best high-quality endpoint.}
+    \item \textbf{Gemma~E4B remains a close high-quality alternative.}
           The final E4B candidate combines lookup CoT, static lookup
-          temperature, and lower downstream token caps, reaching the highest
-          prompt E2E quality with full completion.
+          temperature, and lower downstream token caps, reaching full
+          completion and quality only slightly below the best Mistral endpoint.
 
     \item \textbf{Prompt difficulty determines which Pareto point is best.}
-          Mistral is the natural choice for easy-to-medium workloads; Gemma~E4B
-          is preferable for hard SQL prompts where lookup repair and full
-          completion matter more than minimum energy.
+          Mistral is the natural choice for the evaluated easy, medium, and
+          difficulty-4 prompts; Gemma~E4B remains the best evaluated endpoint
+          on difficulty~3, and broader hard-prompt testing is needed before
+          generalising this ordering to more complex workloads.
 \end{enumerate}
