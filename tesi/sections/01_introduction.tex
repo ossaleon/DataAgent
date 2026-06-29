@@ -43,6 +43,21 @@ identifies the configurations that best balance output quality against inference
 every run, execution time and energy consumption --- tracked per step using
 CodeCarbon~\cite{lottick2019codecarbon} --- are recorded alongside quality scores, providing
 actionable guidance for deploying LLM agents under latency or sustainability constraints.
+\textbf{XXX I would add these points as  research questions and contribution on this thesis XXX}
+
+\textcolor{red}{This thesis addresses the following research questions:
+
+RQ1. How do the evaluated locally hosted LLMs compare in terms of end-to-end output quality, execution latency, and energy consumption when used as the backbone of a multi-step data-analysis agent?
+
+RQ2. How sensitive are the individual agent steps—data lookup, textual analysis, and visualisation—to changes in sampling parameters and output-token budgets?
+
+RQ3. Under which conditions does additional inference-time computation, through iterative refinement or Best-of-N sampling, improve output quality sufficiently to justify its additional latency and energy cost?
+
+RQ4. How does SQL-query difficulty influence the relative performance of the evaluated models and the resulting quality–energy trade-off?
+
+RQ5. Which of the evaluated model and inference-setting combinations provide the most favourable empirical trade-offs between strict end-to-end quality, completion, latency, and local energy consumption? 
+
+Accordingly, the main contributions of this thesis are: (i) a configurable multi-step data agent; (ii) a per-step quality, latency, and energy profiling pipeline; (iii) a controlled sensitivity analysis across model-step pairs; and (iv) empirical deployment recommendations based on quality–energy trade-offs.}
 
 The document is organised as follows:
 \begin{itemize}

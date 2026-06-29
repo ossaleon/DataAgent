@@ -4,6 +4,8 @@
 \section{Experimental Results}
 \label{sec:experiments}
 
+\textbf{XXX Add a short paragraph to describe this section mentioning each subsection XXX}
+
 \subsection{Test 01 - Baseline Model Comparison}
 \label{subsec:res01}
 
@@ -76,6 +78,9 @@ reaches~0.821, while Gemma~26B trails at~0.772.
 \caption{Test~01 aggregate results per model averaged over three repeats (missing pipeline outputs counted as zero).}
 \label{tab:test01aggregate}
 \end{table}
+
+\textbf{XXX you can visualize table 8 by radar plot including Prompt E2E quality, lookup quality, analysis quality, visualisation quality, latency efficiency
+ and energy efficiency as axis. Latency and Energy must be normalized XXX}
 
 These aggregate values already define the baseline quality--energy ordering.
 \texttt{mistral-\allowbreak small3.2:24b} is the strongest baseline because it combines
@@ -1573,6 +1578,11 @@ directly in the final run and configurations reused from earlier tests.
 \caption{Test~05: non-dominated candidate configurations for prompt E2E quality vs.\ energy.}
 \label{tab:test05pareto}
 \end{table}
+
+\textbf{XXX A radar plot could compare three representative candidate policies: lowest-energy Mistral; balanced Mistral; highest-quality Gemma E4B.
+
+The possible axes can be:
+overall Prompt E2E quality; lookup quality; completion; difficulty 1–2 quality; difficulty 3–4 quality; latency efficiency; energy efficiency. XXX}
 
 Table~\ref{tab:test05paretoparams} reports the per-step parameters that define
 these four frontier configurations, listing only the settings that deviate from
