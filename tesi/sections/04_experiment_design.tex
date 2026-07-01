@@ -10,23 +10,28 @@ five experiments, each isolating a distinct aspect of model behaviour or
 configuration:
 
 \begin{itemize}
-    \item \textbf{Test 01 --- Baseline Model Comparison}: runs each candidate
+    \item \textbf{Test 01 --- Baseline Model Comparison}
+          (Section~\ref{subsec:test01}): runs each candidate
           model with its Ollama-recommended default configuration on the full
           20-prompt benchmark to establish a quality and efficiency reference.
-    \item \textbf{Test 02 --- Per-Agent Sensitivity Analysis}: sweeps five
+    \item \textbf{Test 02 --- Per-Agent Sensitivity Analysis}
+          (Section~\ref{subsec:test02}): sweeps five
           static sampling hyperparameters one at a time (One-Factor-At-a-Time,
           OFAT) across each agent step to quantify their individual effect on
           pipeline quality.
-    \item \textbf{Test 03 --- \texttt{max\_tokens} Ladder per Agent}: varies
+    \item \textbf{Test 03 --- \texttt{max\_tokens} Ladder per Agent}
+          (Section~\ref{subsec:test03}): varies
           the output token budget for each agent step across four discrete
           levels to identify the minimum safe cap and any quality sensitivity
           to the budget.
-    \item \textbf{Test 04 --- Compute Expansion (CoT Depth Ladder)}: applies
+    \item \textbf{Test 04 --- Compute Expansion (CoT Depth Ladder)}
+          (Section~\ref{subsec:test04}): applies
           Chain-of-Thought refinement at depths 1--4 on the lookup and
           visualization steps; a targeted follow-up (Test~04b) checks whether
           Best-of-N temperature sampling provides genuine lookup benefit
           through candidate selection.
-    \item \textbf{Test 05 --- Final Pareto Confirmation}: evaluates the most
+    \item \textbf{Test 05 --- Final Pareto Confirmation}
+          (Section~\ref{subsec:test05}): evaluates the most
           promising combined configurations from Tests~02--04 on the full
           benchmark to establish the quality-versus-energy Pareto
           frontier among the evaluated candidate configurations.
@@ -257,20 +262,27 @@ metric: \texttt{vis\_score}). In addition to the step-specific metric, the
 full-pipeline \texttt{quality\_mean} is also tracked so that improvements or
 regressions in the varied step can be related to the overall agent output.
 
-The experiment varies five static sampling parameters, one at a time, each
-across ten deterministic values centred around the model-specific baseline \textbf{XXX quando dite 10 values in [a,b] intendente valori uniformi nell'intervalllo? XXX}:
+The experiment varies five static sampling parameters, one at a time. For each
+parameter the ten off-baseline values form a fixed, hand-designed grid rather
+than a uniform partition of the interval: the continuous parameters are sampled
+more densely near the model-specific baseline, so that sensitivity around the
+operating point is resolved more finely than in the tails, while the two integer
+parameters use a grid with increasing gaps to span a wide range with few points.
+The exact grids are:
 
 \begin{itemize}
-    \item \textbf{temperature} — 10 values covering the range below and above
-          the baseline (model-specific: Gemma~4 range $[0.50,\,1.30]$, centred
-          at 1.0; Mistral~Small range $[0.03,\,0.45]$, centred at 0.15);
-    \item \textbf{top-$p$} — 10 values in $[0.70,\,1.00]$, same for all models;
-    \item \textbf{top-$k$} — 10 values in $\{16, 20, 24, 32, 40, 48, 56, 80,
-          96, 128\}$, same for all models;
-    \item \textbf{repeat\_penalty} — 10 values in $[0.90,\,1.30]$, same for
-          all models;
-    \item \textbf{repeat\_last\_n} — 10 values in $\{16, 24, 32, 40, 48, 56,
-          80, 96, 128, 256\}$, same for all models.
+    \item \textbf{temperature} — model-specific and denser near the baseline:
+          Gemma~4 $\{0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 1.05, 1.10, 1.20,
+          1.30\}$ (baseline 1.0); Mistral~Small $\{0.03, 0.05, 0.075, 0.10,
+          0.125, 0.175, 0.20, 0.25, 0.35, 0.45\}$ (baseline 0.15);
+    \item \textbf{top-$p$} — $\{0.70, 0.75, 0.80, 0.85, 0.88, 0.90, 0.92, 0.94,
+          0.98, 1.00\}$, same for all models (baseline 0.95);
+    \item \textbf{top-$k$} — $\{16, 20, 24, 32, 40, 48, 56, 80, 96, 128\}$,
+          same for all models (baseline 64);
+    \item \textbf{repeat\_penalty} — $\{0.90, 0.95, 1.00, 1.03, 1.06, 1.08,
+          1.12, 1.15, 1.20, 1.30\}$, same for all models (baseline 1.1);
+    \item \textbf{repeat\_last\_n} — $\{16, 24, 32, 40, 48, 56, 80, 96, 128,
+          256\}$, same for all models (baseline 64).
 \end{itemize}
 
 No Best-of-$N$ or Chain-of-Thought strategies are included in this test: $n=1$

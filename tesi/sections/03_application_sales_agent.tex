@@ -4,13 +4,18 @@
 \section{Application: Sales Agent}
 \label{sec:application}
 
-This section describes the Sales Agent implemented for the thesis. It first
-presents the system overview, architecture, and LangGraph workflow, then details
-the individual agent tools and steps used for data lookup, textual analysis, and
-visualization. The section then explains the LLM integration and prompting
-techniques, the YAML-based configuration system, and the multi-table dataset
-support. It closes by describing the benchmark design and the evaluation,
-output, and energy-monitoring pipeline used to profile the agent.
+This section describes the Sales Agent implemented for the thesis.
+Section~\ref{subsec:overview} presents the system overview, while
+Sections~\ref{subsec:architecture} and~\ref{subsec:langgraph} detail the system
+architecture and the LangGraph workflow that orchestrates its steps.
+Section~\ref{subsec:tools} describes the individual agent tools and steps used
+for data lookup, textual analysis, and visualization, and
+Section~\ref{subsec:prompting} explains the LLM integration and prompting
+techniques. Section~\ref{subsec:config} presents the YAML-based configuration
+system, and Section~\ref{subsec:multitable} describes the multi-table dataset
+support. Finally, Section~\ref{subsec:benchmark} presents the benchmark design
+and Section~\ref{subsec:evaluation} details the evaluation, output, and
+energy-monitoring pipeline used to profile the agent.
 
 \subsection{System Overview}
 \label{subsec:overview}
@@ -306,9 +311,9 @@ model for SQL generation and a smaller local model for routing.
 \subsubsection{Prompt Structure}
 
 All prompts in the Sales Agent share a common skeleton. Each prompt opens with a
-\textbf{role declaration} that assigns a persona to the model (e.g.\
+role declaration that assigns a persona to the model (e.g.\
 \textit{``You are an expert SQL developer specialising in DuckDB queries''}), followed
-by a \textbf{Markdown-sectioned body} that separates concerns into labeled blocks:
+by a Markdown-sectioned body that separates concerns into labeled blocks:
 \texttt{\#\# TASK} (what to produce), \texttt{\#\# AVAILABLE DATA} / \texttt{\#\# USER QUESTION}
 (dynamic context injected via template variables at runtime), \texttt{\#\# INSTRUCTIONS}
 (generation rules), and \texttt{\#\# OUTPUT FORMAT} (exact specification of what the
@@ -687,7 +692,7 @@ order when ground-truth columns are available.
 The scorer then computes the best of two comparisons. The direct comparison
 aligns columns by a weighted combination of normalised column-name similarity
 and value similarity, so aliases such as \texttt{revenue} and
-\texttt{total\_sales\_value}, or swapped numeric columns with matching values,
+\texttt{total\_\allowbreak sales\_\allowbreak value}, or swapped numeric columns with matching values,
 can still receive high credit. Rows are matched without assuming order, using a
 soft value similarity that gives full credit for equal values, month/month-start
 date equivalence, near-equal numeric values within tolerance, and common binary
@@ -715,12 +720,28 @@ and rates two criteria on a 1--5 scale:
 \end{itemize}
 
 \noindent The two raw scores are averaged and the result is linearly normalised from
-$[1, 5]$ to $[0, 1]$  \textbf{XXX dare un razionale per questo, se avete trovato qualcosa di simile in letteratura indicatelo  XXX}:
+$[1, 5]$ to $[0, 1]$:
 
 \begin{equation}
     \text{text\_score} = \frac{\frac{s_{\text{accuracy}} + s_{\text{coverage}}}{2} - 1}{4}
     \label{eq:textscore}
 \end{equation}
+
+\noindent The two criteria are combined with equal weight because Factual
+Accuracy and Coverage capture two independently necessary and
+non-substitutable properties of a good analysis---correctness of the reported
+values and completeness with respect to the reference---so neither is
+privileged a priori. The averaged rubric score is then rescaled from the
+judge's native $[1,5]$ range to $[0,1]$ through an affine transformation
+that preserves the ordering and relative spacing of the scores while placing
+\texttt{text\_score} on the same $[0,1]$ scale as \texttt{csv\_iou} and
+\texttt{vis\_score}. This makes the three step metrics directly comparable and
+lets them be averaged into a single \texttt{quality\_mean} (the arithmetic mean
+of the three component score means, Equation~\ref{eq:quality_mean}) without any
+dimension dominating purely because of a wider numeric range. Using a strong LLM as a judge to rate
+generated outputs on a discrete scale is an established evaluation approach
+whose scores have been shown to align well with human
+judgement~\cite{zheng2023judging}.
 
 \paragraph{Visualization Score (\texttt{vis\_score}).}
 The quality of the generated chart is evaluated by a second LLM judge (\texttt{gpt-5.4}, temperature 0.2) that receives
@@ -756,7 +777,30 @@ final score is a weighted sum:
 \end{equation}
 
 \noindent where $w_f = 0.40$, $w_e = 0.10$ when explicit requirements are present,
-and $w_f = 0.50$, $w_e = 0$ otherwise  \textbf{XXX anche qui dare il razionale XXX}.
+and $w_f = 0.50$, $w_e = 0$ otherwise.
+
+\noindent The weights always sum to one, keeping \texttt{vis\_score} on a fixed
+$[0,1]$ scale, and rank the criteria by how directly they affect whether the
+chart conveys the intended information. Axis Correctness and Chart Type
+Correctness receive an equal $0.25$ each as the two fundamental structural
+decisions of a plot---\emph{what} is plotted and \emph{how}. Functional
+Equivalence carries the largest single weight because it is the most
+comprehensive criterion, capturing whether the fully rendered chart is visually
+equivalent to the reference rather than any isolated attribute. Explicit
+Requirements Compliance is deliberately capped at $0.10$: styling constraints
+such as colour scheme or title format are cosmetic refinements, so this cap
+ensures that an otherwise correct chart cannot be heavily penalised for a purely
+stylistic deviation. When the benchmark item specifies no explicit requirements
+the criterion is not applicable, and rather than renormalising all four
+weights---which would also inflate the structural criteria---its $0.10$ share is
+reassigned to Functional Equivalence, the most encompassing of the remaining
+criteria. This keeps the relative emphasis on substantive correctness stable and
+the resulting \texttt{vis\_score} directly comparable across items with and
+without explicit styling constraints. Relying on an LLM judge to rate the
+generated chart against the reference follows the same established
+LLM-as-judge practice~\cite{zheng2023judging}, whereas the specific criteria
+and their weights are a design choice tuned to the priorities of this
+benchmark.
 
 \subsubsection{No-GT Evaluators for Best-of-\texorpdfstring{$N$}{N} Selection}
 

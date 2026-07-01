@@ -5,11 +5,15 @@
 \label{sec:experiments}
 
 This section presents the empirical results of the five experiments introduced
-in Chapter~\ref{sec:experimentdesign}. It first compares the baseline models,
-then analyses per-agent parameter sensitivity, token-budget effects, and
-inference-time compute expansion. The section closes with the final Pareto
-confirmation, including model-level summaries, quality-energy frontiers, and
-prompt-difficulty analyses over the evaluated candidate configurations.
+in Chapter~\ref{sec:experimentdesign}. Section~\ref{subsec:res01} compares the
+baseline models, and Section~\ref{subsec:res02} analyses per-agent parameter
+sensitivity. Section~\ref{subsec:res03} examines the effect of the output
+token budget, while Section~\ref{subsec:res04} studies inference-time compute
+expansion through Chain-of-Thought refinement and also probes the effectiveness
+of Best-of-$N$ sampling on the lookup step. Finally,
+Section~\ref{subsec:res05} reports the final Pareto confirmation, including
+model-level summaries, quality-energy frontiers, and prompt-difficulty analyses
+over the evaluated candidate configurations.
 
 \subsection{Test 01 - Baseline Model Comparison}
 \label{subsec:res01}
