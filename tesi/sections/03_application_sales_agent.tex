@@ -393,7 +393,7 @@ The configuration file is divided into six top-level sections:
     \item \texttt{agent} — global LLM settings: provider (\texttt{openai} or
           \texttt{ollama}), model name, Ollama server URL, and OpenAI API key;
     \item \texttt{steps} — per-step hyperparameters, one sub-section per node
-          (\texttt{decide\_tool}, \texttt{lookup\_sales\_data}, \texttt{analyzing\_data},
+          (\texttt{decide\_tool}, \texttt{lookup\_sales\_data}, \\ \texttt{analyzing\_data},
           \texttt{create\_visualization});
     \item \texttt{schema} — path to the data directory containing the
           \texttt{*\_schema.yaml} files and the \texttt{compact\_threshold} value;
@@ -715,7 +715,7 @@ and rates two criteria on a 1--5 scale:
 \end{itemize}
 
 \noindent The two raw scores are averaged and the result is linearly normalised from
-$[1, 5]$ to $[0, 1]$:
+$[1, 5]$ to $[0, 1]$  \textbf{XXX dare un razionale per questo, se avete trovato qualcosa di simile in letteratura indicatelo  XXX}:
 
 \begin{equation}
     \text{text\_score} = \frac{\frac{s_{\text{accuracy}} + s_{\text{coverage}}}{2} - 1}{4}
@@ -756,7 +756,7 @@ final score is a weighted sum:
 \end{equation}
 
 \noindent where $w_f = 0.40$, $w_e = 0.10$ when explicit requirements are present,
-and $w_f = 0.50$, $w_e = 0$ otherwise.
+and $w_f = 0.50$, $w_e = 0$ otherwise  \textbf{XXX anche qui dare il razionale XXX}.
 
 \subsubsection{No-GT Evaluators for Best-of-\texorpdfstring{$N$}{N} Selection}
 

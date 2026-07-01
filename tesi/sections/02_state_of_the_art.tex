@@ -4,17 +4,17 @@
 \section{State of the Art}
 \label{sec:stateofart}
 
-This section reviews the research areas that frame the thesis. It first
-introduces LLM agents for structured data analysis, then discusses
+This section reviews the research areas that frame the thesis. Section \ref{sec:LLM-data}
+introduces LLM agents for structured data analysis, while Section \ref{sec:text2SQL} discusses
 Text-to-SQL and database-grounded generation as the core mechanism behind the
-lookup step. It then reviews the model families used for local agent inference,
+lookup step. Sections \ref{sec:model-families}-\ref{sec:outputs} review  the model families used for local agent inference,
 the orchestration and inference-time reasoning strategies that can improve
 multi-step behaviour, and the evaluation methods required to score data,
-textual, and visual outputs. Finally, it considers efficiency-aware
-benchmarking of locally hosted LLMs and closes by synthesising the research gap
-addressed by this work.
+textual, and visual outputs. Finally, Sections \ref{sec:benchmarking} and \ref{sec:gap} consider efficiency-aware
+benchmarking of locally hosted LLMs and summarise the research gap
+addressed by this work.  \textbf{XXX modificare le introduzioni delle sezioni strutturate come ho fatto io qui puntando alle sottosezioni individuali.  Ci si ferma al primo livello: ad esempio nel caso abbiate 2.1.1, 2.1.2 non vengono descritte ma solo 2.1 XXX} 
 
-\subsection{LLM Agents for Structured Data Analysis}
+\subsection{LLM Agents for Structured Data Analysis}\label{sec:LLM-data}
 
 Large Language Models have evolved from single-turn text generators into the
 reasoning core of multi-step, tool-using systems.
@@ -51,7 +51,7 @@ same three-phase structure --- data retrieval, textual interpretation, and
 visualization --- that characterises the broader class of data-analysis agents
 described above.
 
-\subsection{Text-to-SQL and Database-Grounded Generation}
+\subsection{Text-to-SQL and Database-Grounded Generation}\label{sec:text2SQL}
 
 Text-to-SQL is the task of mapping a natural language question to an executable
 database query.
@@ -106,7 +106,7 @@ the failure modes documented in the text-to-SQL literature: incorrect
 aggregation level, wrong date extraction, missing filters, and incorrectly
 structured output tables.
 
-\subsection{Model Families for Local Agent Inference}
+\subsection{Model Families for Local Agent Inference}\label{sec:model-families}
 
 Model choice is a first-order variable in LLM agent performance, but its
 effect is not uniform: size, architecture, and reasoning orientation interact
@@ -162,7 +162,7 @@ instruction-following model that serves as a non-thinking reference.
 All models are served locally via Ollama on a single GPU, making per-step
 latency and energy directly comparable across configurations.
 
-\subsection{Agent Orchestration and Inference-Time Reasoning Strategies}
+\subsection{Agent Orchestration and Inference-Time Reasoning Strategies}\label{sec:orchestration}
 
 Building a multi-step data-analysis agent requires more than choosing a capable
 model: the structure of the workflow, the allocation of inference compute across
@@ -257,7 +257,7 @@ values, so that the effect of each form of additional inference compute can be
 measured separately against both quality and energy metrics.
 
 \subsection{Evaluation of Data-Agent Outputs}
-
+\label{sec:outputs}
 Evaluating a data-analysis agent is fundamentally harder than evaluating a
 single chat response because the output is composite: a retrieved table, a
 natural language interpretation, and visualization code each require a
@@ -358,7 +358,7 @@ For best-of-$N$ candidate selection, a parallel set of reference-free
 evaluators is used~\cite{wang2023selfconsistency}, so that ground-truth
 information does not influence generation or candidate ranking.
 
-\subsection{Efficiency-Aware Benchmarking of Local LLM Agents}
+\subsection{Efficiency-Aware Benchmarking of Local LLM Agents}\label{sec:benchmarking}
 
 As LLM-based systems move from research prototypes to deployed applications,
 reporting quality in isolation is increasingly insufficient.
@@ -405,7 +405,7 @@ Pareto-efficient deployment recommendations under latency or sustainability
 constraints.
 
 \subsection{Synthesis and Research Gap}
-
+\label{sec:gap}
 Existing research provides the building blocks for LLM-based data-analysis
 agents: text-to-SQL methods for database grounding, graph-based orchestration
 for multi-step tool use, model families with different inference-time behaviour,

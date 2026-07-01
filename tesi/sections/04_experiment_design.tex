@@ -157,7 +157,7 @@ through the NVIDIA driver. The driver and CUDA compatibility are recorded with
 
 Ollama runs as a persistent background service on the host machine, exposing a
 local REST endpoint at \texttt{localhost:11434}. All three models evaluated in
-the thesis --- \texttt{gemma4:e4b}, \texttt{gemma4:26b}, and
+the thesis --- \texttt{gemma4:e4b}, \texttt{gemma4:26b}, and \\
 \texttt{mistral-small3.2:24b} --- were downloaded from the Ollama model library
 and served locally, with no external network access during inference. An OpenAI
 API key is required only for the ground-truth judge, which calls
@@ -258,7 +258,7 @@ full-pipeline \texttt{quality\_mean} is also tracked so that improvements or
 regressions in the varied step can be related to the overall agent output.
 
 The experiment varies five static sampling parameters, one at a time, each
-across ten deterministic values centred around the model-specific baseline:
+across ten deterministic values centred around the model-specific baseline \textbf{XXX quando dite 10 values in [a,b] intendente valori uniformi nell'intervalllo? XXX}:
 
 \begin{itemize}
     \item \textbf{temperature} — 10 values covering the range below and above
