@@ -35,6 +35,9 @@ arithmetic mean of the three component score means:
                                            \overline{\texttt{vis\_score}}\bigr)
 \label{eq:quality_mean}
 \end{equation}
+
+
+\textbf{XXX ridire che le metriche base sono gia' tra 0 e 1 altrimenti la formula usata non va bene XXX}
 where the averages are taken over the subset of prompts that produced a
 scorable output for each component. This definition is consistent across
 all tests and is used for continuity, but it can mask pipeline failures:
@@ -60,7 +63,7 @@ To address this, two additional quality views are used throughout this test:
 \subsubsection{Aggregate Results}
 
 Table~\ref{tab:test01aggregate} summarises the key metrics averaged over the
-three repeats. By official quality \texttt{mistral-\allowbreak small3.2:24b} leads (0.900)
+three repeats. By official quality \textbf{XXX offical quality e' la formula definita con la 4? indicherei  \texttt{quality\_mean} in modo esplicito XXX} \texttt{mistral-\allowbreak small3.2:24b} leads (0.900)
 with \texttt{gemma4:e4b} close behind (0.867), while \texttt{gemma4:26b}
 scores notably lower (0.792) due to a weak visualization component. The
 component E2E metric, which counts missing expected scores as zero, narrows
@@ -235,7 +238,7 @@ expected scores concentrated on a small number of difficult prompts.
 \texttt{mistral-\allowbreak small3.2:24b} & 60 & 60 & 54 & 36 & 0 \T\B \\
 \hline
 \end{tabular}
-\caption{Test~01: pipeline output counts per model over three repeats (42 visualization slots expected per model).}
+\caption{Test~01: pipeline output counts per model over three repeats (42 visualization slots expected per model)  \textbf{XXX le text attese erano 60?  chiarlo nella didascalia o nel testo XXX}.}
 \label{tab:test01completeness}
 \end{table}
 
@@ -541,7 +544,7 @@ Figure~\ref{fig:test02_pareto} plots every tested configuration as a
 point in the $(\Delta \text{energy}, \Delta \text{quality})$ plane,
 providing a simultaneous view of whether quality-improving configurations
 also save or cost energy.
-
+\textbf{XXX qualita' diretta?  chiarire XXX}
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.90\textwidth]{Images/test02v2_quality_energy_delta_pareto.png}
@@ -706,7 +709,7 @@ whether parameter sensitivity is uniform across prompt difficulty levels.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.90\textwidth]{Images/test02v2_difficulty_baseline_quality.png}
-    \caption{Test~02: baseline quality by prompt difficulty for each model and agent step.}
+    \caption{Test~02: baseline quality \textbf{XXX cahirire qualita' diretta' iou/text e vis score? credo di si ma meglio essere espliciti XXXX} by prompt difficulty for each model and agent step.}
     \label{fig:test02_diff_baseline}
 \end{figure}
 
@@ -782,7 +785,7 @@ output-length ceiling: the model is forced to stop generating once the
 budget is exhausted, potentially truncating incomplete SQL queries,
 analysis paragraphs, or visualization code. All three models have
 complete data for this test (3~repeats $\times$ 12~configs $\times$
-10~prompts = 360~rows each).
+10~prompts = 360~rows each).  \textbf{XXX cosa intendete con questa ultima frase?  i modelli vengon o considerati con le configurazioni top p, k temperaturea, ecc fissati, giusto?  ribadirlo XXX}
 
 \subsubsection{Token Caps Tested}
 
@@ -802,12 +805,16 @@ complete data for this test (3~repeats $\times$ 12~configs $\times$
 \hline
 \end{tabular}
 \caption{Test~03: \texttt{max\_tokens} values tested per agent step (baseline underlined).}
+
+
+\textbf{XXXX non lascaite il paragrafo vuoto, mettete del testo minimale che punta alla tabella, dare le motivazioni.  avete fatto una analisi esplorativa iniziale e poi fissati i valori?
+XXX}
 \label{tab:test03caps}
 \end{table}
 
 \subsubsection{Quality Ladder by Model and Step}
 
-Figure~\ref{fig:test03_quality_ladder} shows how overall pipeline quality
+Figure~\ref{fig:test03_quality_ladder} shows how overall pipeline quality \textbf{XXX siate precisi, di che metriche parliamo?  XXX}
 responds as the token cap increases for each (model, step) combination.
 The three panels reveal three qualitatively different response profiles.
 
@@ -949,7 +956,7 @@ relative to each model's step baseline.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.82\textwidth]{Images/test03v2_quality_energy_delta.png}
-    \caption{Test~03: quality delta vs.\ energy delta relative to per-step baseline cap.}
+    \caption{Test~03: quality \textbf{XXX quale metrica? XXX }delta vs.\ energy delta relative to per-step baseline cap.}
     \label{fig:test03_qe_delta}
 \end{figure}
 
@@ -1127,7 +1134,7 @@ particularly expensive relative to the expected gain.
 Table~\ref{tab:test04results} reports the CoT aggregate results per (model, step,
 depth), and highlights a clear asymmetry between the two CoT targets.
 For the lookup step, CoT consistently helps: \texttt{gemma4:e4b} gains
-up to $+0.203$ quality at \texttt{cot\_n=4} (with \texttt{csv\_iou}
+up to $+0.203$ quality \textbf{XXX quale?  XXX }at \texttt{cot\_n=4} (with \texttt{csv\_iou}
 rising from~0.757 to~0.983), and \texttt{mistral-\allowbreak small3.2:24b} peaks
 at $+0.063$ at depth~3.
 The numerical peak for Gemma~E4B is therefore depth~4, but this should
@@ -1190,13 +1197,13 @@ substantial enough to justify it.
 \hline
 \end{tabular}%
 }
-\caption{Test~04: CoT aggregate results per (model, step, depth).}
+\caption{Test~04: CoT aggregate results per (model, step, depth). chiarite cosa sono delta quality e delta metrci }
 \label{tab:test04results}
 \end{table}
 
 \subsubsection{Accuracy vs.\ Requested CoT Depth}
 
-Figure~\ref{fig:test04_cot_depth} plots overall pipeline quality against
+Figure~\ref{fig:test04_cot_depth} plots overall pipeline quality \textbf{XXX specificare la metrica XXX }against
 the requested \texttt{cot\_n} value for both steps and both models.
 
 \begin{figure}[H]
@@ -1225,10 +1232,10 @@ correctness, over-edits working code and introduces regressions. This is
 consistent with a broader caution for CoT: self-refinement helps only when the
 model can reliably verify the property being evaluated~\cite{huang2024selfcorrect}.
 
-\subsubsection{Quality-Energy Pareto of CoT Configurations}
+\subsubsection{Quality-Energy Pareto of CoT Configurations  XXX forse qui c'e' un titolo sbagliato non e' un'analisi pareto nella sez precedente riportatvate quality-energy tradeoff XXX}
 
 Figure~\ref{fig:test04_pareto} maps all configurations into the
-$(\Delta\,\text{energy}, \Delta\,\text{quality})$ plane.
+$(\Delta\,\text{energy}, \Delta\,\text{quality})$ plane   \textbf{XXX chiarire quale metrica di qualita'  XXX}.
 
 \begin{figure}[H]
     \centering
@@ -1264,13 +1271,13 @@ Figure~\ref{fig:test04_pareto} with greater resolution.
 The \texttt{csv\_iou} gains for lookup CoT are substantial — up to
 $+0.226$ for \texttt{gemma4:e4b} at depth~4 (and already $+0.197$ at
 depth~2) — confirming that the overall quality improvement seen in the
-pareto is genuinely driven by better data retrieval, not by indirect
+Pareto is genuinely driven by better data retrieval, not by indirect
 effects on other steps.
 Conversely, the \texttt{vis\_score} losses for visualization CoT are
 equally unambiguous: the metric drops at every depth above~1 for both
 models, with no configuration managing to improve chart quality at any
 energy cost.
-The separation is sharper here than in the pareto because the
+The separation is sharper here than in the Pareto because the
 step metric isolates the causal step, removing the dilution from the
 two fixed steps.
 
@@ -1314,6 +1321,10 @@ from the \emph{executed} depth, and reports the early-stop rate.
     \caption{Test~04: mean executed iterations and early-stop rate vs.\ requested \texttt{cot\_n}.}
     \label{fig:test04_earlystop}
 \end{figure}
+
+
+\textbf{XXX aggiungere un plot con effective depth media vs requested CoT depth.  raccontato cosi' e' un po' complicato XXX 
+}
 
 The early-stop behaviour has an important practical implication: for
 both models and the lookup step, \texttt{cot\_n=3} and \texttt{cot\_n=4}
@@ -1398,7 +1409,7 @@ difficulty.
     \label{fig:test04_diff_delta}
 \end{figure}
 
-CoT depth is most effective precisely where the baseline model is weakest. For
+\textbf{XXX specfcare la metrica XXX }CoT depth is most effective precisely where the baseline model is weakest. For
 \texttt{gemma4:e4b} lookup, difficulty-4 prompts benefit from a $+0.524$ quality
 gain at \texttt{cot\_n=3} --- the largest single-slice gain in the entire test
 --- while difficulty-1 prompts show no gain from additional iterations. The same
@@ -1425,7 +1436,7 @@ ranges: narrow $[0.8,1.0]$, medium $[0.6,1.0]$, and wide $[0.3,1.0]$.
 \texttt{lookup\_cot\_n2} is included as a reference because it was the strongest
 lookup intervention identified in Test~04, providing a yardstick against which
 the Best-of-N strategies can be judged.
-
+\textbf{XXX qui non e' chairo.  in tabella sotto riportate solo il primo valore dell'intervallo.  inootre tutti e 3 gli agenti hanno la stessa temperatorua o ognuo ha un valore random diverso picked nell'intervallo?  XXX}
 \begin{table}[H]
 \centering
 \arrayrulecolor{black}
@@ -1465,7 +1476,7 @@ selection margin is zero for all three ranges. This means that candidate
 diversity is present, but the local no-GT selector only weakly exploits it.
 
 The best BoN setting is the medium range $[0.6,1.0]$, which reaches 0.785
-quality and the strongest BoN \texttt{csv\_iou} score (0.867). This confirms
+quality\textbf{ XXX quale ? XXX }and the strongest BoN \texttt{csv\_iou} score (0.867). This confirms
 that range design matters: the narrow range is harmful, while the wide range
 adds diversity without matching the medium range. Yet the Pareto conclusion is
 still negative for deploying BoN as the default lookup repair. A single static
@@ -1494,8 +1505,8 @@ more effective compute-expansion strategy for \texttt{gemma4:e4b}.
     \label{fig:test04b_corrected}
 \end{figure}
 
-As Figure~\ref{fig:test04b_corrected} shows, the Pareto view identifies static
-\texttt{lookup\_temp\_0.8} and \texttt{lookup\_cot\_n2} as the non-dominated
+As Figure~\ref{fig:test04b_corrected} shows, the Pareto \textbf{XXX non e' una pareto view, avete i delta  XXX} view identifies static
+\texttt{lookup\_temp\_0.8} and \texttt{lookup\_cot\_n2} as the non-dominated XXX e qui non potete dire che e' dominato, conforntate seplicemente dicento che il dela energia e' maggiore o minore XXX 
 lookup interventions, while the selector diagnostics confirm that Best-of-N
 still chooses the first candidate in most runs.
 
