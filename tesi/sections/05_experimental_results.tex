@@ -26,6 +26,7 @@ agent step varied. Three repeats per model were collected, yielding
 3~models $\times$ 3~repeats $\times$ 20~prompts $= 180$ benchmark rows.
 
 \subsubsection{Quality Metrics and End-to-End Interpretation}
+\label{subsubsec:qualitymetrics}
 
 The benchmark runner reports a standard \texttt{quality\_mean} defined as the
 arithmetic mean of the three component score means:
@@ -37,9 +38,11 @@ arithmetic mean of the three component score means:
 \end{equation}
 
 
-\textbf{XXX ridire che le metriche base sono gia' tra 0 e 1 altrimenti la formula usata non va bene XXX}
 where the averages are taken over the subset of prompts that produced a
-scorable output for each component. This definition is consistent across
+scorable output for each component. Each of the three component scores is by
+construction bounded to $[0,1]$ (Section~\ref{subsec:evaluation}), so their
+arithmetic mean is itself in $[0,1]$ and can be read directly as an overall
+quality fraction. This definition is consistent across
 all tests and is used for continuity, but it can mask pipeline failures:
 when the lookup step returns an empty or erroneous SQL result, the text
 and visualization agents are never reached, so the resulting missing
@@ -63,7 +66,7 @@ To address this, two additional quality views are used throughout this test:
 \subsubsection{Aggregate Results}
 
 Table~\ref{tab:test01aggregate} summarises the key metrics averaged over the
-three repeats. By official quality \textbf{XXX offical quality e' la formula definita con la 4? indicherei  \texttt{quality\_mean} in modo esplicito XXX} \texttt{mistral-\allowbreak small3.2:24b} leads (0.900)
+three repeats. By the official \texttt{quality\_mean} (Equation~\ref{eq:quality_mean}), \texttt{mistral-\allowbreak small3.2:24b} leads (0.900)
 with \texttt{gemma4:e4b} close behind (0.867), while \texttt{gemma4:26b}
 scores notably lower (0.792) due to a weak visualization component. The
 component E2E metric, which counts missing expected scores as zero, narrows
@@ -238,11 +241,15 @@ expected scores concentrated on a small number of difficult prompts.
 \texttt{mistral-\allowbreak small3.2:24b} & 60 & 60 & 54 & 36 & 0 \T\B \\
 \hline
 \end{tabular}
-\caption{Test~01: pipeline output counts per model over three repeats (42 visualization slots expected per model)  \textbf{XXX le text attese erano 60?  chiarlo nella didascalia o nel testo XXX}.}
+\caption{Test~01: pipeline output counts per model over three repeats.}
 \label{tab:test01completeness}
 \end{table}
 
-Of the 42~visualization slots expected per model (14~per repeat), completion
+Both a CSV table and a text analysis are expected for every prompt, giving
+60~expected slots per model (20~prompts $\times$ 3~repeats); a visualization,
+by contrast, is expected for only 42~slots, since just 14 of the 20 prompts
+request a chart (14~per repeat). All CSV slots complete, text completion is
+54--58 of 60, and of the 42~visualization slots expected per model completion
 ranges from 85.7\,\% for \texttt{mistral-\allowbreak small3.2:24b} (36 of 42) to
 95.2\,\% for \texttt{gemma4:26b} (40 of 42). Missing expected score slots
 are concentrated on difficulty-4 prompts: \texttt{mistral-\allowbreak small3.2:24b}
@@ -425,7 +432,7 @@ quality when varying a single step.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.65\textwidth]{Images/test02v2_sensitivity_range_by_step.png}
-    \caption{Test~02: sensitivity range (best-minus-worst quality delta) by step and model.}
+    \caption{Test~02: sensitivity range (best-minus-worst prompt E2E quality delta) by step and model.}
     \label{fig:test02_range}
 \end{figure}
 
@@ -458,7 +465,7 @@ quality when varying a single step.
 \hline
 \end{tabular}%
 }
-\caption{Test~02: sensitivity range and best/worst quality cap per (model, step).}
+\caption{Test~02: sensitivity range and best/worst prompt E2E quality configuration per (model, step).}
 \label{tab:test02range}
 \end{table}
 
@@ -486,7 +493,7 @@ red cells indicate that the best achievable value still degraded it.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.82\textwidth]{Images/test02v2_quality_delta_heatmap.png}
-    \caption{Test~02: best quality delta per (step, parameter) pair for all runs.}
+    \caption{Test~02: best prompt E2E quality delta per (step, parameter) pair across all runs.}
     \label{fig:test02_quality_heatmap}
 \end{figure}
 
@@ -543,12 +550,14 @@ floor and should not be over-interpreted as structural gains.
 Figure~\ref{fig:test02_pareto} plots every tested configuration as a
 point in the $(\Delta \text{energy}, \Delta \text{quality})$ plane,
 providing a simultaneous view of whether quality-improving configurations
-also save or cost energy.
-\textbf{XXX qualita' diretta?  chiarire XXX}
+also save or cost energy. Here \emph{quality} is the prompt-level
+end-to-end quality (Prompt E2E quality, Section~\ref{subsubsec:qualitymetrics}),
+which counts missing downstream outputs as zero, and not the direct step
+metric (\texttt{csv\_iou}, \texttt{text\_score}, or \texttt{vis\_score}).
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.90\textwidth]{Images/test02v2_quality_energy_delta_pareto.png}
-    \caption{Test~02: quality delta vs.\ energy delta per OFAT configuration.}
+    \caption{Test~02: prompt E2E quality delta vs.\ energy delta per OFAT configuration.}
     \label{fig:test02_pareto}
 \end{figure}
 
@@ -637,7 +646,7 @@ and latency delta.
 \hline
 \end{tabular}%
 }
-\caption{Test~02: top quality-improving and quality-degrading OFAT configurations.}
+\caption{Test~02: top prompt E2E quality-improving and quality-degrading OFAT configurations.}
 \label{tab:test02bestworst}
 \end{table}
 
@@ -709,14 +718,15 @@ whether parameter sensitivity is uniform across prompt difficulty levels.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.90\textwidth]{Images/test02v2_difficulty_baseline_quality.png}
-    \caption{Test~02: baseline quality \textbf{XXX cahirire qualita' diretta' iou/text e vis score? credo di si ma meglio essere espliciti XXXX} by prompt difficulty for each model and agent step.}
+    \caption{Test~02: baseline prompt-level end-to-end quality (Prompt E2E
+    quality) by prompt difficulty for each model and agent step.}
     \label{fig:test02_diff_baseline}
 \end{figure}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.90\textwidth]{Images/test02v2_difficulty_best_delta_heatmap.png}
-    \caption{Test~02: best parameter delta by prompt difficulty (heatmap).}
+    \caption{Test~02: best prompt E2E quality delta by prompt difficulty (heatmap).}
     \label{fig:test02_diff_delta}
 \end{figure}
 
@@ -783,11 +793,24 @@ in isolation, using four discrete values per step. Unlike the sampling
 parameters tested in Test~02, \texttt{max\_tokens} acts as a hard
 output-length ceiling: the model is forced to stop generating once the
 budget is exhausted, potentially truncating incomplete SQL queries,
-analysis paragraphs, or visualization code. All three models have
-complete data for this test (3~repeats $\times$ 12~configs $\times$
-10~prompts = 360~rows each).  \textbf{XXX cosa intendete con questa ultima frase?  i modelli vengon o considerati con le configurazioni top p, k temperaturea, ecc fissati, giusto?  ribadirlo XXX}
+analysis paragraphs, or visualization code. Throughout the sweep the other
+sampling parameters (temperature, top-$p$, top-$k$) are kept at their baseline
+values, so that any observed effect can be attributed to the token budget
+alone; when one step's cap is varied, the two non-varied steps are given a
+generous cap so that they never become the bottleneck. The test is run on a
+10-prompt subset of the 20 benchmark prompts, evaluated over 12 configurations
+for three repeats per model ($3~\text{repeats} \times 12~\text{configs} \times
+10~\text{prompts} = 360$ scored prompt runs per model).
 
 \subsubsection{Token Caps Tested}
+
+Table~\ref{tab:test03caps} lists the four \texttt{max\_tokens} levels swept for
+each agent step. The levels are not arbitrary: each ladder brackets the step's
+baseline cap---the models' operating default already used in Tests~01 and~02
+(underlined)---with two lower values, which probe the budget at which outputs
+begin to be truncated, and one higher value, which checks whether additional
+headroom yields any further gain. The full rationale for isolating
+\texttt{max\_tokens} in this way is given in Section~\ref{subsec:test03}.
 
 \begin{table}[H]
 \centering
@@ -805,23 +828,19 @@ complete data for this test (3~repeats $\times$ 12~configs $\times$
 \hline
 \end{tabular}
 \caption{Test~03: \texttt{max\_tokens} values tested per agent step (baseline underlined).}
-
-
-\textbf{XXXX non lascaite il paragrafo vuoto, mettete del testo minimale che punta alla tabella, dare le motivazioni.  avete fatto una analisi esplorativa iniziale e poi fissati i valori?
-XXX}
 \label{tab:test03caps}
 \end{table}
 
 \subsubsection{Quality Ladder by Model and Step}
 
-Figure~\ref{fig:test03_quality_ladder} shows how overall pipeline quality \textbf{XXX siate precisi, di che metriche parliamo?  XXX}
+Figure~\ref{fig:test03_quality_ladder} shows how overall prompt E2E quality (Section~\ref{subsubsec:qualitymetrics})
 responds as the token cap increases for each (model, step) combination.
 The three panels reveal three qualitatively different response profiles.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{Images/test03v2_quality_ladder_by_model.png}
-    \caption{Test~03: pipeline quality vs.\ \texttt{max\_tokens} by model and agent step.}
+    \caption{Test~03: prompt E2E quality vs.\ \texttt{max\_tokens} by model and agent step.}
     \label{fig:test03_quality_ladder}
 \end{figure}
 
@@ -956,7 +975,7 @@ relative to each model's step baseline.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.82\textwidth]{Images/test03v2_quality_energy_delta.png}
-    \caption{Test~03: quality \textbf{XXX quale metrica? XXX }delta vs.\ energy delta relative to per-step baseline cap.}
+    \caption{Test~03: prompt E2E quality delta vs.\ energy delta relative to per-step baseline cap.}
     \label{fig:test03_qe_delta}
 \end{figure}
 
@@ -1134,7 +1153,7 @@ particularly expensive relative to the expected gain.
 Table~\ref{tab:test04results} reports the CoT aggregate results per (model, step,
 depth), and highlights a clear asymmetry between the two CoT targets.
 For the lookup step, CoT consistently helps: \texttt{gemma4:e4b} gains
-up to $+0.203$ quality \textbf{XXX quale?  XXX }at \texttt{cot\_n=4} (with \texttt{csv\_iou}
+up to $+0.203$ prompt E2E quality at \texttt{cot\_n=4} (with \texttt{csv\_iou}
 rising from~0.757 to~0.983), and \texttt{mistral-\allowbreak small3.2:24b} peaks
 at $+0.063$ at depth~3.
 The numerical peak for Gemma~E4B is therefore depth~4, but this should
@@ -1197,19 +1216,23 @@ substantial enough to justify it.
 \hline
 \end{tabular}%
 }
-\caption{Test~04: CoT aggregate results per (model, step, depth). chiarite cosa sono delta quality e delta metrci }
+\caption{Test~04: CoT aggregate results per (model, step, depth). \emph{Delta
+quality} is the change in prompt E2E quality (Section~\ref{subsubsec:qualitymetrics})
+and \emph{delta metric} the change in the step's direct metric (\texttt{csv\_iou}
+for lookup, \texttt{vis\_score} for visualization), both relative to the
+\texttt{cot\_n=1} baseline.}
 \label{tab:test04results}
 \end{table}
 
 \subsubsection{Accuracy vs.\ Requested CoT Depth}
 
-Figure~\ref{fig:test04_cot_depth} plots overall pipeline quality \textbf{XXX specificare la metrica XXX }against
+Figure~\ref{fig:test04_cot_depth} plots overall prompt E2E quality against
 the requested \texttt{cot\_n} value for both steps and both models.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.88\textwidth]{Images/test04v2_accuracy_vs_cot_depth.png}
-    \caption{Test~04: pipeline quality as a function of requested \texttt{cot\_n}.}
+    \caption{Test~04: prompt E2E quality as a function of requested \texttt{cot\_n}.}
     \label{fig:test04_cot_depth}
 \end{figure}
 
@@ -1232,15 +1255,15 @@ correctness, over-edits working code and introduces regressions. This is
 consistent with a broader caution for CoT: self-refinement helps only when the
 model can reliably verify the property being evaluated~\cite{huang2024selfcorrect}.
 
-\subsubsection{Quality-Energy Pareto of CoT Configurations  XXX forse qui c'e' un titolo sbagliato non e' un'analisi pareto nella sez precedente riportatvate quality-energy tradeoff XXX}
+\subsubsection{Quality-Energy Trade-off of CoT Configurations}
 
 Figure~\ref{fig:test04_pareto} maps all configurations into the
-$(\Delta\,\text{energy}, \Delta\,\text{quality})$ plane   \textbf{XXX chiarire quale metrica di qualita'  XXX}.
+$(\Delta\,\text{energy}, \Delta\,\text{quality})$ plane, where \emph{quality} denotes the prompt E2E quality of Section~\ref{subsubsec:qualitymetrics}.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{Images/test04v2_compute_expansion_pareto.png}
-    \caption{Test~04: quality delta vs.\ energy delta per CoT configuration.}
+    \caption{Test~04: prompt E2E quality delta vs.\ energy delta per CoT configuration.}
     \label{fig:test04_pareto}
 \end{figure}
 
@@ -1271,13 +1294,13 @@ Figure~\ref{fig:test04_pareto} with greater resolution.
 The \texttt{csv\_iou} gains for lookup CoT are substantial — up to
 $+0.226$ for \texttt{gemma4:e4b} at depth~4 (and already $+0.197$ at
 depth~2) — confirming that the overall quality improvement seen in the
-Pareto is genuinely driven by better data retrieval, not by indirect
+trade-off plot is genuinely driven by better data retrieval, not by indirect
 effects on other steps.
 Conversely, the \texttt{vis\_score} losses for visualization CoT are
 equally unambiguous: the metric drops at every depth above~1 for both
 models, with no configuration managing to improve chart quality at any
 energy cost.
-The separation is sharper here than in the Pareto because the
+The separation is sharper here than in the trade-off plot because the
 step metric isolates the causal step, removing the dilution from the
 two fixed steps.
 
@@ -1299,7 +1322,7 @@ The cost multiplier grows incrementally with \texttt{cot\_n}: each
 and energy, so on a per-iteration basis the cost is predictable, with no
 unexpected spikes or diminishing overhead. The growth is, however,
 sub-linear in the \emph{requested} depth rather than proportional to it.
-Because of the early-stop mechanism (Figure~\ref{fig:test04_earlystop},
+Because of the early-stop mechanism (Figure~\ref{fig:test04_effective_depth},
 Table~\ref{tab:test04earlystop}) the executed depth saturates near~2, so
 requesting depth~3 or~4 only marginally increases the realised cost over
 depth~2: \texttt{gemma4:e4b} lookup energy rises from $0.00346$ to
@@ -1312,39 +1335,37 @@ with the requested value.
 
 \subsubsection{CoT Execution Depth and Early Stops}
 
-Figure~\ref{fig:test04_earlystop} separates the \emph{requested} depth
-from the \emph{executed} depth, and reports the early-stop rate.
+Figure~\ref{fig:test04_effective_depth} plots the mean \emph{executed}
+(effective) CoT depth against the \emph{requested} depth for each model--step
+pair; the corresponding step-execution and early-stop rates behind this
+behaviour are reported in Table~\ref{tab:test04earlystop}.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth]{Images/test04v2_cot_execution_diagnostics_corrected.png}
-    \caption{Test~04: mean executed iterations and early-stop rate vs.\ requested \texttt{cot\_n}.}
-    \label{fig:test04_earlystop}
+    \includegraphics[width=0.85\textwidth]{Images/test04v2_effective_depth_vs_requested}
+    \caption{Test~04: mean effective (executed) CoT depth vs.\ requested
+    \texttt{cot\_n}.}
+    \label{fig:test04_effective_depth}
 \end{figure}
 
-
-\textbf{XXX aggiungere un plot con effective depth media vs requested CoT depth.  raccontato cosi' e' un po' complicato XXX 
-}
-
-The early-stop behaviour has an important practical implication: for
+As the figure shows, the executed depth tracks the request only up to
+\texttt{cot\_n}~2 and then plateaus near~2--2.7, so the requested depth is
+largely an upper bound rather than the computation actually performed. This
+plateau has an important practical implication: for
 both models and the lookup step, \texttt{cot\_n=3} and \texttt{cot\_n=4}
 often reduce to \texttt{cot\_n=2} in practice. The quality difference
 between \texttt{cot\_n=2} and \texttt{cot\_n=4} for Gemma~E4B lookup
 ($+0.185$ vs.\ $+0.203$) is therefore partially a noise effect rather
-than a genuine depth benefit. The early stop is also the mechanism that
-explains why \texttt{vis\_cot\_n4} partially recovers from the catastrophic
-result of \texttt{vis\_cot\_n3}: at requested depth~4, more runs exit
-early and avoid the harmful third iteration.
+than a genuine depth benefit.
 
-The diagnostic table is important because it avoids mixing two denominators
-for visualization: all benchmark rows versus only the rows where visualization
-CoT actually executed. The table below uses the latter denominator for
-early-stop and full-depth rates. Under this
-definition, high requested depths are even less attractive than they first
-appeared. For Gemma~E4B lookup, \texttt{cot\_n=4} stops early in
-86.7\,\% of executed rows; for Mistral lookup, the early-stop rate is
-90.0\,\%. The requested depth is therefore mostly an upper bound, not a
-description of the computation actually performed.
+The early-stop and full-depth rates in the table are computed only over the
+runs where the CoT loop actually ran. This matters for visualization, whose
+step executes only for the prompts that request a chart: restricting to those
+runs measures how the refinement loop actually behaves, rather than diluting the
+rates with prompts that never trigger the step. Seen this way, high requested
+depths are even less attractive than they first appeared: for Gemma~E4B lookup,
+\texttt{cot\_n=4} stops early in 86.7\,\% of executed runs, and for Mistral
+lookup the early-stop rate is 90.0\,\%.
 
 Table~\ref{tab:test04earlystop} summarises the execution diagnostics.
 
@@ -1405,12 +1426,12 @@ difficulty.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.90\textwidth]{Images/test04v2_difficulty_best_cot_delta.png}
-    \caption{Test~04: best CoT delta by prompt difficulty.}
+    \caption{Test~04: best CoT prompt E2E quality delta by prompt difficulty.}
     \label{fig:test04_diff_delta}
 \end{figure}
 
-\textbf{XXX specfcare la metrica XXX }CoT depth is most effective precisely where the baseline model is weakest. For
-\texttt{gemma4:e4b} lookup, difficulty-4 prompts benefit from a $+0.524$ quality
+CoT depth is most effective precisely where the baseline model is weakest. For
+\texttt{gemma4:e4b} lookup, difficulty-4 prompts benefit from a $+0.524$ prompt E2E quality
 gain at \texttt{cot\_n=3} --- the largest single-slice gain in the entire test
 --- while difficulty-1 prompts show no gain from additional iterations. The same
 asymmetry holds for \texttt{mistral-\allowbreak small3.2:24b}: difficulty-4 lookup gains
@@ -1426,17 +1447,28 @@ visualization CoT should not be deployed.
 \subsubsection{Lookup Best-of-N Range Check (Test~04b)}
 \label{subsec:res04b}
 
-Test~04b is a targeted follow-up run exclusively on \texttt{gemma4:e4b},
-comparing static temperature settings, Best-of-3 temperature ranges
-(BoN), and \texttt{lookup\_cot\_n2} as a reference
-(3~repeats $\times$ 8~configs $\times$ 10~prompts = 240~rows).
-The Best-of-3 design uses three candidates so that the pairwise no-GT selector
-faces a genuine multi-candidate ranking problem, and tests three temperature
-ranges: narrow $[0.8,1.0]$, medium $[0.6,1.0]$, and wide $[0.3,1.0]$.
-\texttt{lookup\_cot\_n2} is included as a reference because it was the strongest
-lookup intervention identified in Test~04, providing a yardstick against which
-the Best-of-N strategies can be judged.
-\textbf{XXX qui non e' chairo.  in tabella sotto riportate solo il primo valore dell'intervallo.  inootre tutti e 3 gli agenti hanno la stessa temperatorua o ognuo ha un valore random diverso picked nell'intervallo?  XXX}
+Test~04b is a targeted follow-up run exclusively on \texttt{gemma4:e4b} that
+compares three families of lookup strategy on a common 10-prompt subset
+(3~repeats $\times$ 8~configs $\times$ 10~prompts $= 240$ scored rows): static
+temperature settings, Best-of-3 temperature ranges (BoN), and
+\texttt{lookup\_cot\_n2} as a reference.
+
+Each \texttt{static temp} configuration fixes a single temperature for the
+lookup step ($n=1$); the tested values $0.3$, $0.6$, and $0.8$ are exactly the
+lower endpoints---the first candidate---of the wide, medium, and narrow ranges,
+so that a fixed temperature can be compared directly against the full range that
+starts from it. Each \texttt{BoN range} configuration instead generates three
+lookup candidates ($n=3$), so that the pairwise no-GT selector faces a genuine
+multi-candidate ranking problem and then picks one of the three as the step
+output. The three candidate temperatures are neither identical nor drawn at
+random: they are placed at deterministic, evenly spaced points across the
+interval. Three ranges are
+tested---narrow $[0.8,1.0]$, medium $[0.6,1.0]$, and wide $[0.3,1.0]$---giving,
+for example, candidate temperatures of $0.8/0.9/1.0$, $0.6/0.8/1.0$, and
+$0.3/0.65/1.0$ respectively. Finally, \texttt{lookup\_cot\_n2} is included as a
+reference because it was the strongest lookup intervention identified in
+Test~04, providing a yardstick against which the Best-of-N strategies can be
+judged.
 \begin{table}[H]
 \centering
 \arrayrulecolor{black}
@@ -1476,9 +1508,9 @@ selection margin is zero for all three ranges. This means that candidate
 diversity is present, but the local no-GT selector only weakly exploits it.
 
 The best BoN setting is the medium range $[0.6,1.0]$, which reaches 0.785
-quality\textbf{ XXX quale ? XXX }and the strongest BoN \texttt{csv\_iou} score (0.867). This confirms
+prompt E2E quality and the strongest BoN \texttt{csv\_iou} score (0.867). This confirms
 that range design matters: the narrow range is harmful, while the wide range
-adds diversity without matching the medium range. Yet the Pareto conclusion is
+adds diversity without matching the medium range. Yet the overall conclusion is
 still negative for deploying BoN as the default lookup repair. A single static
 \texttt{lookup\_temp\_0.8} setting is the best low-cost point, increasing
 quality by $+0.053$ while using slightly less measured energy than baseline.
@@ -1500,15 +1532,18 @@ more effective compute-expansion strategy for \texttt{gemma4:e4b}.
         \centering
         \includegraphics[width=\linewidth]{Images/test04b_v2_lookup_bon_selection.png}
     \end{minipage}
-    \caption{Test~04b Best-of-3 analysis: quality--energy Pareto view (left)
+    \caption{Test~04b Best-of-3 analysis: quality--energy (delta) view (left)
     and no-GT selector diagnostics (right).}
     \label{fig:test04b_corrected}
 \end{figure}
 
-As Figure~\ref{fig:test04b_corrected} shows, the Pareto \textbf{XXX non e' una pareto view, avete i delta  XXX} view identifies static
-\texttt{lookup\_temp\_0.8} and \texttt{lookup\_cot\_n2} as the non-dominated XXX e qui non potete dire che e' dominato, conforntate seplicemente dicento che il dela energia e' maggiore o minore XXX 
-lookup interventions, while the selector diagnostics confirm that Best-of-N
-still chooses the first candidate in most runs.
+As Figure~\ref{fig:test04b_corrected} shows, the quality--energy (delta) view
+highlights static \texttt{lookup\_temp\_0.8} and \texttt{lookup\_cot\_n2} as the
+two most favourable lookup interventions: \texttt{lookup\_temp\_0.8} improves
+quality while slightly \emph{lowering} energy relative to the baseline, whereas
+\texttt{lookup\_cot\_n2} reaches the highest quality but at a \emph{higher}
+energy cost. The selector diagnostics, meanwhile, confirm that Best-of-N still
+chooses the first candidate in most runs.
 
 \subsubsection{Summary}
 
