@@ -1,0 +1,75 @@
+# RL validation - delayed-reward scenario, Prompt7 only (test_case_id 7 in
+# evaluation/benchmark_dataset.json).
+#
+# Executes the aimp choices of the delayed-reward RL agent (RL_delayed_reward.json)
+# as a mixed-model pipeline. Per-step (model, config) choice and the effective
+# parameters taken from that config's definition for that step:
+#
+#   Lookup_SQL:     gemma4:26b        vis_tokens_16000          -> max_tokens 8000, temp 1.0 (post-submission 26b visualization repair manifest)
+#   Analysis:       mistral-small3.2  lookup_repeat_penalty_1p3 -> repeat_penalty 1.1, repeat_last_n 64, temp 0.15 (mistral reused_test05 manifest)
+#   Visualization:  mistral-small3.2  lookup_cot_n4             -> mistral baseline, temp 0.15 (config only varies lookup)
+#
+# The decide_tool router uses the global --model (mistral-small3.2:24b); the
+# lookup step overrides the model via its step-level `model` field.
+#
+# Use with:
+#   --model mistral-small3.2:24b
+#   --dataset evaluation/benchmark_dataset_rl_validation_p7.json
+
+defaults:
+  lookup_sales_data:
+    model: "gemma4:26b"
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 8000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  analyzing_data:
+    model: "mistral-small3.2:24b"
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    repeat_penalty: 1.1
+    repeat_last_n: 64
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  create_visualization:
+    model: "mistral-small3.2:24b"
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: rl_delayed_reward_p7
+    vary_step: all_steps
+    axis: rl_validation
+    description: "Delayed-reward RL choice for Prompt7: 26b lookup (vis_tokens_16000) + mistral analysis (lookup_repeat_penalty_1p3) + mistral visualization (lookup_cot_n4)."
+    steps: {}

@@ -1,0 +1,94 @@
+[
+  {
+    "prompt": "Show the top 8 stores by total units sold in 2022 as a bar chart, identifying each store by its store number",
+    "visualization_goal": "Bar chart of the top 8 stores ranked by total units sold in 2022",
+    "gt_sql": "SELECT Store_Number, SUM(Qty_Sold) AS total_units FROM sales WHERE EXTRACT(YEAR FROM CAST(Sold_Date AS DATE)) = 2022 GROUP BY Store_Number ORDER BY total_units DESC, Store_Number ASC LIMIT 8",
+    "gt_data": "Store_Number,total_units\n2970,23580.0\n3300,19158.0\n1650,17778.0\n1210,17158.0\n1320,17013.0\n3080,16717.0\n1100,15968.0\n1540,14517.0\n",
+    "gt_analysis": "The top row is 2970.0 with 23,580.00, while the last returned row is 1540.0 with 14,517.00.",
+    "gt_chart_config": {
+      "chart_type": "bar",
+      "x_axis": "Store_Number",
+      "y_axis": "total_units",
+      "title": "Top 8 Stores by Units Sold (2022)"
+    },
+    "gt_chart_code": "import matplotlib.pyplot as plt\nimport pandas as pd\n\nx_data = data_df[config['x_axis']]\ny_data = data_df[config['y_axis']]\n\nplt.bar(x_data, y_data, color='steelblue')\nplt.xlabel(config['x_axis'])\nplt.ylabel(config['y_axis'])\nplt.title(config['title'])\nplt.xticks(rotation=30, ha='right')\nplt.grid(axis='y', alpha=0.3)\nplt.tight_layout()\nplt.show()",
+    "explicit_requirements": {
+      "color": null,
+      "title_format": null,
+      "label_format": null,
+      "grid": null,
+      "markers": null
+    },
+    "difficulty": 1,
+    "source_test_case_id": 7
+  },
+  {
+    "prompt": "Show monthly revenue for product class code 22975 in 2022 as a line chart",
+    "visualization_goal": "Line chart showing monthly revenue for product class code 22975 in 2022",
+    "gt_sql": "SELECT DATE_TRUNC('month', CAST(Sold_Date AS DATE)) AS month_start, ROUND(SUM(Total_Sale_Value), 2) AS total_revenue FROM sales WHERE EXTRACT(YEAR FROM CAST(Sold_Date AS DATE)) = 2022 AND Product_Class_Code = 22975 GROUP BY month_start ORDER BY month_start ASC",
+    "gt_data": "month_start,total_revenue\n2022-01-01,109375.06\n2022-02-01,104525.62\n2022-03-01,107997.17\n2022-04-01,93714.22\n2022-05-01,82721.25\n2022-06-01,74547.65\n2022-07-01,73802.56\n2022-08-01,89880.8\n2022-09-01,100250.83\n2022-10-01,91346.61\n2022-11-01,85311.64\n2022-12-01,122319.24\n",
+    "gt_analysis": "Monthly revenue for product class 22975 in 2022 ranges from $73,802.56 (July) to $122,319.24 (December), with a mid-year trough and a strong year-end peak.",
+    "gt_chart_config": {
+      "chart_type": "line",
+      "x_axis": "month_start",
+      "y_axis": "total_revenue",
+      "title": "Monthly Revenue for Product Class 22975 (2022)"
+    },
+    "gt_chart_code": "import matplotlib.pyplot as plt\nimport pandas as pd\n\nx_data = data_df[config['x_axis']]\ny_data = data_df[config['y_axis']]\n\nplt.plot(x_data, y_data, marker='o')\nplt.xlabel(config['x_axis'])\nplt.ylabel(config['y_axis'])\nplt.title(config['title'])\nplt.xticks(rotation=45, ha='right')\nplt.grid(True, alpha=0.3)\nplt.tight_layout()\nplt.show()",
+    "explicit_requirements": {
+      "color": null,
+      "title_format": null,
+      "label_format": null,
+      "grid": null,
+      "markers": null
+    },
+    "difficulty": 2,
+    "source_test_case_id": 10
+  },
+  {
+    "prompt": "Show total revenue by store type for 2023 as a bar chart",
+    "visualization_goal": "Bar chart showing total 2023 revenue by store type",
+    "gt_sql": "SELECT st.store_type, ROUND(SUM(s.Total_Sale_Value), 2) AS total_revenue FROM sales s JOIN stores st ON s.Store_Number = st.Store_Number WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) = 2023 GROUP BY st.store_type ORDER BY total_revenue DESC, st.store_type ASC",
+    "gt_data": "store_type,total_revenue\nSupermarket,1938262.7\nDiscount,1574739.14\nHypermarket,1188793.49\nConvenience,714323.6\n",
+    "gt_analysis": "Supermarket leads the result set with 1,938,262.70 for total_revenue.",
+    "gt_chart_config": {
+      "chart_type": "bar",
+      "x_axis": "store_type",
+      "y_axis": "total_revenue",
+      "title": "Total Revenue by Store Type (2023)"
+    },
+    "gt_chart_code": "import matplotlib.pyplot as plt\nimport pandas as pd\n\nx_data = data_df[config['x_axis']]\ny_data = data_df[config['y_axis']]\n\nplt.bar(x_data, y_data, color='steelblue')\nplt.xlabel(config['x_axis'])\nplt.ylabel(config['y_axis'])\nplt.title(config['title'])\nplt.xticks(rotation=30, ha='right')\nplt.grid(axis='y', alpha=0.3)\nplt.tight_layout()\nplt.show()",
+    "explicit_requirements": {
+      "color": null,
+      "title_format": null,
+      "label_format": null,
+      "grid": null,
+      "markers": null
+    },
+    "difficulty": 3,
+    "source_test_case_id": 12
+  },
+  {
+    "prompt": "Show promo revenue share by product category for 2023 as a bar chart, expressing the share as a percentage of total revenue",
+    "visualization_goal": "Bar chart showing the share of revenue generated under promotion for each product category in 2023",
+    "gt_sql": "SELECT p.category, ROUND(SUM(CASE WHEN s.On_Promo = 1 THEN s.Total_Sale_Value ELSE 0 END) / NULLIF(SUM(s.Total_Sale_Value), 0) * 100, 2) AS promo_revenue_share FROM sales s JOIN products p ON s.SKU_Coded = p.SKU_Coded WHERE EXTRACT(YEAR FROM CAST(s.Sold_Date AS DATE)) = 2023 GROUP BY p.category ORDER BY promo_revenue_share DESC, p.category ASC",
+    "gt_data": "category,promo_revenue_share\nSnacks,6.26\nDairy,5.0\nPersonal Care,1.9\nBakery,0.21\nBeverages,0.0\nHousehold,0.0\n",
+    "gt_analysis": "Snacks leads with 6.26% promo revenue share, followed by Dairy (5.0%) and Personal Care (1.9%). Beverages and Household have no promo sales.",
+    "gt_chart_config": {
+      "chart_type": "bar",
+      "x_axis": "category",
+      "y_axis": "promo_revenue_share",
+      "title": "Promo Revenue Share by Category (2023)"
+    },
+    "gt_chart_code": "import matplotlib.pyplot as plt\nimport pandas as pd\n\nx_data = data_df[config['x_axis']]\ny_data = data_df[config['y_axis']]\n\nplt.bar(x_data, y_data, color='steelblue')\nplt.xlabel(config['x_axis'])\nplt.ylabel(config['y_axis'])\nplt.title(config['title'])\nplt.xticks(rotation=30, ha='right')\nplt.grid(axis='y', alpha=0.3)\nplt.tight_layout()\nplt.show()",
+    "explicit_requirements": {
+      "color": null,
+      "title_format": null,
+      "label_format": null,
+      "grid": null,
+      "markers": null
+    },
+    "difficulty": 4,
+    "source_test_case_id": 18
+  }
+]

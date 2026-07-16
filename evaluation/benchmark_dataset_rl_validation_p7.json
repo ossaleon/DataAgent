@@ -1,0 +1,25 @@
+[
+  {
+    "prompt": "Show the top 8 stores by total units sold in 2022 as a bar chart, identifying each store by its store number",
+    "visualization_goal": "Bar chart of the top 8 stores ranked by total units sold in 2022",
+    "gt_sql": "SELECT Store_Number, SUM(Qty_Sold) AS total_units FROM sales WHERE EXTRACT(YEAR FROM CAST(Sold_Date AS DATE)) = 2022 GROUP BY Store_Number ORDER BY total_units DESC, Store_Number ASC LIMIT 8",
+    "gt_data": "Store_Number,total_units\n2970,23580.0\n3300,19158.0\n1650,17778.0\n1210,17158.0\n1320,17013.0\n3080,16717.0\n1100,15968.0\n1540,14517.0\n",
+    "gt_analysis": "The top row is 2970.0 with 23,580.00, while the last returned row is 1540.0 with 14,517.00.",
+    "gt_chart_config": {
+      "chart_type": "bar",
+      "x_axis": "Store_Number",
+      "y_axis": "total_units",
+      "title": "Top 8 Stores by Units Sold (2022)"
+    },
+    "gt_chart_code": "import matplotlib.pyplot as plt\nimport pandas as pd\n\nx_data = data_df[config['x_axis']]\ny_data = data_df[config['y_axis']]\n\nplt.bar(x_data, y_data, color='steelblue')\nplt.xlabel(config['x_axis'])\nplt.ylabel(config['y_axis'])\nplt.title(config['title'])\nplt.xticks(rotation=30, ha='right')\nplt.grid(axis='y', alpha=0.3)\nplt.tight_layout()\nplt.show()",
+    "explicit_requirements": {
+      "color": null,
+      "title_format": null,
+      "label_format": null,
+      "grid": null,
+      "markers": null
+    },
+    "difficulty": 1,
+    "source_test_case_id": 7
+  }
+]

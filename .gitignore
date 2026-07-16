@@ -50,3 +50,6 @@ codecarbon
 # Local benchmark outputs
 runs/
 output/
+
+# Temp folder
+temp/

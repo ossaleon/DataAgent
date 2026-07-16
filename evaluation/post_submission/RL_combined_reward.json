@@ -1,0 +1,20 @@
+{"RL_choice": {
+                    "Prompt7":{"Lookup_SQL": {"model": "gemma4:e4b", "configuration": "analysis_max_tokens_5000"},
+                               "Analysis": {"model": "mistral-small3.2:24b", "configuration": "lookup_cot_n4"},
+                               "Visualization": {"model": "mistral-small3.2:24b", "configuration": "lookup_cot_n3"}
+                                },
+                    "Prompt10":{"Lookup_SQL": {"model": "gemma4:e4b", "configuration": "visualization_max_tokens_4000"},
+                               "Analysis": {"model": "mistral-small3.2:24b", "configuration": "lookup_cot_n4"},
+                               "Visualization": {"model": "mistral-small3.2:24b", "configuration": "lookup_cot_n3"}
+                                },
+                    "Prompt12":{"Lookup_SQL": {"model": "gemma4:e4b", "configuration": "visualization_max_tokens_4000"},
+                               "Analysis": {"model": "mistral-small3.2:24b", "configuration": "lookup_cot_n4"},
+                               "Visualization": {"model": "mistral-small3.2:24b", "configuration": "lookup_cot_n3"}
+                                },
+                    "Prompt18":{"Lookup_SQL": {"model": "gemma4:e4b", "configuration": "analysis_max_tokens_5000"},
+                               "Analysis": {"model": "mistral-small3.2:24b", "configuration": "lookup_cot_n4"},
+                               "Visualization": {"model": "mistral-small3.2:24b", "configuration": "baseline"}
+                                }
+
+                }
+                }

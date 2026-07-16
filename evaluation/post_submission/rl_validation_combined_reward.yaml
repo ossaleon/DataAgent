@@ -1,0 +1,77 @@
+# RL validation - combined-reward scenario, Prompt7/10/12/18 (test_case_id 7,
+# 10, 12 and 18 in evaluation/benchmark_dataset.json).
+#
+# Executes the aimp choices of the combined-reward RL agent (RL_combined_reward.json)
+# as a mixed-model pipeline. Per-step (model, config) choice and the effective
+# parameters taken from that config's definition for that step:
+#
+#   Lookup_SQL:     gemma4:e4b        analysis_max_tokens_5000 / visualization_max_tokens_4000 -> max_tokens 8000, temp 1.0 (both set lookup max_tokens=8000; e4b reused_test05 manifest)
+#   Analysis:       mistral-small3.2  lookup_cot_n4                                            -> mistral baseline, temp 0.15 (config only varies lookup)
+#   Visualization:  mistral-small3.2  lookup_cot_n3 / baseline                                 -> mistral baseline, temp 0.15
+#
+# The per-prompt choices differ only in config *names*; the effective parameters
+# are identical for all four prompts, so they share this single configuration
+# (confirmed by Hamta).
+#
+# The decide_tool router uses the global --model (mistral-small3.2:24b); the
+# lookup step overrides the model via its step-level `model` field.
+#
+# Use with:
+#   --model mistral-small3.2:24b
+#   --dataset evaluation/benchmark_dataset_rl_validation.json
+
+defaults:
+  lookup_sales_data:
+    model: "gemma4:e4b"
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 1.0
+    temp_max: 1.0
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 8000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  analyzing_data:
+    model: "mistral-small3.2:24b"
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+  create_visualization:
+    model: "mistral-small3.2:24b"
+    n: 1
+    cot_n: 1
+    bon_param: "temperature"
+    temp_min: 0.15
+    temp_max: 0.15
+    top_p_min: 0.95
+    top_p_max: 0.95
+    top_k_min: 64
+    top_k_max: 64
+    max_tokens: 7000
+    num_beams: 1
+    no_repeat_ngram_size: null
+    use_cache: false
+
+configs:
+  - name: rl_combined_reward
+    vary_step: all_steps
+    axis: rl_validation
+    description: "Combined-reward RL choice for Prompt7/10/12/18: e4b lookup (max_tokens 8000) + mistral analysis (baseline) + mistral visualization (baseline)."
+    steps: {}
